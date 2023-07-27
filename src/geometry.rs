@@ -1,4 +1,6 @@
 pub mod bounds3;
+pub mod matrix4x4;
+pub mod normal3;
 pub mod point2;
 pub mod point3;
 pub mod ray;

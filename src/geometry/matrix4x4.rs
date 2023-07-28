@@ -8,6 +8,15 @@ pub struct Matrix4x4 {
 }
 
 impl Matrix4x4 {
+    pub const IDENTITY: Self = Self {
+        m: [
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ],
+    };
+
     /// Construct a new matrix with the given values.
     pub fn new(mat: [[Float; 4]; 4]) -> Self {
         Self { m: mat }

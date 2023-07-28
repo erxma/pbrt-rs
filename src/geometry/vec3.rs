@@ -2,7 +2,7 @@ use std::ops::{
     Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign,
 };
 
-use num_traits::{Float, Inv, Num, Signed};
+use num_traits::{Float, Inv, Num, NumCast, Signed};
 
 use crate as pbrt;
 
@@ -43,17 +43,20 @@ impl<T: Num + Copy> Vec3<T> {
     }
 
     /// The cross product of two vectors.
+    ///
+    /// May have precision loss or truncation if required to fit the result in `T`.
+    /// No indication of this case will be given.
     pub fn cross(self, rhs: Self) -> Self
     where
-        T: Into<f64> + From<f64>,
+        T: Into<f64> + NumCast,
     {
         let (v1x, v1y, v1z): (f64, f64, f64) = (self.x.into(), self.y.into(), self.z.into());
         let (v2x, v2y, v2z): (f64, f64, f64) = (rhs.x.into(), rhs.y.into(), rhs.z.into());
 
         Self {
-            x: (v1y * v2x - v1z * v2y).into(),
-            y: (v1z * v2x - v1x * v2z).into(),
-            z: (v1x * v2y - v1y * v2x).into(),
+            x: NumCast::from(v1y * v2x - v1z * v2y).unwrap(),
+            y: NumCast::from(v1z * v2x - v1x * v2z).unwrap(),
+            z: NumCast::from(v1x * v2y - v1y * v2x).unwrap(),
         }
     }
 
@@ -103,7 +106,7 @@ impl<T: Num + Copy> Vec3<T> {
     /// the system.
     pub fn coordinate_system(self) -> (Self, Self, Self)
     where
-        T: Signed + PartialOrd + Into<f64> + From<f64> + Copy,
+        T: Signed + PartialOrd + Into<f64> + NumCast + Copy,
         Self: Div<f64, Output = Self>,
     {
         let v1 = self;

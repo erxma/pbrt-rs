@@ -6,7 +6,7 @@ use num_traits::{real::Real, Float, Inv, Num, Signed};
 
 use crate as pbrt;
 
-use super::vec3::Vec3;
+use super::{bounds3::Bounds3, vec3::Vec3};
 
 /// A 3D point.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -23,6 +23,18 @@ impl<T> Point3<T> {
     /// Construct a new point with given elements.
     pub fn new(x: T, y: T, z: T) -> Self {
         Self { x, y, z }
+    }
+
+    /// Convert point elements into another type.
+    pub fn into_<U>(self) -> Point3<U>
+    where
+        T: Into<U>,
+    {
+        Point3 {
+            x: self.x.into(),
+            y: self.y.into(),
+            z: self.z.into(),
+        }
     }
 }
 
@@ -85,6 +97,28 @@ impl<T: Num + Copy> Point3<T> {
         }
     }
 
+    pub fn inside(self, b: Bounds3<T>) -> bool
+    where
+        T: PartialOrd,
+    {
+        let x_inside = self.x >= b.p_min.x && self.x <= b.p_max.x;
+        let y_inside = self.y >= b.p_min.y && self.y <= b.p_max.y;
+        let z_inside = self.z >= b.p_min.z && self.z <= b.p_max.z;
+
+        x_inside && y_inside && z_inside
+    }
+
+    pub fn inside_exclusive(self, b: Bounds3<T>) -> bool
+    where
+        T: PartialOrd,
+    {
+        let x_inside = self.x >= b.p_min.x && self.x < b.p_max.x;
+        let y_inside = self.y >= b.p_min.y && self.y < b.p_max.y;
+        let z_inside = self.z >= b.p_min.z && self.z < b.p_max.z;
+
+        x_inside && y_inside && z_inside
+    }
+
     /// Permute a point's elements according to the index values
     /// given.
     pub fn permute(self, x: usize, y: usize, z: usize) -> Self {
@@ -92,18 +126,6 @@ impl<T: Num + Copy> Point3<T> {
             x: self[x],
             y: self[y],
             z: self[z],
-        }
-    }
-
-    /// Convert point elements into another type.
-    pub fn into_<U>(self) -> Point3<U>
-    where
-        T: Into<U>,
-    {
-        Point3 {
-            x: self.x.into(),
-            y: self.y.into(),
-            z: self.z.into(),
         }
     }
 }

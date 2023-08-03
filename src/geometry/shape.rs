@@ -10,10 +10,10 @@ pub trait Shape {
 
     fn intersect(
         self,
-        ray: Ray,
+        ray: impl Ray,
         test_alpha_texture: bool,
     ) -> Option<(pbrt::Float, SurfaceInteraction)>;
-    fn intersect_p(self, ray: Ray, test_alpha_texture: bool) -> bool;
+    fn intersect_p(self, ray: impl Ray, test_alpha_texture: bool) -> bool;
 
     fn area(self) -> pbrt::Float;
 

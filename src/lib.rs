@@ -1,5 +1,6 @@
 pub mod camera;
 pub mod geometry;
+pub mod media;
 pub mod sampler;
 
 // Choice of representation of floats

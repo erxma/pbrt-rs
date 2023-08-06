@@ -2,12 +2,8 @@ use crate::{media::medium::Medium, Float};
 
 use super::{point3::Point3f, vec3::Vec3f};
 
-pub trait Ray {
-    fn at(&self, t: Float) -> Point3f;
-}
-
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct SimpleRay<'a> {
+pub struct Ray<'a> {
     /// Origin of the ray.
     pub o: Point3f,
     /// Direction of the ray. Is multiplied for each step.
@@ -17,7 +13,7 @@ pub struct SimpleRay<'a> {
     pub medium: Option<&'a Medium>,
 }
 
-impl<'a> SimpleRay<'a> {
+impl<'a> Ray<'a> {
     pub fn new(
         o: Point3f,
         dir: Vec3f,
@@ -35,15 +31,15 @@ impl<'a> SimpleRay<'a> {
     }
 }
 
-impl Ray for SimpleRay<'_> {
-    fn at(&self, t: Float) -> Point3f {
+impl Ray<'_> {
+    pub fn at(&self, t: Float) -> Point3f {
         self.o + self.dir * t
     }
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct RayDifferential<'a> {
-    pub ray: SimpleRay<'a>,
+    pub ray: Ray<'a>,
     pub differentials: Option<Differentials>,
 }
 
@@ -58,7 +54,7 @@ pub struct Differentials {
 impl<'a> RayDifferential<'a> {
     /// Construct a new ray differential with the given ray,
     /// and no differentials set.
-    pub fn new(ray: SimpleRay<'a>) -> Self {
+    pub fn new(ray: Ray<'a>) -> Self {
         Self {
             ray,
             differentials: None,
@@ -90,11 +86,5 @@ impl<'a> RayDifferential<'a> {
         diffs.ry_origin = self.ray.o + (diffs.ry_origin - self.ray.o) * s;
         diffs.rx_dir = self.ray.dir + (diffs.rx_dir - self.ray.dir) * s;
         diffs.ry_dir = self.ray.dir + (diffs.ry_dir - self.ray.dir) * s;
-    }
-}
-
-impl Ray for RayDifferential<'_> {
-    fn at(&self, t: Float) -> Point3f {
-        self.ray.at(t)
     }
 }

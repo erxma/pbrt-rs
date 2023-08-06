@@ -308,16 +308,16 @@ impl<T> Mul<Normal3<T>> for &Transform {
     }
 }
 
-impl<'a, R: Ray> Mul<R> for Transform {
-    type Output = R;
+impl<'a> Mul<Ray<'a>> for &Transform {
+    type Output = Ray<'a>;
 
     /// Apply `self` to a ray.
-    fn mul(self, rhs: R) -> Self::Output {
+    fn mul(self, rhs: Ray<'a>) -> Self::Output {
         todo!()
     }
 }
 
-impl Mul<Bounds3f> for Transform {
+impl Mul<Bounds3f> for &Transform {
     type Output = Bounds3f;
 
     /// Apply `self` to a bounding box.

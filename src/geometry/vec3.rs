@@ -22,6 +22,18 @@ impl<T> Vec3<T> {
     pub fn new(x: T, y: T, z: T) -> Self {
         Self { x, y, z }
     }
+
+    /// Convert vector elements into another type.
+    pub fn into_<U>(self) -> Vec3<U>
+    where
+        T: Into<U>,
+    {
+        Vec3 {
+            x: self.x.into(),
+            y: self.y.into(),
+            z: self.z.into(),
+        }
+    }
 }
 
 impl<T: Num + Copy> Vec3<T> {
@@ -118,18 +130,6 @@ impl<T: Num + Copy> Vec3<T> {
         let v3 = v1.cross(v2);
 
         (v1, v2, v3)
-    }
-
-    /// Convert vector elements into another type.
-    pub fn into_<U>(self) -> Vec3<U>
-    where
-        T: Into<U>,
-    {
-        Vec3 {
-            x: self.x.into(),
-            y: self.y.into(),
-            z: self.z.into(),
-        }
     }
 }
 

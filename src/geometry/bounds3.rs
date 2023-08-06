@@ -5,12 +5,13 @@ use std::{
 
 use num_traits::{Bounded, Float, Num};
 
-use crate as pbrt;
+use crate::{self as pbrt, geometry::routines::gamma};
 
 use super::{
     point3::{Point3, Point3f},
+    ray::Ray,
     routines::lerp,
-    vec3::Vec3,
+    vec3::{Vec3, Vec3f},
 };
 
 /// A 3D axis-aligned bounding box (AABB).
@@ -48,6 +49,79 @@ impl<T: Num + Copy> Bounds3<T> {
             p_min: self.p_min - Vec3::new(delta, delta, delta),
             p_max: self.p_max + Vec3::new(delta, delta, delta),
         }
+    }
+
+    /// Checks for a ray-box intersection and returns the the two parametric `t`
+    /// values of the intersection, if any, as `(lower, higher)`.
+    #[inline]
+    pub fn intersect_p(&self, ray: Ray) -> Option<(pbrt::Float, pbrt::Float)>
+    where
+        T: Into<pbrt::Float>,
+    {
+        // Convert to Float
+        let (p_min, p_max) = (self.p_min.into_(), self.p_max.into_());
+
+        let (mut t0, mut t1) = (0.0, ray.t_max);
+        for i in 0..3 {
+            // Update interval for ith bounding box slab:
+            let inv_ray_dir = 1.0 / ray.dir[i];
+
+            let t_min_plane = (p_min[i] - ray.o[i]) * inv_ray_dir;
+            let t_max_plane = (p_max[i] - ray.o[i]) * inv_ray_dir;
+
+            let t_near = t_min_plane.min(t_max_plane);
+            let mut t_far = t_min_plane.max(t_max_plane);
+
+            t_far *= 1.0 + 2.0 * gamma(3);
+
+            t0 = if t_near > t0 { t_near } else { t0 };
+            t1 = if t_far < t1 { t_far } else { t1 };
+
+            if t0 > t1 {
+                return None;
+            }
+        }
+
+        Some((t0, t1))
+    }
+
+    #[inline]
+    pub fn intersect_p_with_inv_dir(&self, ray: Ray, inv_dir: Vec3f, dir_is_neg: Vec3<bool>) -> bool
+    where
+        T: Into<pbrt::Float>,
+    {
+        // Convert to Float
+        let bounds: Bounds3f = self.to_owned().into_();
+        // Convert to
+        let dir_is_neg: Vec3<usize> = dir_is_neg.into_();
+
+        // Check for ray intersection against x and y slabs
+        let tx_min = (bounds[dir_is_neg.x].x - ray.o.x) * inv_dir.x;
+        let ty_min = (bounds[dir_is_neg.y].y - ray.o.y) * inv_dir.y;
+        let tz_min = (bounds[dir_is_neg.x].x - ray.o.x) * inv_dir.x;
+        let mut tx_max = (bounds[1 - dir_is_neg.x].x - ray.o.x) * inv_dir.x;
+        let mut ty_max = (bounds[1 - dir_is_neg.y].y - ray.o.y) * inv_dir.y;
+        let mut tz_max = (bounds[1 - dir_is_neg.x].x - ray.o.x) * inv_dir.x;
+
+        tx_max *= 1.0 + 2.0 * gamma(3);
+        ty_max *= 1.0 + 2.0 * gamma(3);
+        tz_max *= 1.0 + 2.0 * gamma(3);
+
+        if tx_min > ty_max || ty_min > tx_max {
+            return false;
+        }
+
+        let mut t_min = tx_min.max(ty_min);
+        let mut t_max = tx_min.min(ty_min);
+
+        if tx_min > tz_max || tz_min > tx_max {
+            return false;
+        }
+
+        t_min = t_min.max(tz_min);
+        t_max = t_max.min(tz_max);
+
+        t_min < ray.t_max && t_max > 0.0
     }
 }
 

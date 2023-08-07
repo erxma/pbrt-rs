@@ -6,6 +6,8 @@ use num_traits::{Float, Inv, Num, NumCast, Signed};
 
 use crate as pbrt;
 
+use super::normal3::Normal3;
+
 /// A 3D vector.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Vec3<T> {
@@ -376,6 +378,16 @@ impl<T: Neg<Output = T>> Neg for Vec3<T> {
             x: -self.x,
             y: -self.y,
             z: -self.z,
+        }
+    }
+}
+
+impl<T> From<Normal3<T>> for Vec3<T> {
+    fn from(n: Normal3<T>) -> Self {
+        Self {
+            x: n.x,
+            y: n.y,
+            z: n.z,
         }
     }
 }

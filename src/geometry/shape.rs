@@ -1,8 +1,6 @@
 use crate as pbrt;
 
-use super::{
-    bounds3::Bounds3f, ray::Ray, surface_interaction::SurfaceInteraction, transform::Transform,
-};
+use super::{bounds3::Bounds3f, interaction::SurfaceInteraction, ray::Ray, transform::Transform};
 
 pub trait Shape<'a> {
     fn object_bound(&self) -> Bounds3f;

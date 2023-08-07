@@ -1,8 +1,8 @@
-use std::ops::{Add, Div, Mul};
+use std::ops::Mul;
 
 use approx::abs_diff_ne;
 
-use num_traits::One;
+use num_traits::{Num, NumCast};
 
 use crate::Float;
 
@@ -108,7 +108,7 @@ impl Transform {
                 a.z * a.z + (1.0 - a.z * a.z) * cos_theta,
                 0.0,
             ],
-            [0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0],
         ]);
 
         let m_inv = m.transpose();
@@ -255,10 +255,9 @@ impl Mul for Transform {
     }
 }
 
-impl<T> Mul<Point3<T>> for Transform
+impl<T> Mul<Point3<T>> for &Transform
 where
-    T: Mul<Float, Output = T> + Add<Output = T> + One + PartialEq + Copy,
-    Point3<T>: Div<T, Output = Point3<T>>,
+    T: Into<Float> + NumCast + Copy,
 {
     type Output = Point3<T>;
 
@@ -267,22 +266,31 @@ where
     fn mul(self, p: Point3<T>) -> Self::Output {
         let m = &self.m.m;
 
-        let x = p.x * m[0][0] + p.y * m[0][1] + p.z * m[0][2];
-        let y = p.x * m[1][0] + p.y * m[1][1] + p.z * m[1][2];
-        let z = p.x * m[2][0] + p.y * m[2][1] + p.z * m[2][2];
-        let w = p.x * m[3][0] + p.y * m[3][1] + p.z * m[3][2];
+        // Convert to Float
+        let p = p.into_();
 
-        if w.is_one() {
-            Self::Output { x, y, z }
-        } else {
-            Self::Output { x, y, z } / w
+        let mut x = p.x * m[0][0] + p.y * m[0][1] + p.z * m[0][2] + m[0][3];
+        let mut y = p.x * m[1][0] + p.y * m[1][1] + p.z * m[1][2] + m[1][3];
+        let mut z = p.x * m[2][0] + p.y * m[2][1] + p.z * m[2][2] + m[2][3];
+        let w = p.x * m[3][0] + p.y * m[3][1] + p.z * m[3][2] + m[3][3];
+
+        if w == 0.0 {
+            x /= w;
+            y /= w;
+            z /= w;
+        }
+
+        Self::Output {
+            x: NumCast::from(x).unwrap(),
+            y: NumCast::from(y).unwrap(),
+            z: NumCast::from(z).unwrap(),
         }
     }
 }
 
 impl<T> Mul<Vec3<T>> for &Transform
 where
-    T: Mul<Float, Output = T> + Add<Output = T> + Copy,
+    T: Num + Mul<Float, Output = T> + Copy,
 {
     type Output = Vec3<T>;
 
@@ -299,12 +307,22 @@ where
     }
 }
 
-impl<T> Mul<Normal3<T>> for &Transform {
+// TODO: Mul<Float, Output = T> too restrictive? Along other outputs?
+impl<T> Mul<Normal3<T>> for &Transform
+where
+    T: Num + Mul<Float, Output = T> + Copy,
+{
     type Output = Normal3<T>;
 
     /// Apply `self` to a normal.
-    fn mul(self, rhs: Normal3<T>) -> Self::Output {
-        todo!()
+    fn mul(self, n: Normal3<T>) -> Self::Output {
+        let m_inv = &self.m_inv.m;
+
+        Self::Output {
+            x: n.x * m_inv[0][0] + n.y * m_inv[1][0] + n.z * m_inv[2][0],
+            y: n.x * m_inv[0][1] + n.y * m_inv[1][1] + n.z * m_inv[2][1],
+            z: n.x * m_inv[0][2] + n.y * m_inv[1][2] + n.z * m_inv[2][2],
+        }
     }
 }
 
@@ -312,8 +330,18 @@ impl<'a> Mul<Ray<'a>> for &Transform {
     type Output = Ray<'a>;
 
     /// Apply `self` to a ray.
-    fn mul(self, rhs: Ray<'a>) -> Self::Output {
-        todo!()
+    fn mul(self, r: Ray<'a>) -> Self::Output {
+        // TODO: Deal with round-off error
+        let o = self * r.o;
+        let dir = self * r.dir;
+
+        Self::Output {
+            o,
+            dir,
+            t_max: r.t_max,
+            time: r.time,
+            medium: r.medium,
+        }
     }
 }
 
@@ -321,7 +349,122 @@ impl Mul<Bounds3f> for &Transform {
     type Output = Bounds3f;
 
     /// Apply `self` to a bounding box.
-    fn mul(self, rhs: Bounds3f) -> Self::Output {
-        todo!()
+    fn mul(self, b: Bounds3f) -> Self::Output {
+        let m = &self.m.m;
+
+        // Each transformation can be split into a translation and rotation--
+
+        // Extract translation from matrix (3rd column),
+        // which is the center of the new box - it was originally 0, 0, 0.
+        let translation = Point3f::new(m[0][3], m[1][3], m[2][3]);
+        let mut res = Bounds3f::new_with_point(translation);
+
+        // The 3x3 rotation portion of the matrix remains.
+        // Now find the extremes of the transformed points.
+
+        // Consider that all the other 6 points are some combination of
+        // the x, y, z values from the min & max points.
+
+        // Now consider the usual multiplication (cross) of a point.
+        // Each axis in the new point is a linear combination of the original x, y, z.
+        // Specifically, the factors are the corresponding row in the matrix.
+
+        // So, for each axis, find the choices of x, y, z from the original
+        // min, max that leads to the (new) min/max linear combinations.
+        for i in 0..=2 {
+            for j in 0..=2 {
+                let a = m[i][j] * b.p_min[j];
+                let b = m[i][j] * b.p_max[j];
+                // Can directly add, since, again, the starting point is
+                // the translated origin/center.
+                res.p_min[i] += a.min(b);
+                res.p_max[i] += a.max(b);
+            }
+        }
+
+        res
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use approx::{assert_relative_eq, AbsDiffEq, RelativeEq};
+
+    use crate::geometry::bounds3::Bounds3;
+
+    use super::*;
+
+    impl<T: AbsDiffEq> AbsDiffEq for Bounds3<T>
+    where
+        T::Epsilon: Copy,
+    {
+        type Epsilon = T::Epsilon;
+
+        fn default_epsilon() -> Self::Epsilon {
+            T::default_epsilon()
+        }
+
+        fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+            for p in 0..2 {
+                for i in 0..3 {
+                    if T::abs_diff_ne(&self[p][i], &other[p][i], epsilon) {
+                        return false;
+                    }
+                }
+            }
+
+            true
+        }
+    }
+
+    impl<T: RelativeEq> RelativeEq for Bounds3<T>
+    where
+        T::Epsilon: Copy,
+    {
+        fn default_max_relative() -> Self::Epsilon {
+            T::default_max_relative()
+        }
+
+        fn relative_eq(
+            &self,
+            other: &Self,
+            epsilon: Self::Epsilon,
+            max_relative: Self::Epsilon,
+        ) -> bool {
+            for p in 0..2 {
+                for i in 0..3 {
+                    if T::relative_ne(&self[p][i], &other[p][i], epsilon, max_relative) {
+                        return false;
+                    }
+                }
+            }
+
+            true
+        }
+    }
+
+    #[test]
+    fn efficient_bounds_transform() {
+        fn naive_transform(t: &Transform, b: Bounds3f) -> Bounds3f {
+            let mut ret = Bounds3f::new_with_point(t * b.corner(0));
+
+            for i in 1..8 {
+                ret = ret.union_point_f(t * b.corner(i));
+            }
+
+            ret
+        }
+
+        let b = Bounds3::new_f(Point3::new(-1.0, -1.0, -1.0), Point3::new(2.0, 2.0, 2.0));
+
+        let translate = Transform::translate(Vec3::new(-1.0, 2.0, 2.0));
+        let rotate = Transform::rotate_x(90.0);
+        let scale = Transform::scale(1.1, 3.3, 4.3);
+        let composite = translate.clone() * rotate.clone() * scale.clone();
+
+        assert_relative_eq!(naive_transform(&translate, b), &translate * b);
+        assert_relative_eq!(naive_transform(&rotate, b), &rotate * b);
+        assert_relative_eq!(naive_transform(&scale, b), &scale * b);
+        assert_relative_eq!(naive_transform(&composite, b), &composite * b);
     }
 }

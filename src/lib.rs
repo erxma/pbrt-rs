@@ -1,5 +1,6 @@
 pub mod camera;
 pub mod geometry;
+pub mod math;
 pub mod media;
 pub mod sampler;
 

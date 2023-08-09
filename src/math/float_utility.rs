@@ -1,5 +1,7 @@
 use crate::Float;
 
+pub const ONE_MINUS_EPSILON: Float = 1.0 - Float::EPSILON;
+
 // Returns the least number greater than `v`.
 #[inline]
 pub fn next_float_up(v: Float) -> Float {

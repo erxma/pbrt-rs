@@ -5,7 +5,6 @@ pub mod normal3;
 pub mod point2;
 pub mod point3;
 pub mod ray;
-pub mod routines;
 pub mod shape;
 pub mod transform;
 pub mod vec3;

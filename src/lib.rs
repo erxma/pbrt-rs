@@ -3,6 +3,7 @@ pub mod geometry;
 pub mod math;
 pub mod media;
 pub mod sampler;
+pub mod util;
 
 // Choice of representation of floats
 #[cfg(pbrt_float_as_double)]

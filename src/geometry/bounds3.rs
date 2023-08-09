@@ -5,12 +5,14 @@ use std::{
 
 use num_traits::{Bounded, Float, Num};
 
-use crate::{self as pbrt, geometry::routines::gamma};
+use crate::{
+    self as pbrt,
+    math::routines::{gamma, lerp},
+};
 
 use super::{
     point3::{Point3, Point3f},
     ray::Ray,
-    routines::lerp,
     vec3::{Vec3, Vec3f},
 };
 

@@ -173,6 +173,15 @@ impl<T: Num + PartialOrd + Copy> Bounds3<T> {
         x_overlaps && y_overlaps && z_overlaps
     }
 
+    pub fn contains(&self, p: Point3<T>) -> bool {
+        p.x >= self.p_min.x
+            && p.x <= self.p_max.x
+            && p.y >= self.p_min.y
+            && p.y <= self.p_max.y
+            && p.z >= self.p_min.z
+            && p.z <= self.p_max.z
+    }
+
     /// Linearly interpolate between the min and max points of `self`, on all axes.
     ///
     /// Extrapolates for components of `t` `<0` or `>1`.
@@ -337,6 +346,21 @@ impl<T: Bounded + Copy> Bounds3<T> {
         let p_max = Point3::new(min_val, min_val, min_val);
 
         Self { p_min, p_max }
+    }
+}
+
+// TODO: Does this have to for 3f only?
+impl Bounds3f {
+    /// Return the boudning sphere of `self`, as the (center, radius) of the sphere.
+    pub fn bounding_sphere(&self) -> (Point3f, pbrt::Float) {
+        let center = (self.p_min + self.p_max) / 2.0;
+        let radius = if self.contains(center) {
+            center.distance(self.p_max)
+        } else {
+            0.0
+        };
+
+        (center, radius)
     }
 }
 

@@ -21,7 +21,7 @@ pub type Vec3f = Vec3<pbrt::Float>;
 
 impl<T> Vec3<T> {
     /// Construct a new vector with given elements.
-    pub fn new(x: T, y: T, z: T) -> Self {
+    pub const fn new(x: T, y: T, z: T) -> Self {
         Self { x, y, z }
     }
 

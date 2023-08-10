@@ -36,6 +36,19 @@ impl<T> Vec3<T> {
             z: self.z.into(),
         }
     }
+
+    /// Permute a vector's elements according to the index values
+    /// given.
+    pub fn permute(self, x: usize, y: usize, z: usize) -> Self
+    where
+        T: Copy,
+    {
+        Self {
+            x: self[x],
+            y: self[y],
+            z: self[z],
+        }
+    }
 }
 
 impl<T: Num + Copy> Vec3<T> {
@@ -99,19 +112,6 @@ impl<T: Num + Copy> Vec3<T> {
         T: Signed,
     {
         self.dot(rhs).abs()
-    }
-
-    /// Permute a vector's elements according to the index values
-    /// given.
-    pub fn permute(self, x: usize, y: usize, z: usize) -> Self
-    where
-        T: Copy,
-    {
-        Self {
-            x: self[x],
-            y: self[y],
-            z: self[z],
-        }
     }
 
     /// Construct a local coordinate system given a vector.

@@ -9,3 +9,4 @@ pub mod ray;
 pub mod shape;
 pub mod transform;
 pub mod vec3;
+pub mod vec3fi;

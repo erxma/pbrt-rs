@@ -36,6 +36,19 @@ impl<T> Point3<T> {
             z: self.z.into(),
         }
     }
+
+    /// Permute a point's elements according to the index values
+    /// given.
+    pub fn permute(self, x: usize, y: usize, z: usize) -> Self
+    where
+        T: Copy,
+    {
+        Self {
+            x: self[x],
+            y: self[y],
+            z: self[z],
+        }
+    }
 }
 
 impl<T: Num + Copy> Point3<T> {
@@ -117,16 +130,6 @@ impl<T: Num + Copy> Point3<T> {
         let z_inside = self.z >= b.p_min.z && self.z < b.p_max.z;
 
         x_inside && y_inside && z_inside
-    }
-
-    /// Permute a point's elements according to the index values
-    /// given.
-    pub fn permute(self, x: usize, y: usize, z: usize) -> Self {
-        Self {
-            x: self[x],
-            y: self[y],
-            z: self[z],
-        }
     }
 }
 

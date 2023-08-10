@@ -1,11 +1,11 @@
 use crate::{math::interval::Interval, Float};
 
-use super::point3::{Point3, Point3f};
+use super::vec3::{Vec3, Vec3f};
 
-pub type Point3fi = Point3<Interval>;
+pub type Vec3fi = Vec3<Interval>;
 
-impl Point3fi {
-    pub fn new_fi(values: Point3f, errors: Point3f) -> Self {
+impl Vec3fi {
+    pub fn new_fi(values: Vec3f, errors: Vec3f) -> Self {
         Self::new(
             Interval::new_with_err(values.x, errors.x),
             Interval::new_with_err(values.y, errors.y),
@@ -17,8 +17,12 @@ impl Point3fi {
         Self::new(Interval::new(x), Interval::new(y), Interval::new(z))
     }
 
-    pub fn error(&self) -> Point3f {
-        Point3f::new(
+    pub fn with_intervals(x: Interval, y: Interval, z: Interval) -> Self {
+        Self::new(x, y, z)
+    }
+
+    pub fn error(&self) -> Vec3f {
+        Vec3f::new(
             self.x.width() / 2.0,
             self.y.width() / 2.0,
             self.z.width() / 2.0,
@@ -30,8 +34,8 @@ impl Point3fi {
     }
 }
 
-impl From<Point3f> for Point3fi {
-    fn from(p: Point3f) -> Self {
-        Self::new_fi_exact(p.x, p.y, p.z)
+impl From<Vec3f> for Vec3fi {
+    fn from(v: Vec3f) -> Self {
+        Self::new_fi_exact(v.x, v.y, v.z)
     }
 }

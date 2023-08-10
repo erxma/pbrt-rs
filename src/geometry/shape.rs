@@ -1,20 +1,28 @@
-use crate as pbrt;
+use std::fmt::Debug;
 
-use super::{bounds3::Bounds3f, interaction::SurfaceInteraction, ray::Ray, transform::Transform};
+use crate::{math::direction_cone::DirectionCone, Float};
 
-pub trait Shape<'a> {
+use super::{
+    bounds3::Bounds3f,
+    interaction::{Interaction, SurfaceInteraction},
+    normal3::Normal3f,
+    point2::Point2f,
+    point3fi::Point3fi,
+    ray::Ray,
+    transform::Transform,
+    vec3::Vec3f,
+};
+
+pub trait Shape<'a>: Debug {
     fn object_bound(&self) -> Bounds3f;
     fn world_bound(&self) -> Bounds3f {
         self.object_to_world() * self.object_bound()
     }
+    fn normal_bounds(&self) -> DirectionCone;
 
     /// Perform a ray-shape intersection test, returning the parametric distance
     /// along `ray` (within its range) and geometric info about the hit, if any.
-    fn intersect(
-        &self,
-        ray: Ray,
-        test_alpha_texture: bool,
-    ) -> Option<(pbrt::Float, SurfaceInteraction)>;
+    fn intersect(&self, ray: Ray, test_alpha_texture: bool) -> Option<ShapeIntersection>;
 
     /// Perform a ray-shape intersection test, only determining whether an intersection occurs.
     fn intersect_p(&self, ray: Ray, test_alpha_texture: bool) -> bool {
@@ -23,12 +31,59 @@ pub trait Shape<'a> {
         self.intersect(ray, test_alpha_texture).is_some()
     }
 
-    fn area(&self) -> pbrt::Float;
+    fn area(&self) -> Float;
 
     fn object_to_world(&self) -> &'a Transform;
     fn world_to_object(&self) -> &'a Transform;
     fn reverse_orientation(&self) -> bool;
     fn transform_swaps_handedness(&self) -> bool {
         self.object_to_world().swaps_handedness()
+    }
+
+    fn sample(&self, u: Point2f) -> Option<ShapeSample>;
+
+    fn sample_with_context(&self, ctx: &ShapeSampleContext, u: Point2f) -> Option<ShapeSample>;
+
+    /// Returns the probability density for sampling the specified point on the shape
+    /// corresponding to the given `Intersection`.
+    ///
+    /// The provided point is assumed to be on the surface.
+    fn pdf(&self, interaction: &Interaction) -> Float;
+
+    fn pdf_with_context(&self, ctx: &ShapeSampleContext, wi: Vec3f) -> Float;
+}
+
+#[derive(Debug)]
+pub struct ShapeIntersection<'a> {
+    pub intr: SurfaceInteraction<'a>,
+    pub t_hit: Float,
+}
+
+#[derive(Debug)]
+pub struct ShapeSample {
+    pub intr: Interaction,
+    pub pdf: Float,
+}
+
+#[derive(Clone, Debug)]
+pub struct ShapeSampleContext {
+    pub pi: Point3fi,
+    pub n: Option<Normal3f>,
+    pub ns: Option<Normal3f>,
+    pub time: Float,
+}
+
+impl ShapeSampleContext {
+    pub fn new(pi: Point3fi, n: Option<Normal3f>, ns: Option<Normal3f>, time: Float) -> Self {
+        Self { pi, n, ns, time }
+    }
+
+    pub fn from_surface_interaction(si: &SurfaceInteraction) -> Self {
+        Self {
+            pi: si.common.pi,
+            n: si.common.n,
+            ns: si.shading.n,
+            time: si.common.time,
+        }
     }
 }

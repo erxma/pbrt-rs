@@ -1,9 +1,10 @@
 use crate::{media::medium_interface::MediumInterface, Float};
 
-use super::{normal3::Normal3f, point2::Point2f, point3::Point3f, shape::Shape, vec3::Vec3f};
+use super::{normal3::Normal3f, point2::Point2f, point3fi::Point3fi, shape::Shape, vec3::Vec3f};
 
-pub struct InteractionCommon {
-    pub p: Point3f,
+#[derive(Debug)]
+pub struct Interaction {
+    pub pi: Point3fi,
     pub time: Float,
     pub p_error: Vec3f,
     pub wo: Option<Vec3f>,
@@ -11,6 +12,7 @@ pub struct InteractionCommon {
     pub medium_interface: Option<MediumInterface>,
 }
 
+#[derive(Clone, Debug)]
 pub struct Shading {
     pub n: Option<Normal3f>,
     pub dpdu: Vec3f,
@@ -19,20 +21,21 @@ pub struct Shading {
     pub dndv: Normal3f,
 }
 
+#[derive(Debug)]
 pub struct SurfaceInteraction<'a> {
-    pub common: InteractionCommon,
+    pub common: Interaction,
     pub uv: Point2f,
     pub dpdu: Vec3f,
     pub dpdv: Vec3f,
     pub dndu: Normal3f,
     pub dndv: Normal3f,
     shape: &'a dyn Shape<'a>,
-    shading: Shading,
+    pub shading: Shading,
 }
 
 impl<'a> SurfaceInteraction<'a> {
     pub fn new(
-        p: Point3f,
+        pi: Point3fi,
         p_error: Vec3f,
         uv: Point2f,
         wo: Vec3f,
@@ -49,8 +52,8 @@ impl<'a> SurfaceInteraction<'a> {
             n *= -1.0;
         }
         Self {
-            common: InteractionCommon {
-                p,
+            common: Interaction {
+                pi,
                 time,
                 p_error,
                 wo: Some(wo),

@@ -4,6 +4,7 @@ pub mod matrix4x4;
 pub mod normal3;
 pub mod point2;
 pub mod point3;
+pub mod point3fi;
 pub mod ray;
 pub mod shape;
 pub mod transform;

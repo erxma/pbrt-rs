@@ -4,7 +4,7 @@ use std::ops::{
 
 use num_traits::{Float, Inv, Num, NumCast, Signed};
 
-use crate as pbrt;
+use crate::{self as pbrt, math::routines::safe_asin, PI};
 
 use super::normal3::Normal3;
 
@@ -147,6 +147,15 @@ where
     /// Returns the normalization of a vector.
     pub fn normalized(self) -> Vec3<pbrt::Float> {
         self.into_() / self.length()
+    }
+
+    #[inline]
+    pub fn angle_between(self, other: Self) -> pbrt::Float {
+        if self.dot(other).into() < 0.0 {
+            PI - 2.0 * safe_asin((self + other).length() / 2.0)
+        } else {
+            2.0 * safe_asin((other - self).length() / 2.0)
+        }
     }
 }
 

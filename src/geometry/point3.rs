@@ -2,7 +2,7 @@ use std::ops::{
     Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign,
 };
 
-use num_traits::{real::Real, Float, Inv, Num, Signed};
+use num_traits::{real::Real, Float, Num, Signed};
 
 use crate as pbrt;
 
@@ -343,18 +343,18 @@ impl Mul<Point3f> for pbrt::Float {
 
 impl<T, U> Div<U> for Point3<T>
 where
-    T: Mul<<U as Inv>::Output, Output = T>,
-    U: Inv + Copy,
+    T: Div<U>,
+    U: Copy,
 {
-    type Output = Self;
+    type Output = Point3<<T as Div<U>>::Output>;
 
     /// Divide a point by a scalar of same type,
     /// returning a new point.
-    fn div(self, rhs: U) -> Self {
-        Self {
-            x: self.x * rhs.inv(),
-            y: self.y * rhs.inv(),
-            z: self.z * rhs.inv(),
+    fn div(self, rhs: U) -> Self::Output {
+        Self::Output {
+            x: self.x / rhs,
+            y: self.y / rhs,
+            z: self.z / rhs,
         }
     }
 }

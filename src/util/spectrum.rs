@@ -177,3 +177,60 @@ impl Spectrum for PiecewiseLinearSpectrum {
         }
     }
 }
+
+/// Compute the blackbody emitted radiance at a given `temp` in Kelvin
+/// for wavelength `lambda`.
+fn blackbody(lambda: Float, temp: Float) -> Float {
+    // TODO: Return 0, or panic?
+    if temp <= 0.0 {
+        return 0.0;
+    }
+
+    // Speed of light
+    const C: Float = 299792458.0;
+    // Planck's constant
+    const H: Float = 6.62606957e-34;
+    // Boltzmann constant
+    const K_B: Float = 1.3806488e-23;
+
+    // Scale nanometers to meters
+    let l = lambda * 1e-9;
+
+    // Emitted radiance
+    // TODO: Possible speedup for exp
+    (2.0 * H * C * C) / (l.powi(5) * (((H * C) / (l * K_B * temp)).exp() - 1.0))
+}
+
+/// A normalized blackbody spectral distribution.
+/// (The max value at any wavelength is 1.0)
+#[derive(Clone, Debug)]
+pub struct BlackbodySpectrum {
+    /// Temperature of the blackbody in Kelvin.
+    temp: Float,
+    /// Blackbody normalization constant derived from the temperature
+    normalization_factor: Float,
+}
+
+impl BlackbodySpectrum {
+    /// Construct a new spectrum for a blackbody at the given `temp`.
+    pub fn new(temp: Float) -> Self {
+        // Wavelength (in meters) where emitted radiance is at maximum, for this temp
+        let lambda_max = 2.877721e-3 / temp;
+        Self {
+            temp,
+            normalization_factor: 1.0 / blackbody(lambda_max * 1e9, temp),
+        }
+    }
+}
+
+impl Spectrum for BlackbodySpectrum {
+    fn at(&self, lambda: Float) -> Float {
+        blackbody(lambda, self.temp) * self.normalization_factor
+    }
+
+    /// Max value of the normalized blackbody spectrum,
+    /// which by definition is always `1.0`.
+    fn max_value(&self) -> Float {
+        1.0
+    }
+}

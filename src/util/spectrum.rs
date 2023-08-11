@@ -1,4 +1,4 @@
-use crate::Float;
+use crate::{math::routines::lerp, Float};
 
 const LAMBDA_MIN: Float = 360.0;
 const LAMBDA_MAX: Float = 830.0;
@@ -82,5 +82,98 @@ impl Spectrum for DenselySampledSpectrum {
                     .expect("There should not be NaNs in spectrum")
             })
             .unwrap()
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct SpectrumSample {
+    pub lambda: Float,
+    pub value: Float,
+}
+
+pub struct PiecewiseLinearSpectrum {
+    samples: Vec<SpectrumSample>,
+}
+
+impl PiecewiseLinearSpectrum {
+    pub fn new(samples: &[SpectrumSample]) -> Self {
+        assert!(
+            samples.windows(2).all(|w| w[0].lambda < w[1].lambda),
+            "Lambdas should be sorted ascending (strictly, since duplicates should not exist)"
+        );
+
+        Self {
+            samples: samples.to_vec(),
+        }
+    }
+
+    fn find_interval(&self, lambda: Float) -> usize {
+        // Binary search for
+        match self
+            .samples
+            .binary_search_by(|&sample| sample.lambda.partial_cmp(&lambda).unwrap())
+        {
+            // Exact match
+            Ok(i) => i,
+            Err(i) => {
+                if i > 0 && i < self.samples.len() - 1 {
+                    // Subtract 1 to get index of largest less than lambda
+                    // (In case of no match, binary search's return would be 1 over this)
+                    i - 1
+                } else {
+                    panic!("lambda should be within the covered range of samples")
+                }
+            }
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! spectrum_samples {
+    ( $( [$lambda:expr, $value:expr] ),* ) => {
+        &[
+            $( SpectrumSample { lambda: $lambda, value: $value } ),*
+        ]
+    };
+}
+
+pub use spectrum_samples;
+
+impl Spectrum for PiecewiseLinearSpectrum {
+    fn at(&self, lambda: Float) -> Float {
+        // Handle corner cases
+        if self.samples.is_empty()
+            || lambda < self.samples[0].lambda
+            || lambda > self.samples[self.samples.len() - 1].lambda
+        {
+            return 0.0;
+        }
+
+        // Find lambda offsets to samples and interpolate
+        // Sample with largest lambda <=lambda
+        let lower_i = self.find_interval(lambda);
+        let lower_sample = &self.samples[lower_i];
+        let higher_sample = &self.samples[lower_i + 1];
+        // Lerp position between the two samples (by lambda)
+        let t = (lambda - lower_sample.lambda) / (higher_sample.lambda - lower_sample.lambda);
+
+        lerp(t, lower_sample.value, higher_sample.value)
+    }
+
+    fn max_value(&self) -> Float {
+        if self.samples.is_empty() {
+            0.0
+        } else {
+            self.samples
+                .iter()
+                .max_by(|sample_a, sample_b| {
+                    sample_a
+                        .lambda
+                        .partial_cmp(&sample_b.lambda)
+                        .expect("There should not be NaNs in spectrum")
+                })
+                .unwrap()
+                .value
+        }
     }
 }

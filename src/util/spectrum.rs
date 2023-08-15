@@ -1,7 +1,11 @@
+use std::ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Sub, SubAssign};
+
 use crate::{math::routines::lerp, Float};
 
 const LAMBDA_MIN: Float = 360.0;
 const LAMBDA_MAX: Float = 830.0;
+
+const N_SPECTRUM_SAMPLES: usize = 4;
 
 pub trait Spectrum {
     fn at(&self, lambda: Float) -> Float;
@@ -232,5 +236,366 @@ impl Spectrum for BlackbodySpectrum {
     /// which by definition is always `1.0`.
     fn max_value(&self) -> Float {
         1.0
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SampledSpectrum {
+    values: [Float; N_SPECTRUM_SAMPLES],
+}
+
+impl SampledSpectrum {
+    pub fn new(values: [Float; N_SPECTRUM_SAMPLES]) -> Self {
+        Self { values }
+    }
+
+    pub fn with_single_value(c: Float) -> Self {
+        Self {
+            values: [c; N_SPECTRUM_SAMPLES],
+        }
+    }
+
+    /// Returns true if all values in `self` are zero,
+    /// false otherwise.
+    pub fn is_all_zero(&self) -> bool {
+        self.values.iter().all(|&v| v == 0.0)
+    }
+
+    pub fn safe_div(&self, rhs: &Self) -> Self {
+        // Copy values from self and div by rhs values
+        let mut ret = self.clone();
+        ret.safe_div_assign(rhs);
+        ret
+    }
+
+    pub fn safe_div_assign(&mut self, rhs: &Self) {
+        for i in 0..N_SPECTRUM_SAMPLES {
+            if rhs[i] != 0.0 {
+                self[i] -= rhs[i];
+            } else {
+                self[i] = 0.0;
+            }
+        }
+    }
+
+    pub fn lerp(t: Float, s1: &Self, s2: &Self) -> Self {
+        (1.0 - t) * s1 + t * s2
+    }
+
+    pub fn sqrt(&self) -> Self {
+        // TODO: These fors could be replaced with map if
+        // there's no performance issue
+        let mut ret = self.clone();
+
+        for i in 0..N_SPECTRUM_SAMPLES {
+            ret[i] = ret[i].sqrt();
+        }
+
+        ret
+    }
+
+    pub fn clamp(&self, min: Float, max: Float) -> Self {
+        let mut ret = self.clone();
+
+        for i in 0..N_SPECTRUM_SAMPLES {
+            ret[i] = ret[i].clamp(min, max);
+        }
+
+        ret
+    }
+
+    pub fn clamp_zero(&self) -> Self {
+        let mut ret = self.clone();
+
+        for i in 0..N_SPECTRUM_SAMPLES {
+            ret[i] = ret[i].max(0.0);
+        }
+
+        ret
+    }
+
+    pub fn powi(&self, n: i32) -> Self {
+        let mut ret = self.clone();
+
+        for i in 0..N_SPECTRUM_SAMPLES {
+            ret[i] = ret[i].powi(n);
+        }
+
+        ret
+    }
+
+    pub fn powf(&self, n: Float) -> Self {
+        let mut ret = self.clone();
+
+        for i in 0..N_SPECTRUM_SAMPLES {
+            ret[i] = ret[i].powf(n);
+        }
+
+        ret
+    }
+
+    pub fn exp(&self) -> Self {
+        let mut ret = self.clone();
+
+        for i in 0..N_SPECTRUM_SAMPLES {
+            ret[i] = ret[i].exp();
+        }
+
+        ret
+    }
+
+    pub fn max_component_value(&self) -> Option<Float> {
+        self.values
+            .iter()
+            .max_by(|a, b| {
+                a.partial_cmp(b)
+                    .expect("There should not be NaNs in spectrum")
+            })
+            .copied()
+    }
+
+    pub fn min_component_value(&self) -> Option<Float> {
+        self.values
+            .iter()
+            .min_by(|a, b| {
+                a.partial_cmp(b)
+                    .expect("There should not be NaNs in spectrum")
+            })
+            .copied()
+    }
+
+    pub fn average(&self) -> Option<Float> {
+        if self.values.is_empty() {
+            None
+        } else {
+            let sum: Float = self.values.iter().sum();
+            Some(sum / N_SPECTRUM_SAMPLES as Float)
+        }
+    }
+}
+
+impl Index<usize> for SampledSpectrum {
+    type Output = Float;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.values[index]
+    }
+}
+
+impl IndexMut<usize> for SampledSpectrum {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.values[index]
+    }
+}
+
+impl Add for SampledSpectrum {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        // Take self and add rhs values to it
+        let mut ret = self;
+        ret += &rhs;
+
+        ret
+    }
+}
+
+impl Add for &SampledSpectrum {
+    type Output = SampledSpectrum;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        // Clone self and add rhs values to it
+        let mut ret = self.clone();
+        ret += rhs;
+
+        ret
+    }
+}
+
+impl AddAssign<&Self> for SampledSpectrum {
+    fn add_assign(&mut self, rhs: &Self) {
+        for i in 0..N_SPECTRUM_SAMPLES {
+            self[i] += rhs[i];
+        }
+    }
+}
+
+impl Sub for SampledSpectrum {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self {
+        // Take self and sub rhs values from it
+        let mut ret = self;
+        ret -= &rhs;
+
+        ret
+    }
+}
+
+impl Sub for &SampledSpectrum {
+    type Output = SampledSpectrum;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        // Clone self and sub rhs values from it
+        let mut ret = self.clone();
+        ret -= rhs;
+
+        ret
+    }
+}
+
+impl SubAssign<&Self> for SampledSpectrum {
+    fn sub_assign(&mut self, rhs: &Self) {
+        for i in 0..N_SPECTRUM_SAMPLES {
+            self[i] -= rhs[i];
+        }
+    }
+}
+
+impl Mul for SampledSpectrum {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self {
+        // Take self and mul by rhs values
+        let mut ret = self;
+        ret *= &rhs;
+
+        ret
+    }
+}
+
+impl Mul for &SampledSpectrum {
+    type Output = SampledSpectrum;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        // Clone self and mul by rhs values
+        let mut ret = self.clone();
+        ret *= rhs;
+
+        ret
+    }
+}
+
+impl MulAssign<&Self> for SampledSpectrum {
+    fn mul_assign(&mut self, rhs: &Self) {
+        for i in 0..N_SPECTRUM_SAMPLES {
+            self[i] *= rhs[i];
+        }
+    }
+}
+
+impl Mul<Float> for SampledSpectrum {
+    type Output = Self;
+
+    fn mul(self, rhs: Float) -> Self {
+        // Take self and mul by rhs
+        let mut ret = self;
+        ret *= rhs;
+
+        ret
+    }
+}
+
+impl Mul<Float> for &SampledSpectrum {
+    type Output = SampledSpectrum;
+
+    fn mul(self, rhs: Float) -> Self::Output {
+        // Clone self and mul by rhs
+        let mut ret = self.clone();
+        ret *= rhs;
+
+        ret
+    }
+}
+
+impl Mul<SampledSpectrum> for Float {
+    type Output = SampledSpectrum;
+
+    fn mul(self, rhs: SampledSpectrum) -> Self::Output {
+        rhs * self
+    }
+}
+
+impl Mul<&SampledSpectrum> for Float {
+    type Output = SampledSpectrum;
+
+    fn mul(self, rhs: &SampledSpectrum) -> Self::Output {
+        rhs * self
+    }
+}
+
+impl MulAssign<Float> for SampledSpectrum {
+    fn mul_assign(&mut self, rhs: Float) {
+        for i in 0..N_SPECTRUM_SAMPLES {
+            self[i] *= rhs;
+        }
+    }
+}
+
+impl Div for SampledSpectrum {
+    type Output = Self;
+
+    fn div(self, rhs: Self) -> Self {
+        // Take self and div by rhs values
+        let mut ret = self;
+        ret /= &rhs;
+
+        ret
+    }
+}
+
+impl Div for &SampledSpectrum {
+    type Output = SampledSpectrum;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        // Clone self and div by rhs values
+        let mut ret = self.clone();
+        ret /= rhs;
+
+        ret
+    }
+}
+
+impl DivAssign<&Self> for SampledSpectrum {
+    fn div_assign(&mut self, rhs: &Self) {
+        for i in 0..N_SPECTRUM_SAMPLES {
+            self[i] /= rhs[i];
+        }
+    }
+}
+
+impl Div<Float> for SampledSpectrum {
+    type Output = Self;
+
+    fn div(self, rhs: Float) -> Self {
+        // Take self and div by rhs
+        let mut ret = self;
+        ret /= rhs;
+
+        ret
+    }
+}
+
+impl Div<Float> for &SampledSpectrum {
+    type Output = SampledSpectrum;
+
+    fn div(self, rhs: Float) -> Self::Output {
+        assert!(rhs != 0.0, "Cannot divide spectrum values by zero");
+
+        // Clone self and div by rhs
+        let mut ret = self.clone();
+        ret /= rhs;
+
+        ret
+    }
+}
+
+impl DivAssign<Float> for SampledSpectrum {
+    fn div_assign(&mut self, rhs: Float) {
+        assert!(rhs != 0.0, "Cannot divide spectrum values by zero");
+
+        for i in 0..N_SPECTRUM_SAMPLES {
+            self[i] /= rhs;
+        }
     }
 }

@@ -12,13 +12,13 @@ pub fn gamma(n: i32) -> Float {
 
 #[inline]
 pub fn safe_asin(x: Float) -> Float {
-    assert!(x >= -1.0001 && x <= 1.0001);
+    assert!((-1.0001..=1.0001).contains(&x));
     x.clamp(-1.0, 1.0).asin()
 }
 
 #[inline]
 pub fn safe_acos(x: Float) -> Float {
-    assert!(x >= -1.0001 && x <= 1.0001);
+    assert!((-1.0001..=1.0001).contains(&x));
     x.clamp(-1.0, 1.0).acos()
 }
 

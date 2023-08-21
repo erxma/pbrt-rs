@@ -2,7 +2,7 @@ pub mod camera;
 pub mod geometry;
 pub mod math;
 pub mod media;
-pub mod sampler;
+pub mod sampling;
 pub mod util;
 
 // Choice of representation of floats

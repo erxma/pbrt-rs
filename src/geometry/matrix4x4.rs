@@ -35,11 +35,12 @@ impl Matrix4x4 {
     }
 
     /// Compute the inverse matrix of `self`.
+    #[allow(clippy::needless_range_loop)]
     pub fn inverse(&self) -> Result<Self, &str> {
         let mut indxc = [0; 4];
         let mut indxr = [0; 4];
         let mut ipiv = [0; 4];
-        let mut minv = self.m.clone();
+        let mut minv = self.m;
         for i in 0..4 {
             let mut irow = 0;
             let mut icol = 0;

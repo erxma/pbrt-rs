@@ -349,6 +349,7 @@ impl Mul<Bounds3f> for &Transform {
     type Output = Bounds3f;
 
     /// Apply `self` to a bounding box.
+    #[allow(clippy::needless_range_loop)]
     fn mul(self, b: Bounds3f) -> Self::Output {
         let m = &self.m.m;
 

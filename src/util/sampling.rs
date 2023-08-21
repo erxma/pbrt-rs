@@ -65,7 +65,7 @@ pub fn sample_discrete(weights: &[Float], u: Float) -> Option<(usize, Float, Flo
 
 #[inline]
 pub fn linear_pdf(x: Float, a: Float, b: Float) -> Float {
-    if x < 0.0 || x > 1.0 {
+    if !(0.0..=1.0).contains(&x) {
         0.0
     } else {
         2.0 * lerp(x, a, b) / (a + b)

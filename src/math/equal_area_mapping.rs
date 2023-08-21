@@ -56,14 +56,29 @@ pub fn equal_area_sphere_to_square(d: Vec3f) -> Point2f {
     b = if a == 0.0 { 0.0 } else { b / a };
 
     // Polynomial approximation of atan(x)*2/pi, x=b (x=[0,1])
-    const T1: Float = 0.406758566246788489601959989e-5;
-    const T2: Float = 0.636226545274016134946890922156;
-    const T3: Float = 0.61572017898280213493197203466e-2;
-    const T4: Float = -0.247333733281268944196501420480;
-    const T5: Float = 0.881770664775316294736387951347e-1;
-    const T6: Float = 0.419038818029165735901852432784e-1;
-    const T7: Float = -0.251390972343483509333252996350e-1;
-    let mut phi = evaluate_polynomial(b, &[T1, T2, T3, T4, T5, T6, T7]);
+    #[cfg(pbrt_double_as_float)]
+    const COEFFICENTS: [Float; 7] = [
+        0.406758566246788489601959989e-5,
+        0.636226545274016134946890922156,
+        0.61572017898280213493197203466e-2,
+        -0.247333733281268944196501420480,
+        0.881770664775316294736387951347e-1,
+        0.419038818029165735901852432784e-1,
+        -0.251390972343483509333252996350e-1,
+    ];
+
+    #[cfg(not(pbrt_double_as_float))]
+    const COEFFICENTS: [Float; 7] = [
+        4.0675855e-6,
+        0.63622563,
+        6.1572017e-3,
+        -0.24733374,
+        8.817707e-2,
+        4.1903883e-2,
+        -2.5139097e-2,
+    ];
+
+    let mut phi = evaluate_polynomial(b, &COEFFICENTS);
 
     // Extend phi if input is in the range 45-90 deg (u < v)
     if x < y {

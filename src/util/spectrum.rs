@@ -193,7 +193,10 @@ fn blackbody(lambda: Float, temp: Float) -> Float {
     // Speed of light
     const C: Float = 299792458.0;
     // Planck's constant
+    #[cfg(pbrt_double_as_float)]
     const H: Float = 6.62606957e-34;
+    #[cfg(not(pbrt_double_as_float))]
+    const H: Float = 6.6260697e-34;
     // Boltzmann constant
     const K_B: Float = 1.3806488e-23;
 

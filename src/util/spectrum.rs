@@ -10,6 +10,10 @@ const N_SPECTRUM_SAMPLES: usize = 4;
 pub trait Spectrum {
     fn at(&self, lambda: Float) -> Float;
     fn max_value(&self) -> Float;
+    fn sample(&self, wavelengths: &SampledWavelengths) -> SampledSpectrum {
+        let values = wavelengths.lambdas().map(|l| self.at(l));
+        SampledSpectrum { values }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -30,6 +34,10 @@ impl Spectrum for ConstantSpectrum {
 
     fn max_value(&self) -> Float {
         self.c
+    }
+
+    fn sample(&self, _wavelengths: &SampledWavelengths) -> SampledSpectrum {
+        SampledSpectrum::new([self.c; N_SPECTRUM_SAMPLES])
     }
 }
 
@@ -600,5 +608,72 @@ impl DivAssign<Float> for SampledSpectrum {
         for i in 0..N_SPECTRUM_SAMPLES {
             self[i] /= rhs;
         }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct SampledWavelengths {
+    lambdas: [Float; N_SPECTRUM_SAMPLES],
+    pdf: [Float; N_SPECTRUM_SAMPLES],
+}
+
+impl SampledWavelengths {
+    pub fn sample_uniform(u: Float, lambda_min: Option<Float>, lambda_max: Option<Float>) -> Self {
+        let lambda_min = lambda_min.unwrap_or(LAMBDA_MIN);
+        let lambda_max = lambda_max.unwrap_or(LAMBDA_MAX);
+
+        let mut lambdas = [0.0; N_SPECTRUM_SAMPLES];
+
+        // Sample first wavelength using u
+        lambdas[0] = lerp(lambda_min, lambda_max, u);
+
+        // Initialize lambda for remaining wavelengths
+        let delta = (lambda_max - lambda_min) / N_SPECTRUM_SAMPLES as Float;
+
+        for i in 1..N_SPECTRUM_SAMPLES {
+            lambdas[i] =
+                (lambdas[i - 1] + delta - lambda_min) % (lambda_max - lambda_min) + lambda_min;
+        }
+
+        // Compute PDF for sample wavelengths
+        let pdf = [1.0 / (lambda_max - lambda_min); N_SPECTRUM_SAMPLES];
+
+        Self { lambdas, pdf }
+    }
+
+    pub fn lambdas(&self) -> &[Float; N_SPECTRUM_SAMPLES] {
+        &self.lambdas
+    }
+
+    pub fn pdf(&self) -> SampledSpectrum {
+        SampledSpectrum::new(self.pdf)
+    }
+
+    pub fn terminate_secondary(&mut self) {
+        if !self.secondary_terminated() {
+            // Update wavelength probabilities for termination
+            self.pdf[0] /= N_SPECTRUM_SAMPLES as Float;
+            for p in self.pdf.iter_mut().skip(1) {
+                *p = 0.0;
+            }
+        }
+    }
+
+    pub fn secondary_terminated(&self) -> bool {
+        self.pdf.iter().skip(1).all(|&x| x == 0.0)
+    }
+}
+
+impl Index<usize> for SampledWavelengths {
+    type Output = Float;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.lambdas[index]
+    }
+}
+
+impl IndexMut<usize> for SampledWavelengths {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.lambdas[index]
     }
 }

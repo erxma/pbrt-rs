@@ -165,11 +165,16 @@ impl Spectrum for PiecewiseLinearSpectrum {
         // Sample with largest lambda <=lambda
         let lower_i = self.find_interval(lambda);
         let lower_sample = &self.samples[lower_i];
-        let higher_sample = &self.samples[lower_i + 1];
-        // Lerp position between the two samples (by lambda)
-        let t = (lambda - lower_sample.lambda) / (higher_sample.lambda - lower_sample.lambda);
 
-        lerp(t, lower_sample.value, higher_sample.value)
+        if lambda == lower_sample.lambda {
+            lower_sample.value
+        } else {
+            let higher_sample = &self.samples[lower_i + 1];
+            // Lerp position between the two samples (by lambda)
+            let t = (lambda - lower_sample.lambda) / (higher_sample.lambda - lower_sample.lambda);
+
+            lerp(t, lower_sample.value, higher_sample.value)
+        }
     }
 
     fn max_value(&self) -> Float {

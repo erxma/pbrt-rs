@@ -7,6 +7,58 @@ const LAMBDA_MAX: Float = 830.0;
 
 const N_SPECTRUM_SAMPLES: usize = 4;
 
+pub mod spectra {
+    use super::*;
+    use crate::util::data::{CIE_LAMBDA, CIE_X, CIE_Y, CIE_Z, N_CIE_SAMPLES};
+    use std::sync::OnceLock;
+
+    static X: OnceLock<DenselySampledSpectrum> = OnceLock::new();
+    static Y: OnceLock<DenselySampledSpectrum> = OnceLock::new();
+    static Z: OnceLock<DenselySampledSpectrum> = OnceLock::new();
+
+    pub const CIE_Y_INTEGRAL: Float = 106.856895;
+
+    pub fn init() {
+        let x_samples: [SpectrumSample; N_CIE_SAMPLES] = core::array::from_fn(|i| SpectrumSample {
+            lambda: CIE_LAMBDA[i],
+            value: CIE_X[i],
+        });
+        let y_samples: [SpectrumSample; N_CIE_SAMPLES] = core::array::from_fn(|i| SpectrumSample {
+            lambda: CIE_LAMBDA[i],
+            value: CIE_Y[i],
+        });
+        let z_samples: [SpectrumSample; N_CIE_SAMPLES] = core::array::from_fn(|i| SpectrumSample {
+            lambda: CIE_LAMBDA[i],
+            value: CIE_Z[i],
+        });
+
+        let x_pls = PiecewiseLinearSpectrum::new(&x_samples);
+        let y_pls = PiecewiseLinearSpectrum::new(&y_samples);
+        let z_pls = PiecewiseLinearSpectrum::new(&z_samples);
+
+        X.set(DenselySampledSpectrum::new(&x_pls, None, None))
+            .unwrap();
+        Y.set(DenselySampledSpectrum::new(&y_pls, None, None))
+            .unwrap();
+        Z.set(DenselySampledSpectrum::new(&z_pls, None, None))
+            .unwrap();
+
+        println!("Initialized: Spectra");
+    }
+
+    pub fn x() -> &'static DenselySampledSpectrum {
+        X.get().unwrap()
+    }
+
+    pub fn y() -> &'static DenselySampledSpectrum {
+        Y.get().unwrap()
+    }
+
+    pub fn z() -> &'static DenselySampledSpectrum {
+        Z.get().unwrap()
+    }
+}
+
 pub trait Spectrum {
     fn at(&self, lambda: Float) -> Float;
     fn max_value(&self) -> Float;
@@ -150,6 +202,8 @@ macro_rules! spectrum_samples {
 }
 
 pub use spectrum_samples;
+
+use super::color::XYZ;
 
 impl Spectrum for PiecewiseLinearSpectrum {
     fn at(&self, lambda: Float) -> Float {
@@ -387,6 +441,31 @@ impl SampledSpectrum {
             let sum: Float = self.values.iter().sum();
             Some(sum / N_SPECTRUM_SAMPLES as Float)
         }
+    }
+
+    pub fn to_xyz(&self, wavelengths: &SampledWavelengths) -> XYZ {
+        // Sample the X, Y, Z matching curves at lambda
+        let x = spectra::x().sample(wavelengths);
+        let y = spectra::y().sample(wavelengths);
+        let z = spectra::z().sample(wavelengths);
+
+        // Evaluate estimator to compute (x, y, z) coefficients
+        let pdf = wavelengths.pdf();
+        XYZ::new(
+            (&x * self).safe_div(&pdf).average().unwrap(),
+            (&y * self).safe_div(&pdf).average().unwrap(),
+            (&z * self).safe_div(&pdf).average().unwrap(),
+        ) / spectra::CIE_Y_INTEGRAL
+    }
+
+    pub fn y(&self, wavelengths: &SampledWavelengths) -> Float {
+        // Sample the Y matching curve at lambda
+        let y = spectra::y().sample(wavelengths);
+
+        // Evaluate estimator to compute y coefficient
+        let pdf = wavelengths.pdf();
+
+        (&y * self).safe_div(&pdf).average().unwrap()
     }
 }
 
@@ -681,4 +760,24 @@ impl IndexMut<usize> for SampledWavelengths {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.lambdas[index]
     }
+}
+
+pub fn spectrum_to_xyz(s: impl Spectrum) -> XYZ {
+    XYZ::new(
+        inner_product(spectra::x(), &s),
+        inner_product(spectra::y(), &s),
+        inner_product(spectra::z(), &s),
+    ) / spectra::CIE_Y_INTEGRAL
+}
+
+fn inner_product(f: &impl Spectrum, g: &impl Spectrum) -> Float {
+    let mut integral = 0.0;
+
+    let mut lambda = LAMBDA_MIN;
+    while lambda <= LAMBDA_MAX {
+        integral += f.at(lambda) * g.at(lambda);
+        lambda += 1.0;
+    }
+
+    integral
 }

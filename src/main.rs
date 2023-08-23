@@ -1,3 +1,3 @@
 fn main() {
-    println!("Hello, world!");
+    pbrt_rs::util::spectrum::spectra::init();
 }

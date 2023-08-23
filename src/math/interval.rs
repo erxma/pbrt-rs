@@ -29,19 +29,19 @@ impl Interval {
         }
     }
 
-    pub fn lower_bound(&self) -> f32 {
+    pub fn lower_bound(&self) -> Float {
         self.low
     }
 
-    pub fn upper_bound(&self) -> f32 {
+    pub fn upper_bound(&self) -> Float {
         self.high
     }
 
-    pub fn midpoint(&self) -> f32 {
-        (self.low + self.high) * 0.5
+    pub fn midpoint(&self) -> Float {
+        (self.low + self.high) / 2.0
     }
 
-    pub fn width(&self) -> f32 {
+    pub fn width(&self) -> Float {
         self.high - self.low
     }
 
@@ -102,19 +102,19 @@ impl Interval {
         }
     }
 
-    pub fn min(self, other: Self) -> f32 {
+    pub fn min(self, other: Self) -> Float {
         self.low.min(other.low)
     }
 
-    pub fn max(self, other: Self) -> f32 {
+    pub fn max(self, other: Self) -> Float {
         self.high.max(other.high)
     }
 
-    pub fn floor(self) -> f32 {
+    pub fn floor(self) -> Float {
         self.low.floor()
     }
 
-    pub fn ceil(self) -> f32 {
+    pub fn ceil(self) -> Float {
         self.high.ceil()
     }
 }
@@ -152,8 +152,8 @@ impl Mul for Interval {
             self.high * rhs.high,
         ];
 
-        let low = next_float_down(prods.into_iter().reduce(f32::min).unwrap());
-        let high = next_float_up(prods.into_iter().reduce(f32::max).unwrap());
+        let low = next_float_down(prods.into_iter().reduce(Float::min).unwrap());
+        let high = next_float_up(prods.into_iter().reduce(Float::max).unwrap());
 
         Self { low, high }
     }
@@ -167,8 +167,8 @@ impl Div for Interval {
         let high;
         if rhs.low < 0.0 && rhs.high > 0.0 {
             // Divisor straddles zero...so return interval of everything
-            low = f32::NEG_INFINITY;
-            high = f32::INFINITY;
+            low = Float::NEG_INFINITY;
+            high = Float::INFINITY;
         } else {
             let quots = [
                 self.low / rhs.low,
@@ -176,8 +176,8 @@ impl Div for Interval {
                 self.high / rhs.low,
                 self.high / rhs.high,
             ];
-            low = next_float_down(quots.into_iter().reduce(f32::min).unwrap());
-            high = next_float_up(quots.into_iter().reduce(f32::max).unwrap());
+            low = next_float_down(quots.into_iter().reduce(Float::min).unwrap());
+            high = next_float_up(quots.into_iter().reduce(Float::max).unwrap());
         }
 
         Self { low, high }
@@ -208,7 +208,7 @@ impl DivAssign for Interval {
     }
 }
 
-impl From<Interval> for f32 {
+impl From<Interval> for Float {
     fn from(interval: Interval) -> Self {
         interval.midpoint()
     }

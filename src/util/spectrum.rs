@@ -2,6 +2,11 @@ use std::ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, 
 
 use crate::{math::routines::lerp, Float};
 
+use super::{
+    color::{RGB, XYZ},
+    color_space::RGBColorSpace,
+};
+
 const LAMBDA_MIN: Float = 360.0;
 const LAMBDA_MAX: Float = 830.0;
 
@@ -202,8 +207,6 @@ macro_rules! spectrum_samples {
 }
 
 pub use spectrum_samples;
-
-use super::color::XYZ;
 
 impl Spectrum for PiecewiseLinearSpectrum {
     fn at(&self, lambda: Float) -> Float {
@@ -466,6 +469,11 @@ impl SampledSpectrum {
         let pdf = wavelengths.pdf();
 
         (&y * self).safe_div(&pdf).average().unwrap()
+    }
+
+    pub fn to_rgb(&self, wavelengths: &SampledWavelengths, cs: &RGBColorSpace) -> RGB {
+        let xyz = self.to_xyz(wavelengths);
+        cs.to_rgb(xyz)
     }
 }
 

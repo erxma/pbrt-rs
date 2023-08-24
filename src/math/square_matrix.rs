@@ -2,6 +2,8 @@ use std::ops::{Add, AddAssign, Index, IndexMut, Mul, Sub, SubAssign};
 
 use crate::Float;
 
+use super::tuple::Tuple;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct SquareMatrix<const N: usize> {
     m: [[Float; N]; N],
@@ -55,6 +57,22 @@ impl<const N: usize> SquareMatrix<N> {
     #[inline]
     pub fn determinant(&self) -> Float {
         todo!()
+    }
+
+    #[inline]
+    pub fn mul<R>(&self, rhs: &impl Tuple<N, Float>) -> R
+    where
+        R: Tuple<N, Float>,
+    {
+        let mut res = R::from_array([0.0; N]);
+
+        for i in 0..N {
+            for j in 0..N {
+                res[i] += self[i][j] * rhs[j];
+            }
+        }
+
+        res
     }
 }
 

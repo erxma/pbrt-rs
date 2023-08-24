@@ -1,7 +1,7 @@
 use crate::{geometry::point2::Point2f, math::square_matrix::SquareMatrix};
 
 use super::{
-    color::XYZ,
+    color::{RGB, XYZ},
     spectrum::{spectrum_to_xyz, DenselySampledSpectrum, Spectrum},
 };
 
@@ -54,6 +54,25 @@ impl<'a> RGBColorSpace<'a> {
             rgb_from_xyz,
             rgb_to_spectrum_table,
         }
+    }
+
+    /// Convert an XYZ triplet into `self`'s color space.
+    pub fn to_rgb(&self, xyz: XYZ) -> RGB {
+        self.rgb_from_xyz.mul(&xyz)
+    }
+
+    /// Convert an RGB triplet in `self`'s color space to XYZ.
+    pub fn to_xyz(&self, rgb: RGB) -> XYZ {
+        self.xyz_from_rgb.mul(&rgb)
+    }
+
+    /// Compute the matrix to convert from `self`'s color space to the `target` space.
+    pub fn conversion_matrix(&self, target: &Self) -> SquareMatrix<3> {
+        if std::ptr::eq(self, target) {
+            return SquareMatrix::IDENTITY;
+        }
+
+        &target.rgb_from_xyz * &self.xyz_from_rgb
     }
 }
 

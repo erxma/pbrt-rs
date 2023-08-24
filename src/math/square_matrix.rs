@@ -126,6 +126,14 @@ impl<const N: usize> Mul for SquareMatrix<N> {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
+        &self * &rhs
+    }
+}
+
+impl<const N: usize> Mul for &SquareMatrix<N> {
+    type Output = SquareMatrix<N>;
+
+    fn mul(self, rhs: Self) -> Self::Output {
         let mut m = [[0.0; N]; N];
 
         for i in 0..N {
@@ -136,7 +144,7 @@ impl<const N: usize> Mul for SquareMatrix<N> {
             }
         }
 
-        Self { m }
+        SquareMatrix { m }
     }
 }
 

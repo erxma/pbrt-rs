@@ -2,13 +2,19 @@ use std::ops::{
     Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign,
 };
 
-use crate::{geometry::point2::Point2f, Float};
+use crate::{geometry::point2::Point2f, math::tuple::Tuple, Float};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct XYZ {
     pub x: Float,
     pub y: Float,
     pub z: Float,
+}
+
+impl Tuple<3, Float> for XYZ {
+    fn from_array(vals: [Float; 3]) -> Self {
+        Self::new(vals[0], vals[1], vals[2])
+    }
 }
 
 impl XYZ {
@@ -186,6 +192,49 @@ impl IndexMut<usize> for XYZ {
             1 => &mut self.y,
             2 => &mut self.z,
             _ => panic!("Index for XYZ must be within 0..=2"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct RGB {
+    pub r: Float,
+    pub g: Float,
+    pub b: Float,
+}
+
+impl RGB {
+    pub const fn new(r: Float, g: Float, b: Float) -> Self {
+        Self { r, g, b }
+    }
+}
+
+impl Tuple<3, Float> for RGB {
+    fn from_array(vals: [Float; 3]) -> Self {
+        Self::new(vals[0], vals[1], vals[2])
+    }
+}
+
+impl Index<usize> for RGB {
+    type Output = Float;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        match index {
+            0 => &self.r,
+            1 => &self.g,
+            2 => &self.b,
+            _ => panic!("Index for RGB must be within 0..=2"),
+        }
+    }
+}
+
+impl IndexMut<usize> for RGB {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        match index {
+            0 => &mut self.r,
+            1 => &mut self.g,
+            2 => &mut self.b,
+            _ => panic!("Index for RGB must be within 0..=2"),
         }
     }
 }

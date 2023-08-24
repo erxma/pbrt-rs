@@ -762,11 +762,11 @@ impl IndexMut<usize> for SampledWavelengths {
     }
 }
 
-pub fn spectrum_to_xyz(s: impl Spectrum) -> XYZ {
+pub fn spectrum_to_xyz(s: &impl Spectrum) -> XYZ {
     XYZ::new(
-        inner_product(spectra::x(), &s),
-        inner_product(spectra::y(), &s),
-        inner_product(spectra::z(), &s),
+        inner_product(spectra::x(), s),
+        inner_product(spectra::y(), s),
+        inner_product(spectra::z(), s),
     ) / spectra::CIE_Y_INTEGRAL
 }
 

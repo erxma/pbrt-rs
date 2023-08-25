@@ -1,6 +1,6 @@
 use crate::{
     self as pbrt,
-    camera::camera_sample::CameraSample,
+    base::camera::CameraSample,
     geometry::point2::{Point2f, Point2i},
 };
 

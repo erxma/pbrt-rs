@@ -56,7 +56,7 @@ pub fn equal_area_sphere_to_square(d: Vec3f) -> Point2f {
     b = if a == 0.0 { 0.0 } else { b / a };
 
     // Polynomial approximation of atan(x)*2/pi, x=b (x=[0,1])
-    #[cfg(pbrt_double_as_float)]
+    #[cfg(feature = "double_as_float")]
     const COEFFICENTS: [Float; 7] = [
         0.406758566246788489601959989e-5,
         0.636226545274016134946890922156,
@@ -67,7 +67,7 @@ pub fn equal_area_sphere_to_square(d: Vec3f) -> Point2f {
         -0.251390972343483509333252996350e-1,
     ];
 
-    #[cfg(not(pbrt_double_as_float))]
+    #[cfg(not(feature = "double_as_float"))]
     const COEFFICENTS: [Float; 7] = [
         4.0675855e-6,
         0.63622563,

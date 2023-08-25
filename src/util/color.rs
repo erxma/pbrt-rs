@@ -22,8 +22,9 @@ impl XYZ {
         Self { x, y, z }
     }
 
-    #[allow(non_snake_case)]
     pub fn from_xyy(xy: Point2f, Y: Option<Float>) -> XYZ {
+        #![allow(non_snake_case)]
+
         let Y = Y.unwrap_or(1.0);
         if xy.y == 0.0 {
             XYZ::new(0.0, 0.0, 0.0)

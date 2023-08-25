@@ -4,7 +4,7 @@ use crate::{math::routines::lerp, Float};
 
 use super::{
     color::{RGB, XYZ},
-    color_space::RGBColorSpace,
+    color_space::{RGBColorSpace, RGBSigmoidPolynomial},
 };
 
 const LAMBDA_MIN: Float = 360.0;
@@ -767,6 +767,29 @@ impl Index<usize> for SampledWavelengths {
 impl IndexMut<usize> for SampledWavelengths {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.lambdas[index]
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct RGBAlbedoSpectrum {
+    rsp: RGBSigmoidPolynomial,
+}
+
+impl RGBAlbedoSpectrum {
+    pub fn new(cs: &RGBColorSpace, rgb: RGB) -> Self {
+        Self {
+            rsp: cs.to_rgb_coeffs(rgb),
+        }
+    }
+}
+
+impl Spectrum for RGBAlbedoSpectrum {
+    fn at(&self, lambda: Float) -> Float {
+        self.rsp.at(lambda)
+    }
+
+    fn max_value(&self) -> Float {
+        self.rsp.max_value()
     }
 }
 

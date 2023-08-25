@@ -793,6 +793,37 @@ impl Spectrum for RGBAlbedoSpectrum {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct RGBUnboundedSpectrum {
+    scale: Float,
+    rsp: RGBSigmoidPolynomial,
+}
+
+impl RGBUnboundedSpectrum {
+    pub fn new(cs: RGBColorSpace, rgb: RGB) -> Self {
+        let m = rgb.r.max(rgb.g).max(rgb.b);
+
+        let scale = 2.0 * m;
+        let rsp = cs.to_rgb_coeffs(if scale != 0.0 {
+            rgb / scale
+        } else {
+            RGB::new(0.0, 0.0, 0.0)
+        });
+
+        Self { scale, rsp }
+    }
+}
+
+impl Spectrum for RGBUnboundedSpectrum {
+    fn at(&self, lambda: Float) -> Float {
+        self.scale * self.rsp.at(lambda)
+    }
+
+    fn max_value(&self) -> Float {
+        self.scale * self.rsp.max_value()
+    }
+}
+
 pub fn spectrum_to_xyz(s: &impl Spectrum) -> XYZ {
     XYZ::new(
         inner_product(spectra::x(), s),

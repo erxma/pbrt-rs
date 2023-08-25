@@ -246,3 +246,50 @@ impl IndexMut<usize> for RGB {
         }
     }
 }
+
+impl Mul<Float> for RGB {
+    type Output = Self;
+
+    #[inline]
+    fn mul(mut self, rhs: Float) -> Self {
+        self *= rhs;
+        self
+    }
+}
+
+impl Mul<RGB> for Float {
+    type Output = RGB;
+
+    #[inline]
+    fn mul(self, rhs: RGB) -> RGB {
+        rhs * self
+    }
+}
+
+impl MulAssign<Float> for RGB {
+    #[inline]
+    fn mul_assign(&mut self, rhs: Float) {
+        self.r *= rhs;
+        self.g *= rhs;
+        self.b *= rhs;
+    }
+}
+
+impl Div<Float> for RGB {
+    type Output = Self;
+
+    #[inline]
+    fn div(mut self, rhs: Float) -> Self {
+        self /= rhs;
+        self
+    }
+}
+
+impl DivAssign<Float> for RGB {
+    #[inline]
+    fn div_assign(&mut self, rhs: Float) {
+        self.r /= rhs;
+        self.g /= rhs;
+        self.b /= rhs;
+    }
+}

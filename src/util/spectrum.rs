@@ -824,6 +824,42 @@ impl Spectrum for RGBUnboundedSpectrum {
     }
 }
 
+#[derive(Clone, Copy)]
+pub struct RGBIlluminantSpectrum<'a> {
+    scale: Float,
+    rsp: RGBSigmoidPolynomial,
+    illuminant: &'a DenselySampledSpectrum,
+}
+
+impl<'a> RGBIlluminantSpectrum<'a> {
+    pub fn new(cs: &'a RGBColorSpace, rgb: RGB) -> Self {
+        let m = rgb.r.max(rgb.g).max(rgb.b);
+
+        let scale = 2.0 * m;
+        let rsp = cs.to_rgb_coeffs(if scale != 0.0 {
+            rgb / scale
+        } else {
+            RGB::new(0.0, 0.0, 0.0)
+        });
+
+        Self {
+            scale,
+            rsp,
+            illuminant: &cs.illuminant,
+        }
+    }
+}
+
+impl Spectrum for RGBIlluminantSpectrum<'_> {
+    fn at(&self, lambda: Float) -> Float {
+        self.scale * self.rsp.at(lambda) * self.illuminant.at(lambda)
+    }
+
+    fn max_value(&self) -> Float {
+        self.scale * self.rsp.max_value() * self.illuminant.max_value()
+    }
+}
+
 pub fn spectrum_to_xyz(s: &impl Spectrum) -> XYZ {
     XYZ::new(
         inner_product(spectra::x(), s),

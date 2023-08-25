@@ -1,4 +1,4 @@
-pub mod camera;
+pub mod base;
 pub mod geometry;
 pub mod math;
 pub mod media;

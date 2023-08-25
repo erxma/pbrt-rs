@@ -207,6 +207,14 @@ impl RGB {
     pub const fn new(r: Float, g: Float, b: Float) -> Self {
         Self { r, g, b }
     }
+
+    pub fn clamp_zero(self) -> Self {
+        Self {
+            r: self.r.max(0.0),
+            g: self.g.max(0.0),
+            b: self.b.max(0.0),
+        }
+    }
 }
 
 impl Tuple<3, Float> for RGB {

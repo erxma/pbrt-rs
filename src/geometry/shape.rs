@@ -13,7 +13,7 @@ use super::{
     vec3::Vec3f,
 };
 
-pub trait Shape<'a>: Debug {
+pub trait Shape: Debug {
     fn object_bound(&self) -> Bounds3f;
     fn world_bound(&self) -> Bounds3f {
         self.object_to_world() * self.object_bound()
@@ -33,8 +33,8 @@ pub trait Shape<'a>: Debug {
 
     fn area(&self) -> Float;
 
-    fn object_to_world(&self) -> &'a Transform;
-    fn world_to_object(&self) -> &'a Transform;
+    fn object_to_world(&self) -> &Transform;
+    fn world_to_object(&self) -> &Transform;
     fn reverse_orientation(&self) -> bool;
     fn transform_swaps_handedness(&self) -> bool {
         self.object_to_world().swaps_handedness()
@@ -60,8 +60,8 @@ pub struct ShapeIntersection<'a> {
 }
 
 #[derive(Debug)]
-pub struct ShapeSample {
-    pub intr: Interaction,
+pub struct ShapeSample<'a> {
+    pub intr: Interaction<'a>,
     pub pdf: Float,
 }
 
@@ -81,8 +81,8 @@ impl ShapeSampleContext {
     pub fn from_surface_interaction(si: &SurfaceInteraction) -> Self {
         Self {
             pi: si.common.pi,
-            n: si.common.n,
-            ns: si.shading.n,
+            n: Some(si.n),
+            ns: Some(si.shading.n),
             time: si.common.time,
         }
     }

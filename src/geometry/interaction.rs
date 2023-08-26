@@ -1,65 +1,111 @@
-use crate::{media::medium_interface::MediumInterface, Float};
+use crate::{
+    media::{
+        medium::{Medium, PhaseFunction},
+        medium_interface::MediumInterface,
+    },
+    Float,
+};
 
-use super::{normal3::Normal3f, point2::Point2f, point3fi::Point3fi, shape::Shape, vec3::Vec3f};
+use super::{
+    normal3::Normal3f, point2::Point2f, point3::Point3f, point3fi::Point3fi, shape::Shape,
+    vec3::Vec3f,
+};
 
-#[derive(Debug)]
-pub struct Interaction {
+#[derive(Clone, Debug)]
+pub enum Interaction<'a> {
+    Surface(SurfaceInteraction<'a>),
+    MediumInterface(MediumInterfaceInteraction<'a>),
+    IntraMedium(IntraMediumInteraction<'a>),
+}
+
+use Interaction::*;
+
+impl<'a> Interaction<'a> {
+    pub fn pi(&self) -> Point3fi {
+        self.common().pi
+    }
+
+    pub fn time(&self) -> Float {
+        self.common().time
+    }
+
+    pub fn wo(&self) -> Option<Vec3f> {
+        self.common().wo
+    }
+
+    fn common(&self) -> &InteractionCommon {
+        match self {
+            Surface(i) => &i.common,
+            MediumInterface(i) => &i.common,
+            IntraMedium(i) => &i.common,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct InteractionCommon {
     pub pi: Point3fi,
     pub time: Float,
-    pub p_error: Vec3f,
     pub wo: Option<Vec3f>,
-    pub n: Option<Normal3f>,
-    pub medium_interface: Option<MediumInterface>,
 }
 
 #[derive(Clone, Debug)]
 pub struct Shading {
-    pub n: Option<Normal3f>,
+    pub n: Normal3f,
     pub dpdu: Vec3f,
     pub dpdv: Vec3f,
     pub dndu: Normal3f,
     pub dndv: Normal3f,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct SurfaceInteraction<'a> {
-    pub common: Interaction,
+    pub common: InteractionCommon,
+    pub n: Normal3f,
     pub uv: Point2f,
     pub dpdu: Vec3f,
     pub dpdv: Vec3f,
     pub dndu: Normal3f,
     pub dndv: Normal3f,
-    shape: &'a dyn Shape<'a>,
+    shape: &'a dyn Shape,
     pub shading: Shading,
 }
 
+#[derive(Clone)]
+pub struct SurfaceInteractionParams<'a> {
+    pub pi: Point3fi,
+    pub uv: Point2f,
+    pub wo: Option<Vec3f>,
+    pub dpdu: Vec3f,
+    pub dpdv: Vec3f,
+    pub dndu: Normal3f,
+    pub dndv: Normal3f,
+    pub time: Float,
+    pub shape: &'a dyn Shape,
+}
+
 impl<'a> SurfaceInteraction<'a> {
-    pub fn new(
-        pi: Point3fi,
-        p_error: Vec3f,
-        uv: Point2f,
-        wo: Vec3f,
-        dpdu: Vec3f,
-        dpdv: Vec3f,
-        dndu: Normal3f,
-        dndv: Normal3f,
-        time: Float,
-        shape: &'a dyn Shape<'a>,
-    ) -> Self {
+    pub fn new(params: &SurfaceInteractionParams<'a>) -> Self {
+        let &SurfaceInteractionParams {
+            pi,
+            uv,
+            wo,
+            dpdu,
+            dpdv,
+            dndu,
+            dndv,
+            time,
+            shape,
+        } = params;
+
         let mut n = dpdu.cross(dpdv).normalized().into();
         // Adjust normal based on orientation and handedness
         if shape.reverse_orientation() ^ shape.transform_swaps_handedness() {
             n *= -1.0;
         }
         Self {
-            common: Interaction {
-                pi,
-                time,
-                p_error,
-                wo: Some(wo),
-                n: Some(n),
-                medium_interface: None,
-            },
+            common: InteractionCommon { pi, time, wo },
+            n,
             uv,
             dpdu,
             dpdv,
@@ -67,7 +113,7 @@ impl<'a> SurfaceInteraction<'a> {
             dndv,
             shape,
             shading: Shading {
-                n: Some(n),
+                n,
                 dpdu,
                 dpdv,
                 dndu,
@@ -85,31 +131,80 @@ impl<'a> SurfaceInteraction<'a> {
         dndv: Normal3f,
         orientation_is_authoritative: bool,
     ) {
-        let mut geometric_n = self.common.n.expect(
-            "Interaction should have a geometric normal set before setting shading geometry",
-        );
-
         // Compute shading normal, flip if needed
-        let mut n = Normal3f::from(dpdu.cross(dpdv).normalized());
+        let mut shading_n = Normal3f::from(dpdu.cross(dpdv).normalized());
         if self.shape.reverse_orientation() ^ self.shape.transform_swaps_handedness() {
-            n *= -1.0;
+            shading_n *= -1.0;
         }
 
         // Align geometric normal to shading, or vice versa
         if orientation_is_authoritative {
-            geometric_n = geometric_n.face_forward(n.into());
-            self.common.n = Some(geometric_n);
+            self.n = self.n.face_forward(shading_n.into());
         } else {
-            n = n.face_forward(geometric_n.into());
+            shading_n = shading_n.face_forward(self.n.into());
         }
 
         // Set shading values
         self.shading = Shading {
-            n: Some(n),
+            n: shading_n,
             dpdu,
             dpdv,
             dndu,
             dndv,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct MediumInterfaceInteraction<'a> {
+    pub common: InteractionCommon,
+    pub medium_interface: MediumInterface<'a>,
+    pub phase: PhaseFunction,
+}
+
+impl<'a> MediumInterfaceInteraction<'a> {
+    pub fn new(
+        p: Point3f,
+        wo: Option<Vec3f>,
+        time: Float,
+        medium_interface: MediumInterface<'a>,
+        phase: PhaseFunction,
+    ) -> Self {
+        Self {
+            common: InteractionCommon {
+                pi: Point3fi::from(p),
+                time,
+                wo,
+            },
+            medium_interface,
+            phase,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct IntraMediumInteraction<'a> {
+    pub common: InteractionCommon,
+    pub medium: &'a Medium,
+    pub phase: PhaseFunction,
+}
+
+impl<'a> IntraMediumInteraction<'a> {
+    pub fn new(
+        p: Point3f,
+        wo: Option<Vec3f>,
+        time: Float,
+        medium: &'a Medium,
+        phase: PhaseFunction,
+    ) -> Self {
+        Self {
+            common: InteractionCommon {
+                pi: Point3fi::from(p),
+                time,
+                wo,
+            },
+            medium,
+            phase,
         }
     }
 }

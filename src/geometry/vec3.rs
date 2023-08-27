@@ -1,12 +1,13 @@
-use std::ops::{
-    Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign,
+use std::ops::{Div, Index, IndexMut, Neg};
+
+use num_traits::{Float, NumCast, Signed};
+
+use crate::{self as pbrt, impl_tuple_math_ops_generic, math::routines::safe_asin, PI};
+
+use super::{
+    normal3::Normal3,
+    tuple::{Tuple, TupleElement},
 };
-
-use num_traits::{Float, Inv, Num, NumCast, Signed};
-
-use crate::{self as pbrt, math::routines::safe_asin, PI};
-
-use super::normal3::Normal3;
 
 /// A 3D vector.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -51,7 +52,15 @@ impl<T> Vec3<T> {
     }
 }
 
-impl<T: Num + Copy> Vec3<T> {
+impl<T: TupleElement> Tuple<3, T> for Vec3<T> {
+    fn from_array(vals: [T; 3]) -> Self {
+        Self::new(vals[0], vals[1], vals[2])
+    }
+}
+
+impl_tuple_math_ops_generic!(Vec3; 3);
+
+impl<T: TupleElement> Vec3<T> {
     /// Returns a vector with the absolute values of the components.
     pub fn abs(self) -> Self
     where
@@ -135,9 +144,9 @@ impl<T: Num + Copy> Vec3<T> {
     }
 }
 
-impl<T> Vec3<T>
+impl<T: TupleElement> Vec3<T>
 where
-    T: Num + Into<pbrt::Float> + Copy,
+    T: Into<pbrt::Float>,
 {
     /// The length of a vector.
     pub fn length(self) -> pbrt::Float {
@@ -253,128 +262,6 @@ impl<T> IndexMut<usize> for Vec3<T> {
             2 => &mut self.z,
             _ => panic!("Index out of bounds for Vec3"),
         }
-    }
-}
-
-impl<T: Add<Output = T>> Add for Vec3<T> {
-    type Output = Self;
-
-    /// Add two vectors to get new vector of same type.
-    fn add(self, rhs: Self) -> Self {
-        Self {
-            x: self.x + rhs.x,
-            y: self.y + rhs.y,
-            z: self.z + rhs.z,
-        }
-    }
-}
-
-impl<T> AddAssign for Vec3<T>
-where
-    Self: Add<Output = Self> + Copy,
-{
-    /// Add assign a vector with another of same type.
-    fn add_assign(&mut self, rhs: Self) {
-        *self = *self + rhs
-    }
-}
-
-impl<T: Sub<Output = T>> Sub for Vec3<T> {
-    type Output = Self;
-
-    /// Subtract a vector from another of same type.
-    fn sub(self, rhs: Self) -> Self {
-        Self {
-            x: self.x - rhs.x,
-            y: self.y - rhs.y,
-            z: self.z - rhs.z,
-        }
-    }
-}
-
-impl<T> SubAssign for Vec3<T>
-where
-    Self: Sub<Output = Self> + Copy,
-{
-    /// Subtract assign a vector with another of same type.
-    fn sub_assign(&mut self, rhs: Self) {
-        *self = *self - rhs
-    }
-}
-
-impl<T, U, V> Mul<U> for Vec3<T>
-where
-    T: Mul<U, Output = V>,
-    U: Copy,
-{
-    type Output = Vec3<V>;
-
-    /// Multiply a vector by a scalar of same type,
-    /// returning a vector.
-    fn mul(self, rhs: U) -> Self::Output {
-        Self::Output {
-            x: self.x * rhs,
-            y: self.y * rhs,
-            z: self.z * rhs,
-        }
-    }
-}
-
-impl<T, U> MulAssign<U> for Vec3<T>
-where
-    Self: Mul<U, Output = Self> + Copy,
-{
-    /// Multiply assign a vector by a scalar of same type.
-    fn mul_assign(&mut self, rhs: U) {
-        *self = *self * rhs
-    }
-}
-
-impl Mul<Vec3i> for i32 {
-    type Output = Vec3i;
-
-    /// Multiply a vector by an i32 scalar, returning a new
-    /// vector of same type.
-    fn mul(self, rhs: Vec3i) -> Vec3i {
-        rhs * self
-    }
-}
-
-impl Mul<Vec3f> for pbrt::Float {
-    type Output = Vec3f;
-
-    /// Multiply a vector by a float scalar, returning a new
-    /// vector of same type.
-    fn mul(self, rhs: Vec3f) -> Vec3f {
-        rhs * self
-    }
-}
-
-impl<T, U> Div<U> for Vec3<T>
-where
-    T: Mul<U, Output = T>,
-    U: Inv<Output = U> + Copy,
-{
-    type Output = Self;
-
-    /// Divide a vector by a scalar of same type,
-    /// returning a new vector.
-    fn div(self, rhs: U) -> Self {
-        Self {
-            x: self.x * rhs.inv(),
-            y: self.y * rhs.inv(),
-            z: self.z * rhs.inv(),
-        }
-    }
-}
-
-impl<T, U> DivAssign<U> for Vec3<T>
-where
-    Self: Div<U, Output = Self> + Copy,
-{
-    /// Divide assign a vector by a scalar of same type.
-    fn div_assign(&mut self, rhs: U) {
-        *self = *self / rhs
     }
 }
 

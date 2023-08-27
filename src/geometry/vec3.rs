@@ -1,4 +1,4 @@
-use std::ops::{Div, Index, IndexMut};
+use std::ops::{Index, IndexMut};
 
 use num_traits::{NumCast, Signed};
 
@@ -62,31 +62,11 @@ impl<T: TupleElement> Vec3<T> {
     {
         self.dot(rhs).abs()
     }
-
-    /// Construct a local coordinate system given a vector.
-    ///
-    /// Returns the set of three orthogonal vectors representing
-    /// the system.
-    pub fn coordinate_system(self) -> (Self, Self, Self)
-    where
-        T: Signed + PartialOrd + Into<f64> + NumCast + Copy,
-        Self: Div<f64, Output = Self>,
-    {
-        let v1 = self;
-        let v2 = if v1.x.abs() > v1.y.abs() {
-            Vec3::new(-v1.z, T::zero(), v1.x) / (v1.x * v1.x + v1.z * v1.z).into().sqrt()
-        } else {
-            Vec3::new(T::zero(), v1.z, -v1.y) / (v1.y * v1.y + v1.z * v1.z).into().sqrt()
-        };
-        let v3 = v1.cross(v2);
-
-        (v1, v2, v3)
-    }
 }
 
-impl<T: TupleElement> Vec3<T>
+impl<T> Vec3<T>
 where
-    T: Into<pbrt::Float>,
+    T: TupleElement + Into<pbrt::Float>,
 {
     /// The length of a vector.
     pub fn length(self) -> pbrt::Float {
@@ -105,6 +85,25 @@ where
         } else {
             2.0 * safe_asin((other - self).length() / 2.0)
         }
+    }
+
+    /// Construct a local coordinate system given a vector.
+    ///
+    /// Returns the set of three orthogonal float vectors representing
+    /// the system.
+    pub fn coordinate_system(self) -> (Vec3<pbrt::Float>, Vec3<pbrt::Float>, Vec3<pbrt::Float>)
+    where
+        T: Into<f64>,
+    {
+        let v1: Vec3<pbrt::Float> = self.into_();
+        let v2 = if v1.x.abs() > v1.y.abs() {
+            Vec3::new(-v1.z, 0.0, v1.x) / (v1.x * v1.x + v1.z * v1.z).sqrt()
+        } else {
+            Vec3::new(0.0, v1.z, -v1.y) / (v1.y * v1.y + v1.z * v1.z).sqrt()
+        };
+        let v3 = v1.cross(v2);
+
+        (v1, v2, v3)
     }
 }
 

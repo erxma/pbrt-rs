@@ -8,5 +8,6 @@ pub mod point3fi;
 pub mod ray;
 pub mod shape;
 pub mod transform;
+pub mod tuple;
 pub mod vec3;
 pub mod vec3fi;

@@ -1,8 +1,6 @@
 use std::ops::{Add, AddAssign, Index, IndexMut, Mul, Sub, SubAssign};
 
-use crate::Float;
-
-use super::tuple::Tuple;
+use crate::{geometry::tuple::Tuple, Float};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SquareMatrix<const N: usize> {

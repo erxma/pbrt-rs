@@ -2,7 +2,10 @@ use std::ops::{
     Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign,
 };
 
-use crate::{geometry::point2::Point2f, math::tuple::Tuple, Float};
+use crate::{
+    geometry::{point2::Point2f, tuple::Tuple},
+    impl_tuple_math_ops, Float,
+};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct XYZ {
@@ -224,6 +227,8 @@ impl Tuple<3, Float> for RGB {
     }
 }
 
+impl_tuple_math_ops!(RGB; 3; Float);
+
 impl Index<usize> for RGB {
     type Output = Float;
 
@@ -232,7 +237,7 @@ impl Index<usize> for RGB {
             0 => &self.r,
             1 => &self.g,
             2 => &self.b,
-            _ => panic!("Index for RGB must be within 0..=2"),
+            _ => panic!("Index for RGB must be within 0..3"),
         }
     }
 }
@@ -243,18 +248,8 @@ impl IndexMut<usize> for RGB {
             0 => &mut self.r,
             1 => &mut self.g,
             2 => &mut self.b,
-            _ => panic!("Index for RGB must be within 0..=2"),
+            _ => panic!("Index for RGB must be within 0..3"),
         }
-    }
-}
-
-impl Mul<Float> for RGB {
-    type Output = Self;
-
-    #[inline]
-    fn mul(mut self, rhs: Float) -> Self {
-        self *= rhs;
-        self
     }
 }
 
@@ -264,33 +259,5 @@ impl Mul<RGB> for Float {
     #[inline]
     fn mul(self, rhs: RGB) -> RGB {
         rhs * self
-    }
-}
-
-impl MulAssign<Float> for RGB {
-    #[inline]
-    fn mul_assign(&mut self, rhs: Float) {
-        self.r *= rhs;
-        self.g *= rhs;
-        self.b *= rhs;
-    }
-}
-
-impl Div<Float> for RGB {
-    type Output = Self;
-
-    #[inline]
-    fn div(mut self, rhs: Float) -> Self {
-        self /= rhs;
-        self
-    }
-}
-
-impl DivAssign<Float> for RGB {
-    #[inline]
-    fn div_assign(&mut self, rhs: Float) {
-        self.r /= rhs;
-        self.g /= rhs;
-        self.b /= rhs;
     }
 }

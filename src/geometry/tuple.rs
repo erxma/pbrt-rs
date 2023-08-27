@@ -1,7 +1,11 @@
 use std::ops::{Add, AddAssign, Div, DivAssign, IndexMut, Mul, MulAssign, Sub, SubAssign};
 
-pub trait Tuple<const N: usize, T: TupleElement>:
+use num_traits::{Float, Signed};
+
+pub trait Tuple<const N: usize, T: Copy>:
     Copy
+    + Default
+    + PartialEq
     + IndexMut<usize, Output = T>
     + Add<Output = Self>
     + Sub<Output = Self>
@@ -11,13 +15,159 @@ pub trait Tuple<const N: usize, T: TupleElement>:
     + SubAssign
     + MulAssign<T>
     + DivAssign<T>
-    + PartialEq
 {
-    fn from_array(vals: [T; N]) -> Self;
+    fn from_array(vals: [T; N]) -> Self {
+        let mut ret = Self::default();
+        for i in 0..N {
+            ret[i] = vals[i];
+        }
+        ret
+    }
+
+    /// Returns a `Self` with the absolute values of the components.
+    fn abs(mut self) -> Self
+    where
+        T: Signed,
+    {
+        for i in 0..N {
+            self[i] = self[i].abs();
+        }
+        self
+    }
+
+    /// Permute `self`'s elements according to the index values given.
+    fn permute(self, indices: [usize; N]) -> Self {
+        let mut ret = self;
+        for i in 0..N {
+            ret[i] = self[indices[i]];
+        }
+        ret
+    }
+
+    /// Returns true if any component is NaN.
+    fn has_nan(self) -> bool
+    where
+        T: Float,
+    {
+        (0..N).any(|i| self[i].is_nan())
+    }
+
+    /// Returns the element with the smallest value.
+    fn min_component(self) -> T
+    where
+        T: PartialOrd,
+    {
+        (0..N)
+            .map(|i| self[i])
+            .min_by(|x, y| {
+                x.partial_cmp(y)
+                    .expect("All tuple values need to be comparable - is there a NaN?")
+            })
+            .unwrap()
+    }
+
+    /// Returns the element with the largest value.
+    fn max_component(self) -> T
+    where
+        T: Float,
+    {
+        (0..N)
+            .map(|i| self[i])
+            .max_by(|x, y| {
+                x.partial_cmp(y)
+                    .expect("All tuple values need to be comparable - is there a NaN?")
+            })
+            .unwrap()
+    }
+
+    /// Returns the index of the component with the max value.
+    fn max_dimension(self) -> usize
+    where
+        T: PartialOrd,
+    {
+        (0..N)
+            .min_by(|&i1, &i2| {
+                self[i1]
+                    .partial_cmp(&self[i2])
+                    .expect("All tuple values need to be comparable - is there a NaN?")
+            })
+            .unwrap()
+    }
+
+    /// Returns the index of the component with the min value.
+    fn min_dimension(self) -> usize
+    where
+        T: PartialOrd,
+    {
+        (0..N)
+            .max_by(|&i1, &i2| {
+                self[i1]
+                    .partial_cmp(&self[i2])
+                    .expect("All tuple values need to be comparable - is there a NaN?")
+            })
+            .unwrap()
+    }
+
+    /// Returns a `Self` containing the min values for each
+    /// component of `self` and `other` (the component-wise min).
+    fn min(mut self, other: Self) -> Self
+    where
+        T: PartialOrd,
+    {
+        for i in 0..N {
+            self[i] = match self[i].partial_cmp(&other[i]) {
+                Some(std::cmp::Ordering::Less) | Some(std::cmp::Ordering::Equal) => self[i],
+                Some(std::cmp::Ordering::Greater) => other[i],
+                None => panic!("All tuple values need to be comparable - is there a NaN?"),
+            }
+        }
+        self
+    }
+
+    /// Returns a `Self` containing the max values for each
+    /// component of `self` and `other` (the component-wise max).
+    fn max(mut self, other: Self) -> Self
+    where
+        T: PartialOrd,
+    {
+        for i in 0..N {
+            self[i] = match self[i].partial_cmp(&other[i]) {
+                Some(std::cmp::Ordering::Greater) | Some(std::cmp::Ordering::Equal) => self[i],
+                Some(std::cmp::Ordering::Less) => other[i],
+                None => panic!("All tuple values need to be comparable - is there a NaN?"),
+            }
+        }
+        self
+    }
+
+    /// Returns `self` with `ceil` applied component-wise.
+    fn ceil(mut self) -> Self
+    where
+        T: Float,
+    {
+        for i in 0..N {
+            self[i] = self[i].ceil();
+        }
+        self
+    }
+
+    /// Returns `self` with `floor` applied component-wise.
+    fn floor(mut self) -> Self
+    where
+        T: Float,
+    {
+        for i in 0..N {
+            self[i] = self[i].floor();
+        }
+        self
+    }
 }
 
 pub trait TupleElement:
     Copy
+    + Default
+    + PartialEq
+    + PartialOrd
     + Add<Output = Self>
     + Sub<Output = Self>
     + Mul<Output = Self>
@@ -26,12 +176,14 @@ pub trait TupleElement:
     + SubAssign
     + MulAssign
     + DivAssign
-    + PartialEq
 {
 }
 
 impl<T> TupleElement for T where
     T: Copy
+        + Default
+        + PartialEq
+        + PartialOrd
         + Add<Output = Self>
         + Sub<Output = Self>
         + Mul<Output = Self>
@@ -40,7 +192,6 @@ impl<T> TupleElement for T where
         + SubAssign
         + MulAssign
         + DivAssign
-        + PartialEq
 {
 }
 
@@ -137,6 +288,21 @@ macro_rules! impl_tuple_math_ops {
 #[macro_export]
 macro_rules! impl_tuple_math_ops_generic {
     ($name:ident; $n:expr) => {
+        impl<T> $name<T> {
+            /// Convert vector elements into another type.
+            pub fn into_<U>(self) -> $name<U>
+            where
+                T: Into<U> + Copy,
+                U: Default,
+            {
+                let mut ret = $name::default();
+                for i in 0..$n {
+                    ret[i] = self[i].into();
+                }
+                ret
+            }
+        }
+
         impl<T: std::ops::Add<Output = T> + Copy> std::ops::Add for $name<T> {
             type Output = Self;
 
@@ -236,6 +402,18 @@ macro_rules! impl_tuple_math_ops_generic {
                 for i in 0..$n {
                     self[i] /= rhs;
                 }
+            }
+        }
+
+        impl<T: std::ops::Neg<Output = T> + Copy> std::ops::Neg for $name<T> {
+            type Output = Self;
+
+            #[inline]
+            fn neg(mut self) -> Self {
+                for i in 0..$n {
+                    self[i] = -self[i];
+                }
+                self
             }
         }
     };

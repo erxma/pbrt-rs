@@ -1,6 +1,4 @@
-use std::ops::{
-    Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign,
-};
+use std::ops::{Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg};
 
 use crate::{
     geometry::{point2::Point2f, tuple::Tuple},
@@ -48,49 +46,14 @@ impl XYZ {
     }
 }
 
-impl Add for XYZ {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        let mut ret = self;
-        ret += rhs;
-        ret
-    }
-}
-
-impl AddAssign for XYZ {
-    fn add_assign(&mut self, rhs: Self) {
-        self.x += rhs.x;
-        self.y += rhs.y;
-        self.z += rhs.z;
-    }
-}
-
-impl Sub for XYZ {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        let mut ret = self;
-        ret -= rhs;
-        ret
-    }
-}
-
-impl SubAssign for XYZ {
-    fn sub_assign(&mut self, rhs: Self) {
-        self.x -= rhs.x;
-        self.y -= rhs.y;
-        self.z -= rhs.z;
-    }
-}
+impl_tuple_math_ops!(XYZ; 3; Float);
 
 impl Mul for XYZ {
     type Output = Self;
 
-    fn mul(self, rhs: Self) -> Self::Output {
-        let mut ret = self;
-        ret *= rhs;
-        ret
+    fn mul(mut self, rhs: Self) -> Self::Output {
+        self *= rhs;
+        self
     }
 }
 
@@ -117,50 +80,6 @@ impl DivAssign for XYZ {
         self.x /= rhs.x;
         self.y /= rhs.y;
         self.z /= rhs.z;
-    }
-}
-
-impl Mul<Float> for XYZ {
-    type Output = Self;
-
-    fn mul(self, rhs: Float) -> Self::Output {
-        let mut ret = self;
-        ret *= rhs;
-        ret
-    }
-}
-
-impl Mul<XYZ> for Float {
-    type Output = XYZ;
-
-    fn mul(self, rhs: XYZ) -> Self::Output {
-        rhs * self
-    }
-}
-
-impl MulAssign<Float> for XYZ {
-    fn mul_assign(&mut self, rhs: Float) {
-        self.x *= rhs;
-        self.y *= rhs;
-        self.z *= rhs;
-    }
-}
-
-impl Div<Float> for XYZ {
-    type Output = Self;
-
-    fn div(self, rhs: Float) -> Self::Output {
-        let mut ret = self;
-        ret /= rhs;
-        ret
-    }
-}
-
-impl DivAssign<Float> for XYZ {
-    fn div_assign(&mut self, rhs: Float) {
-        self.x /= rhs;
-        self.y /= rhs;
-        self.z /= rhs;
     }
 }
 
@@ -250,14 +169,5 @@ impl IndexMut<usize> for RGB {
             2 => &mut self.b,
             _ => panic!("Index for RGB must be within 0..3"),
         }
-    }
-}
-
-impl Mul<RGB> for Float {
-    type Output = RGB;
-
-    #[inline]
-    fn mul(self, rhs: RGB) -> RGB {
-        rhs * self
     }
 }

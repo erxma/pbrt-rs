@@ -2,11 +2,11 @@ use std::ops::{
     Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign,
 };
 
-use num_traits::{real::Real, Float, Num, Signed};
+use num_traits::{real::Real, Float, Signed};
 
 use crate as pbrt;
 
-use super::{bounds3::Bounds3, vec3::Vec3};
+use super::{bounds3::Bounds3, tuple::TupleElement, vec3::Vec3};
 
 /// A 3D point.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -51,7 +51,7 @@ impl<T> Point3<T> {
     }
 }
 
-impl<T: Num + Copy> Point3<T> {
+impl<T: TupleElement> Point3<T> {
     /// The squared distance between `self` and `p2`.
     pub fn distance_squared(self, p2: Self) -> T {
         (self - p2).length_squared()

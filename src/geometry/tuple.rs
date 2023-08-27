@@ -1,8 +1,8 @@
 use std::ops::{Add, AddAssign, Div, DivAssign, IndexMut, Mul, MulAssign, Sub, SubAssign};
 
-use num_traits::{Float, Signed};
+use num_traits::{Float, NumAssign, Signed};
 
-pub trait Tuple<const N: usize, T: Copy>:
+pub trait Tuple<const N: usize, T: TupleElement>:
     Copy
     + Default
     + PartialEq
@@ -163,37 +163,9 @@ pub trait Tuple<const N: usize, T: Copy>:
     }
 }
 
-pub trait TupleElement:
-    Copy
-    + Default
-    + PartialEq
-    + PartialOrd
-    + Add<Output = Self>
-    + Sub<Output = Self>
-    + Mul<Output = Self>
-    + Div<Output = Self>
-    + AddAssign
-    + SubAssign
-    + MulAssign
-    + DivAssign
-{
-}
+pub trait TupleElement: NumAssign + Copy + PartialOrd {}
 
-impl<T> TupleElement for T where
-    T: Copy
-        + Default
-        + PartialEq
-        + PartialOrd
-        + Add<Output = Self>
-        + Sub<Output = Self>
-        + Mul<Output = Self>
-        + Div<Output = Self>
-        + AddAssign
-        + SubAssign
-        + MulAssign
-        + DivAssign
-{
-}
+impl<T> TupleElement for T where T: NumAssign + Copy + PartialOrd {}
 
 #[macro_export]
 macro_rules! impl_tuple_math_ops {

@@ -62,7 +62,7 @@ impl<const N: usize> SquareMatrix<N> {
     where
         R: Tuple<N, Float>,
     {
-        let mut res = R::from_array([0.0; N]);
+        let mut res = R::from([0.0; N]);
 
         for i in 0..N {
             for j in 0..N {

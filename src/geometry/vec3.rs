@@ -1,10 +1,13 @@
-use std::ops::{Index, IndexMut};
+use std::ops::{Add, AddAssign, Index, IndexMut, Sub, SubAssign};
 
 use num_traits::{NumCast, Signed};
 
 use crate::{self as pbrt, impl_tuple_math_ops_generic, math::routines::safe_asin, PI};
 
-use super::{normal3::Normal3, tuple::TupleElement};
+use super::{
+    normal3::Normal3,
+    tuple::{Tuple, TupleElement},
+};
 
 /// A 3D vector.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -23,6 +26,8 @@ impl<T> Vec3<T> {
         Self { x, y, z }
     }
 }
+
+impl<T: TupleElement> Tuple<3, T> for Vec3<T> {}
 
 impl_tuple_math_ops_generic!(Vec3; 3);
 
@@ -107,6 +112,13 @@ where
     }
 }
 
+impl<T> From<[T; 3]> for Vec3<T> {
+    fn from(arr: [T; 3]) -> Self {
+        let [x, y, z] = arr;
+        Self::new(x, y, z)
+    }
+}
+
 impl<T> Index<usize> for Vec3<T> {
     type Output = T;
 
@@ -130,6 +142,24 @@ impl<T> IndexMut<usize> for Vec3<T> {
             2 => &mut self.z,
             _ => panic!("Index out of bounds for Vec3"),
         }
+    }
+}
+
+impl<T: AddAssign + Copy> Add for Vec3<T> {
+    type Output = Self;
+
+    fn add(mut self, rhs: Self) -> Self::Output {
+        self += rhs;
+        self
+    }
+}
+
+impl<T: SubAssign + Copy> Sub for Vec3<T> {
+    type Output = Self;
+
+    fn sub(mut self, rhs: Self) -> Self::Output {
+        self -= rhs;
+        self
     }
 }
 

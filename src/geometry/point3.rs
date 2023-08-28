@@ -1,12 +1,12 @@
-use std::ops::{
-    Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign,
+use std::ops::{Add, AddAssign, Index, IndexMut, Mul, Sub, SubAssign};
+
+use crate::{self as pbrt, impl_tuple_math_ops_generic};
+
+use super::{
+    bounds3::Bounds3,
+    tuple::{Tuple, TupleElement},
+    vec3::Vec3,
 };
-
-use num_traits::{real::Real, Float, Signed};
-
-use crate as pbrt;
-
-use super::{bounds3::Bounds3, tuple::TupleElement, vec3::Vec3};
 
 /// A 3D point.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -24,32 +24,11 @@ impl<T> Point3<T> {
     pub fn new(x: T, y: T, z: T) -> Self {
         Self { x, y, z }
     }
-
-    /// Convert point elements into another type.
-    pub fn into_<U>(self) -> Point3<U>
-    where
-        T: Into<U>,
-    {
-        Point3 {
-            x: self.x.into(),
-            y: self.y.into(),
-            z: self.z.into(),
-        }
-    }
-
-    /// Permute a point's elements according to the index values
-    /// given.
-    pub fn permute(self, x: usize, y: usize, z: usize) -> Self
-    where
-        T: Copy,
-    {
-        Self {
-            x: self[x],
-            y: self[y],
-            z: self[z],
-        }
-    }
 }
+
+impl<T: TupleElement> Tuple<3, T> for Point3<T> {}
+
+impl_tuple_math_ops_generic!(Point3; 3);
 
 impl<T: TupleElement> Point3<T> {
     /// The squared distance between `self` and `p2`.
@@ -72,42 +51,6 @@ impl<T: TupleElement> Point3<T> {
         Self: Mul<pbrt::Float, Output = Self>,
     {
         p0 * (1.0 - t) + p1 * t
-    }
-
-    /// Applies floor to each component.
-    pub fn floor(self) -> Self
-    where
-        T: Real,
-    {
-        Self {
-            x: self.x.floor(),
-            y: self.y.floor(),
-            z: self.z.floor(),
-        }
-    }
-
-    /// Applies ceil to each component.
-    pub fn ceil(self) -> Self
-    where
-        T: Real,
-    {
-        Self {
-            x: self.x.ceil(),
-            y: self.y.ceil(),
-            z: self.z.ceil(),
-        }
-    }
-
-    /// Applies abs to each component.
-    pub fn abs(self) -> Self
-    where
-        T: Signed,
-    {
-        Self {
-            x: self.x.abs(),
-            y: self.y.abs(),
-            z: self.z.abs(),
-        }
     }
 
     pub fn inside(self, b: Bounds3<T>) -> bool
@@ -133,54 +76,10 @@ impl<T: TupleElement> Point3<T> {
     }
 }
 
-impl<T: Float> Point3<T> {
-    /// Returns true if any component is NaN.
-    pub fn has_nans(self) -> bool {
-        self.x.is_nan() || self.y.is_nan() || self.z.is_nan()
-    }
-}
-
-impl<T: Ord> Point3<T> {
-    /// Returns a vector containing the min values for each
-    /// component of `self` and `other` (the component-wise min).
-    pub fn min(self, other: Self) -> Self {
-        Self {
-            x: self.x.min(other.x),
-            y: self.y.min(other.y),
-            z: self.z.min(other.z),
-        }
-    }
-
-    /// Returns a vector containing the max values for each
-    /// component of `self` and `other` (the component-wise max).
-    pub fn max(self, other: Self) -> Self {
-        Self {
-            x: self.x.max(other.x),
-            y: self.y.max(other.y),
-            z: self.z.max(other.z),
-        }
-    }
-}
-
-impl<T: Float> Point3<T> {
-    /// Returns a vector containing the min float values for each
-    /// component of `self` and `other` (the component-wise min).
-    pub fn min_float(self, other: Self) -> Self {
-        Self {
-            x: self.x.min(other.x),
-            y: self.y.min(other.y),
-            z: self.z.min(other.z),
-        }
-    }
-
-    /// Returns a vector containing the max float values for each
-    /// component of `self` and `other` (the component-wise max).
-    pub fn max_float(self, other: Self) -> Self {
-        Self {
-            x: self.x.max(other.x),
-            y: self.y.max(other.y),
-            z: self.z.max(other.z),
-        }
+impl<T> From<[T; 3]> for Point3<T> {
+    fn from(arr: [T; 3]) -> Self {
+        let [x, y, z] = arr;
+        Self::new(x, y, z)
     }
 }
 
@@ -222,18 +121,6 @@ impl<T: Add<Output = T>> Add for Point3<T> {
             y: self.y + rhs.y,
             z: self.z + rhs.z,
         }
-    }
-}
-
-impl<T> AddAssign for Point3<T>
-where
-    Self: Add<Output = Self> + Copy,
-{
-    /// Add assign another point to `self`.
-    ///
-    /// Doesn't make sense mathematically but useful for calculations.
-    fn add_assign(&mut self, rhs: Self) {
-        *self = *self + rhs
     }
 }
 
@@ -293,95 +180,6 @@ where
     /// Subtract assign a vector from `self`.
     fn sub_assign(&mut self, rhs: Vec3<T>) {
         *self = *self - rhs
-    }
-}
-
-impl<T, U, V> Mul<U> for Point3<T>
-where
-    T: Mul<U, Output = V>,
-    U: Copy,
-{
-    type Output = Point3<V>;
-
-    /// Multiply a point by a scalar of same type,
-    /// returning a point.
-    fn mul(self, rhs: U) -> Self::Output {
-        Self::Output {
-            x: self.x * rhs,
-            y: self.y * rhs,
-            z: self.z * rhs,
-        }
-    }
-}
-
-impl<T, U> MulAssign<U> for Point3<T>
-where
-    Self: Mul<U, Output = Self> + Copy,
-{
-    /// Multiply assign `self` by a scalar of same type.
-    fn mul_assign(&mut self, rhs: U) {
-        *self = *self * rhs
-    }
-}
-
-impl Mul<Point3i> for i32 {
-    type Output = Point3i;
-
-    /// Multiply a point by an i32 scalar, returning a new
-    /// point of same type.
-    fn mul(self, rhs: Point3i) -> Point3i {
-        rhs * self
-    }
-}
-
-impl Mul<Point3f> for pbrt::Float {
-    type Output = Point3f;
-
-    /// Multiply a point by a float scalar, returning a new
-    /// point of same type.
-    fn mul(self, rhs: Point3f) -> Point3f {
-        rhs * self
-    }
-}
-
-impl<T, U> Div<U> for Point3<T>
-where
-    T: Div<U>,
-    U: Copy,
-{
-    type Output = Point3<<T as Div<U>>::Output>;
-
-    /// Divide a point by a scalar of same type,
-    /// returning a new point.
-    fn div(self, rhs: U) -> Self::Output {
-        Self::Output {
-            x: self.x / rhs,
-            y: self.y / rhs,
-            z: self.z / rhs,
-        }
-    }
-}
-
-impl<T, U> DivAssign<U> for Point3<T>
-where
-    Self: Div<U, Output = Self> + Copy,
-{
-    /// Divide assign a point by a scalar of same type.
-    fn div_assign(&mut self, rhs: U) {
-        *self = *self / rhs
-    }
-}
-
-impl<T: Neg<Output = T>> Neg for Point3<T> {
-    type Output = Self;
-
-    /// Negate a point's elements.
-    fn neg(self) -> Self {
-        Self {
-            x: -self.x,
-            y: -self.y,
-            z: -self.z,
-        }
     }
 }
 

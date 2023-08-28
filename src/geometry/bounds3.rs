@@ -368,7 +368,7 @@ impl<T> Bounds3<T> {
     /// Convert elements into another type.
     pub fn into_<U>(self) -> Bounds3<U>
     where
-        T: Into<U>,
+        T: Into<U> + Copy,
     {
         Bounds3 {
             p_min: self.p_min.into_(),

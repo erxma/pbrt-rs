@@ -4,26 +4,18 @@ use num_traits::{Float, NumAssign, Signed};
 
 pub trait Tuple<const N: usize, T: TupleElement>:
     Copy
-    + Default
     + PartialEq
     + IndexMut<usize, Output = T>
-    + Add<Output = Self>
-    + Sub<Output = Self>
+    + Add
+    + Sub
     + Mul<T, Output = Self>
     + Div<T, Output = Self>
     + AddAssign
     + SubAssign
     + MulAssign<T>
     + DivAssign<T>
+    + From<[T; N]>
 {
-    fn from_array(vals: [T; N]) -> Self {
-        let mut ret = Self::default();
-        for i in 0..N {
-            ret[i] = vals[i];
-        }
-        ret
-    }
-
     /// Returns a `Self` with the absolute values of the components.
     fn abs(mut self) -> Self
     where
@@ -163,9 +155,9 @@ pub trait Tuple<const N: usize, T: TupleElement>:
     }
 }
 
-pub trait TupleElement: NumAssign + Copy + PartialOrd {}
+pub trait TupleElement: NumAssign + Copy {}
 
-impl<T> TupleElement for T where T: NumAssign + Copy + PartialOrd {}
+impl<T> TupleElement for T where T: NumAssign + Copy {}
 
 #[macro_export]
 macro_rules! impl_tuple_math_ops {
@@ -265,37 +257,10 @@ macro_rules! impl_tuple_math_ops_generic {
             pub fn into_<U>(self) -> $name<U>
             where
                 T: Into<U> + Copy,
-                U: Default,
+                $name<U>: From<[U; $n]>,
             {
-                let mut ret = $name::default();
-                for i in 0..$n {
-                    ret[i] = self[i].into();
-                }
-                ret
-            }
-        }
-
-        impl<T: std::ops::Add<Output = T> + Copy> std::ops::Add for $name<T> {
-            type Output = Self;
-
-            #[inline]
-            fn add(mut self, rhs: Self) -> Self {
-                for i in 0..$n {
-                    self[i] = self[i] + rhs[i];
-                }
-                self
-            }
-        }
-
-        impl<T: std::ops::Sub<Output = T> + Copy> std::ops::Sub for $name<T> {
-            type Output = Self;
-
-            #[inline]
-            fn sub(mut self, rhs: Self) -> Self {
-                for i in 0..$n {
-                    self[i] = self[i] - rhs[i];
-                }
-                self
+                let vals = core::array::from_fn(|i| self[i].into());
+                $name::from(vals)
             }
         }
 
@@ -320,11 +285,11 @@ macro_rules! impl_tuple_math_ops_generic {
             }
         }
 
-        impl std::ops::Mul<$name<crate::Float>> for crate::Float {
-            type Output = $name<crate::Float>;
+        impl std::ops::Mul<$name<$crate::Float>> for $crate::Float {
+            type Output = $name<$crate::Float>;
 
             #[inline]
-            fn mul(self, rhs: $name<crate::Float>) -> $name<crate::Float> {
+            fn mul(self, rhs: $name<$crate::Float>) -> $name<$crate::Float> {
                 rhs * self
             }
         }

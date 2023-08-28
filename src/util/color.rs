@@ -12,11 +12,7 @@ pub struct XYZ {
     pub z: Float,
 }
 
-impl Tuple<3, Float> for XYZ {
-    fn from_array(vals: [Float; 3]) -> Self {
-        Self::new(vals[0], vals[1], vals[2])
-    }
-}
+impl Tuple<3, Float> for XYZ {}
 
 impl XYZ {
     pub fn new(x: Float, y: Float, z: Float) -> Self {
@@ -95,6 +91,16 @@ impl Neg for XYZ {
     }
 }
 
+impl From<[Float; 3]> for XYZ {
+    fn from(arr: [Float; 3]) -> Self {
+        Self {
+            x: arr[0],
+            y: arr[1],
+            z: arr[2],
+        }
+    }
+}
+
 impl Index<usize> for XYZ {
     type Output = Float;
 
@@ -140,13 +146,15 @@ impl RGB {
     }
 }
 
-impl Tuple<3, Float> for RGB {
-    fn from_array(vals: [Float; 3]) -> Self {
-        Self::new(vals[0], vals[1], vals[2])
-    }
-}
+impl Tuple<3, Float> for RGB {}
 
 impl_tuple_math_ops!(RGB; 3; Float);
+
+impl From<[Float; 3]> for RGB {
+    fn from(arr: [Float; 3]) -> Self {
+        Self::new(arr[0], arr[1], arr[2])
+    }
+}
 
 impl Index<usize> for RGB {
     type Output = Float;

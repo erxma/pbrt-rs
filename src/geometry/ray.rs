@@ -1,6 +1,8 @@
-use crate::{media::medium::Medium, Float};
-
-use super::{point3::Point3f, vec3::Vec3f};
+use crate::{
+    math::{point::Point3f, vec3::Vec3f},
+    media::medium::Medium,
+    Float,
+};
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Ray<'a> {

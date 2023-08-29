@@ -4,8 +4,8 @@ use std::{
 };
 
 use crate::{
-    geometry::point2::Point2f,
     math::{
+        point::Point2f,
         routines::{evaluate_polynomial, lerp},
         square_matrix::SquareMatrix,
     },

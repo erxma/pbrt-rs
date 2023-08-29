@@ -1,16 +1,19 @@
 use std::fmt::Debug;
 
-use crate::{math::direction_cone::DirectionCone, Float};
-
-use super::{
-    bounds3::Bounds3f,
-    interaction::{Interaction, SurfaceInteraction},
-    normal3::Normal3f,
-    point2::Point2f,
-    point3fi::Point3fi,
-    ray::Ray,
-    transform::Transform,
-    vec3::Vec3f,
+use crate::{
+    geometry::{
+        bounds3::Bounds3f,
+        direction_cone::DirectionCone,
+        interaction::{Interaction, SurfaceInteraction},
+        ray::Ray,
+        transform::Transform,
+    },
+    math::{
+        normal3::Normal3f,
+        point::{Point2f, Point3fi},
+        vec3::Vec3f,
+    },
+    Float,
 };
 
 pub trait Shape: Debug {

@@ -1,4 +1,4 @@
-use crate::{geometry::vec3::Vec3f, Float, PI};
+use crate::{math::vec3::Vec3f, Float, PI};
 
 use super::routines::safe_acos;
 

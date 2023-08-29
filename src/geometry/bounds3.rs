@@ -7,14 +7,14 @@ use num_traits::{Bounded, Float, Num};
 
 use crate::{
     self as pbrt,
-    math::routines::{gamma, lerp},
+    math::{
+        point::{Point3, Point3f},
+        routines::{gamma, lerp},
+        vec3::{Vec3, Vec3f},
+    },
 };
 
-use super::{
-    point3::{Point3, Point3f},
-    ray::Ray,
-    vec3::{Vec3, Vec3f},
-};
+use super::ray::Ray;
 
 /// A 3D axis-aligned bounding box (AABB).
 #[derive(Clone, Copy, Debug, PartialEq)]

@@ -1,11 +1,14 @@
 use std::ops::{Add, AddAssign, Index, IndexMut, Mul, Sub, SubAssign};
 
-use crate::{self as pbrt, impl_tuple_math_ops_generic};
-
-use super::{
-    bounds3::Bounds3,
-    tuple::{Tuple, TupleElement},
-    vec3::Vec3,
+use crate::{
+    self as pbrt,
+    geometry::bounds3::Bounds3,
+    impl_tuple_math_ops_generic,
+    math::{
+        interval::Interval,
+        tuple::{Tuple, TupleElement},
+        vec3::Vec3,
+    },
 };
 
 /// A 3D point.
@@ -190,5 +193,54 @@ impl<T> From<Vec3<T>> for Point3<T> {
             y: value.y,
             z: value.z,
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Point2<T> {
+    pub x: T,
+    pub y: T,
+}
+
+pub type Point2i = Point2<i32>;
+pub type Point2f = Point2<pbrt::Float>;
+
+impl<T> Point2<T> {
+    pub fn new(x: T, y: T) -> Self {
+        Self { x, y }
+    }
+}
+
+pub type Point3fi = Point3<Interval>;
+
+impl Point3fi {
+    pub fn new_fi(values: Point3f, errors: Point3f) -> Self {
+        Self::new(
+            Interval::new_with_err(values.x, errors.x),
+            Interval::new_with_err(values.y, errors.y),
+            Interval::new_with_err(values.z, errors.z),
+        )
+    }
+
+    pub fn new_fi_exact(x: pbrt::Float, y: pbrt::Float, z: pbrt::Float) -> Self {
+        Self::new(Interval::new(x), Interval::new(y), Interval::new(z))
+    }
+
+    pub fn error(&self) -> Point3f {
+        Point3f::new(
+            self.x.width() / 2.0,
+            self.y.width() / 2.0,
+            self.z.width() / 2.0,
+        )
+    }
+
+    pub fn is_exact(&self) -> bool {
+        self.x.width() == 0.0 && self.y.width() == 0.0 && self.z.width() == 0.0
+    }
+}
+
+impl From<Point3f> for Point3fi {
+    fn from(p: Point3f) -> Self {
+        Self::new_fi_exact(p.x, p.y, p.z)
     }
 }

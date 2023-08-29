@@ -4,16 +4,17 @@ use approx::abs_diff_ne;
 
 use num_traits::{Num, NumCast};
 
-use crate::Float;
-
-use super::{
-    bounds3::Bounds3f,
-    matrix4x4::Matrix4x4,
-    normal3::Normal3,
-    point3::{Point3, Point3f},
-    ray::Ray,
-    vec3::{Vec3, Vec3f},
+use crate::{
+    math::{
+        matrix4x4::Matrix4x4,
+        normal3::Normal3,
+        point::{Point3, Point3f},
+        vec3::{Vec3, Vec3f},
+    },
+    Float,
 };
+
+use super::{bounds3::Bounds3f, ray::Ray};
 
 /// Represents a 3D transformation.
 #[derive(Clone, Debug, Default, PartialEq)]

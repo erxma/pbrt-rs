@@ -1,8 +1,9 @@
 use std::ops::{Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg};
 
 use crate::{
-    geometry::{point2::Point2f, tuple::Tuple},
-    impl_tuple_math_ops, Float,
+    impl_tuple_math_ops,
+    math::{point::Point2f, tuple::Tuple},
+    Float,
 };
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]

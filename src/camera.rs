@@ -1,15 +1,11 @@
 use crate::{
-    geometry::{
-        point2::Point2f,
-        ray::{Ray, RayDifferential},
-    },
+    geometry::ray::{Ray, RayDifferential},
+    math::point::Point2f,
     util::spectrum::{SampledSpectrum, SampledWavelengths},
     Float,
 };
 
 use self::camera_common::CameraCommon;
-
-use super::film::Film;
 
 pub trait Camera: CameraCommon {
     /// Compute the ray corresponding to a given image `sample`, if one exists.
@@ -79,3 +75,5 @@ pub struct CameraRayDifferential<'a> {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CameraTransform {}
+
+pub trait Film {}

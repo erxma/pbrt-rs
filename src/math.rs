@@ -1,8 +1,12 @@
-pub mod direction_cone;
 pub mod equal_area_mapping;
 pub mod float_utility;
 pub mod interval;
+pub mod matrix4x4;
+pub mod normal3;
 pub mod octahedral_vec;
+pub mod point;
 pub mod routines;
 pub mod square_matrix;
+pub mod tuple;
+pub mod vec3;
 pub mod vec_math;

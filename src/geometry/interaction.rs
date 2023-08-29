@@ -1,14 +1,15 @@
 use crate::{
+    math::{
+        normal3::Normal3f,
+        point::{Point2f, Point3f, Point3fi},
+        vec3::Vec3f,
+    },
     media::{
         medium::{Medium, PhaseFunction},
         medium_interface::MediumInterface,
     },
+    shapes::Shape,
     Float,
-};
-
-use super::{
-    normal3::Normal3f, point2::Point2f, point3::Point3f, point3fi::Point3fi, shape::Shape,
-    vec3::Vec3f,
 };
 
 #[derive(Clone, Debug)]
@@ -17,8 +18,6 @@ pub enum Interaction<'a> {
     MediumInterface(MediumInterfaceInteraction<'a>),
     IntraMedium(IntraMediumInteraction<'a>),
 }
-
-use Interaction::*;
 
 impl<'a> Interaction<'a> {
     pub fn pi(&self) -> Point3fi {
@@ -35,9 +34,9 @@ impl<'a> Interaction<'a> {
 
     fn common(&self) -> &InteractionCommon {
         match self {
-            Surface(i) => &i.common,
-            MediumInterface(i) => &i.common,
-            IntraMedium(i) => &i.common,
+            Interaction::Surface(i) => &i.common,
+            Interaction::MediumInterface(i) => &i.common,
+            Interaction::IntraMedium(i) => &i.common,
         }
     }
 }

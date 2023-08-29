@@ -1,4 +1,4 @@
-use crate::{geometry::vec3::Vec3f, Float};
+use crate::{math::vec3::Vec3f, Float};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct OctahedralVec {

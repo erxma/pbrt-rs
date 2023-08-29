@@ -1,9 +1,12 @@
 use crate::{
-    geometry::{bounds3::Bounds3f, point3::Point3f, transform::Transform, vec3::Vec3f},
+    geometry::{bounds3::Bounds3f, transform::Transform},
+    math::{
+        point::Point3f,
+        routines::{safe_acos, safe_sqrt},
+        vec3::Vec3f,
+    },
     Float, PI,
 };
-
-use super::routines::{safe_acos, safe_sqrt};
 
 #[derive(Clone, Copy, Debug)]
 pub struct DirectionCone {

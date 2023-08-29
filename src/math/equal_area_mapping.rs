@@ -1,6 +1,5 @@
 use crate::{
-    geometry::{point2::Point2f, vec3::Vec3f},
-    math::routines::evaluate_polynomial,
+    math::{point::Point2f, routines::evaluate_polynomial, vec3::Vec3f},
     Float, PI,
 };
 

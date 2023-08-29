@@ -207,6 +207,10 @@ impl Vec3fi {
     pub fn is_exact(&self) -> bool {
         self.x.width() == 0.0 && self.y.width() == 0.0 && self.z.width() == 0.0
     }
+
+    pub fn midpoints_only(&self) -> Vec3f {
+        Vec3f::new(self.x.midpoint(), self.y.midpoint(), self.z.midpoint())
+    }
 }
 
 impl From<Vec3f> for Vec3fi {

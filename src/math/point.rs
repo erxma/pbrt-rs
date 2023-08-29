@@ -237,6 +237,10 @@ impl Point3fi {
     pub fn is_exact(&self) -> bool {
         self.x.width() == 0.0 && self.y.width() == 0.0 && self.z.width() == 0.0
     }
+
+    pub fn midpoints_only(&self) -> Point3f {
+        Point3f::new(self.x.midpoint(), self.y.midpoint(), self.z.midpoint())
+    }
 }
 
 impl From<Point3f> for Point3fi {

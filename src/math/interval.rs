@@ -207,9 +207,3 @@ impl DivAssign for Interval {
         *self = *self / rhs
     }
 }
-
-impl From<Interval> for Float {
-    fn from(interval: Interval) -> Self {
-        interval.midpoint()
-    }
-}

@@ -14,7 +14,7 @@ use super::{
 };
 
 /// A 3D vector.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Vec3<T> {
     pub x: T,
     pub y: T,

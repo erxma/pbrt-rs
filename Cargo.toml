@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 approx = "0.5.1"
+bumpalo = "3.13.0"
 num-traits = "0.2.16"
 
 [features]

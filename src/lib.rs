@@ -27,3 +27,5 @@ mod f32_float {
 
 #[cfg(not(feature = "float-as-double"))]
 pub use f32_float::*;
+
+const L1_CACHE_LINE_SIZE: usize = 64;

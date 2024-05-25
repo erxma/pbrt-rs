@@ -1,3 +1,3 @@
 fn main() {
-    pbrt_rs::util::spectrum::spectra::init();
+    pbrt_rs::sampling::spectrum::spectra::init();
 }

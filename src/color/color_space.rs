@@ -9,13 +9,11 @@ use crate::{
         routines::{evaluate_polynomial, lerp},
         square_matrix::SquareMatrix,
     },
+    sampling::spectrum::{spectrum_to_xyz, DenselySampledSpectrum, Spectrum},
     Float,
 };
 
-use super::{
-    color::{RGB, XYZ},
-    spectrum::{spectrum_to_xyz, DenselySampledSpectrum, Spectrum},
-};
+use super::{RGB, XYZ};
 
 #[derive(Clone, Debug)]
 pub struct RGBColorSpace<'a> {

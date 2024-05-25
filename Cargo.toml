@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 approx = "0.5.1"
-num-traits = "0.2.16"
+num-traits = "0.2.19"
 
 [features]
-float-as-double = []
+use-f64 = []

@@ -9,7 +9,7 @@ use crate::{
         point::{Point2f, Point3f, Point3fi},
         vec3::Vec3f,
     },
-    util::spectrum::{SampledSpectrum, SampledWavelengths},
+    sampling::spectrum::{SampledSpectrum, SampledWavelengths},
     Float,
 };
 

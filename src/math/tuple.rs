@@ -1,6 +1,9 @@
-use std::ops::{Add, AddAssign, Div, DivAssign, IndexMut, Mul, MulAssign, Sub, SubAssign};
+use std::{
+    fmt::Debug,
+    ops::{Add, AddAssign, Div, DivAssign, IndexMut, Mul, MulAssign, Sub, SubAssign},
+};
 
-use num_traits::{Float, NumAssign, Signed};
+use num_traits::{Float, Num, NumAssign, Signed};
 
 pub trait Tuple<const N: usize, T: TupleElement>:
     Copy
@@ -45,10 +48,7 @@ pub trait Tuple<const N: usize, T: TupleElement>:
     }
 
     /// Returns the element with the smallest value.
-    fn min_component(self) -> T
-    where
-        T: PartialOrd,
-    {
+    fn min_component(self) -> T {
         (0..N)
             .map(|i| self[i])
             .min_by(|x, y| {
@@ -73,10 +73,7 @@ pub trait Tuple<const N: usize, T: TupleElement>:
     }
 
     /// Returns the index of the component with the max value.
-    fn max_dimension(self) -> usize
-    where
-        T: PartialOrd,
-    {
+    fn max_dimension(self) -> usize {
         (0..N)
             .min_by(|&i1, &i2| {
                 self[i1]
@@ -87,10 +84,7 @@ pub trait Tuple<const N: usize, T: TupleElement>:
     }
 
     /// Returns the index of the component with the min value.
-    fn min_dimension(self) -> usize
-    where
-        T: PartialOrd,
-    {
+    fn min_dimension(self) -> usize {
         (0..N)
             .max_by(|&i1, &i2| {
                 self[i1]
@@ -102,10 +96,7 @@ pub trait Tuple<const N: usize, T: TupleElement>:
 
     /// Returns a `Self` containing the min values for each
     /// component of `self` and `other` (the component-wise min).
-    fn min(mut self, other: Self) -> Self
-    where
-        T: PartialOrd,
-    {
+    fn min(mut self, other: Self) -> Self {
         for i in 0..N {
             self[i] = match self[i].partial_cmp(&other[i]) {
                 Some(std::cmp::Ordering::Less) | Some(std::cmp::Ordering::Equal) => self[i],
@@ -155,9 +146,9 @@ pub trait Tuple<const N: usize, T: TupleElement>:
     }
 }
 
-pub trait TupleElement: NumAssign + Copy {}
+pub trait TupleElement: Num + NumAssign + PartialOrd + Copy + Debug {}
 
-impl<T> TupleElement for T where T: NumAssign + Copy {}
+impl<T> TupleElement for T where T: Num + NumAssign + PartialOrd + Copy + Debug {}
 
 #[macro_export]
 macro_rules! impl_tuple_math_ops {
@@ -257,7 +248,6 @@ macro_rules! impl_tuple_math_ops_generic {
             pub fn into_<U>(self) -> $name<U>
             where
                 T: Into<U> + Copy,
-                $name<U>: From<[U; $n]>,
             {
                 let vals = core::array::from_fn(|i| self[i].into());
                 $name::from(vals)

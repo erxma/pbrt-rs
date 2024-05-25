@@ -1,10 +1,9 @@
 use std::ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Sub, SubAssign};
 
-use crate::{math::routines::lerp, Float};
-
-use super::{
-    color::{RGB, XYZ},
-    color_space::{RGBColorSpace, RGBSigmoidPolynomial},
+use crate::{
+    color::{RGBColorSpace, RGBSigmoidPolynomial, RGB, XYZ},
+    math::routines::lerp,
+    Float,
 };
 
 const LAMBDA_MIN: Float = 360.0;

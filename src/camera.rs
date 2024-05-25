@@ -1,7 +1,7 @@
 use crate::{
     geometry::ray::{Ray, RayDifferential},
     math::point::Point2f,
-    util::spectrum::{SampledSpectrum, SampledWavelengths},
+    sampling::spectrum::{SampledSpectrum, SampledWavelengths},
     Float,
 };
 

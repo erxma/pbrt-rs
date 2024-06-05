@@ -55,8 +55,15 @@ trait ArcInternCacheImpl<T> {
 
 trait ArcInternImpl<T>: Deref<Target = T> {}
 
-#[cfg(feature = "internment")]
 mod inner {
+    #[cfg(not(feature = "internment"))]
+    pub(super) use super::custom_impl::*;
+    #[cfg(feature = "internment")]
+    pub(super) use super::internment_impl::*;
+}
+
+#[cfg(feature = "internment")]
+mod internment_impl {
     pub(super) use internment::ArcIntern;
     use std::{hash::Hash, marker::PhantomData};
 
@@ -86,8 +93,7 @@ mod inner {
     impl<T: Hash + Eq + Send + Sync> ArcInternImpl<T> for ArcIntern<T> {}
 }
 
-#[cfg(not(feature = "internment"))]
-mod inner {
+mod custom_impl {
     use std::{
         collections::HashSet,
         hash::Hash,

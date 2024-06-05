@@ -5,7 +5,9 @@ edition = "2021"
 
 [dependencies]
 approx = "0.5.1"
+internment = { version = "0.8.3", features = ["arc"], optional = true }
 num-traits = "0.2.19"
 
 [features]
 use-f64 = []
+external-impls = ["internment"]

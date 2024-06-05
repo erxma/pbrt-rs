@@ -4,6 +4,7 @@ pub mod geometry;
 pub mod lights;
 pub mod math;
 pub mod media;
+pub mod memory;
 pub mod sampling;
 pub mod shapes;
 pub mod util;

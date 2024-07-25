@@ -42,9 +42,9 @@ pub fn equal_area_square_to_sphere(p: Point2f) -> Vec3f {
 pub fn equal_area_sphere_to_square(d: Vec3f) -> Point2f {
     assert!(d.length_squared() > 0.999 && d.length_squared() < 1.001);
 
-    let x = d.x.abs();
-    let y = d.y.abs();
-    let z = d.z.abs();
+    let x = d.x().abs();
+    let y = d.y().abs();
+    let z = d.z().abs();
 
     // Compute radius r
     let r = safe_sqrt(1.0 - z);
@@ -89,13 +89,13 @@ pub fn equal_area_sphere_to_square(d: Vec3f) -> Point2f {
     let mut u = r - v;
 
     // For southern hemisphere, mirror u, v
-    if d.z < 0.0 {
+    if d.z() < 0.0 {
         (u, v) = (1.0 - v, 1.0 - u);
     }
 
     // Move (u, v) to correct quadrant based on signs of (x, y)
-    u *= d.x.signum();
-    v *= d.y.signum();
+    u *= d.x().signum();
+    v *= d.y().signum();
 
     // Transform (u, v) from [-1, 1] to [0, 1]
     Point2f::new(0.5 * (u + 1.0), 0.5 * (v + 1.0))

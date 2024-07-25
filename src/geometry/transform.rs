@@ -2,15 +2,8 @@ use std::ops::Mul;
 
 use approx::abs_diff_ne;
 
-use num_traits::{Num, NumCast};
-
 use crate::{
-    math::{
-        matrix4x4::Matrix4x4,
-        normal3::Normal3,
-        point::{Point3, Point3f},
-        vec3::{Vec3, Vec3f},
-    },
+    math::{matrix4x4::Matrix4x4, normal3::Normal3f, point::Point3f, vec3::Vec3f},
     Float,
 };
 
@@ -51,15 +44,15 @@ impl Transform {
     /// Construct a transform representing a translation.
     pub fn translate(delta: Vec3f) -> Self {
         let m = Matrix4x4::new([
-            [1.0, 0.0, 0.0, delta.x],
-            [0.0, 1.0, 0.0, delta.y],
-            [0.0, 0.0, 1.0, delta.z],
+            [1.0, 0.0, 0.0, delta.x()],
+            [0.0, 1.0, 0.0, delta.y()],
+            [0.0, 0.0, 1.0, delta.z()],
             [0.0, 0.0, 0.0, 1.0],
         ]);
         let m_inv = Matrix4x4::new([
-            [1.0, 0.0, 0.0, -delta.x],
-            [0.0, 1.0, 0.0, -delta.y],
-            [0.0, 0.0, 1.0, -delta.z],
+            [1.0, 0.0, 0.0, -delta.x()],
+            [0.0, 1.0, 0.0, -delta.y()],
+            [0.0, 0.0, 1.0, -delta.z()],
             [0.0, 0.0, 0.0, 1.0],
         ]);
 
@@ -92,21 +85,21 @@ impl Transform {
         let (sin_theta, cos_theta) = theta.to_radians().sin_cos();
         let m = Matrix4x4::new([
             [
-                a.x * a.x + (1.0 - a.x * a.x) * cos_theta,
-                a.x * a.y * (1.0 - cos_theta) - a.z * sin_theta,
-                a.x * a.z * (1.0 - cos_theta) + a.y * sin_theta,
+                a.x() * a.x() + (1.0 - a.x() * a.x()) * cos_theta,
+                a.x() * a.y() * (1.0 - cos_theta) - a.z() * sin_theta,
+                a.x() * a.z() * (1.0 - cos_theta) + a.y() * sin_theta,
                 0.0,
             ],
             [
-                a.x * a.y * (1.0 - cos_theta) + a.z * sin_theta,
-                a.y * a.y * (1.0 - a.y * a.y) * cos_theta,
-                a.y * a.z * (1.0 - cos_theta) - a.x * sin_theta,
+                a.x() * a.y() * (1.0 - cos_theta) + a.z() * sin_theta,
+                a.y() * a.y() * (1.0 - a.y() * a.y()) * cos_theta,
+                a.y() * a.z() * (1.0 - cos_theta) - a.x() * sin_theta,
                 0.0,
             ],
             [
-                a.x * a.z * (1.0 - cos_theta) - a.y * sin_theta,
-                a.y * a.z * (1.0 - cos_theta) + a.x * sin_theta,
-                a.z * a.z + (1.0 - a.z * a.z) * cos_theta,
+                a.x() * a.z() * (1.0 - cos_theta) - a.y() * sin_theta,
+                a.y() * a.z() * (1.0 - cos_theta) + a.x() * sin_theta,
+                a.z() * a.z() + (1.0 - a.z() * a.z()) * cos_theta,
                 0.0,
             ],
             [0.0, 0.0, 0.0, 1.0],
@@ -178,9 +171,9 @@ impl Transform {
         let new_up = dir.cross(right);
 
         let camera_to_world = Matrix4x4::new([
-            [right.x, new_up.x, dir.x, cam_pos.x],
-            [right.y, new_up.y, dir.y, cam_pos.y],
-            [right.z, new_up.z, dir.z, cam_pos.z],
+            [right.x(), new_up.x(), dir.x(), cam_pos.x()],
+            [right.y(), new_up.y(), dir.y(), cam_pos.y()],
+            [right.z(), new_up.z(), dir.z(), cam_pos.z()],
             [0.0, 0.0, 0.0, 1.0],
         ]);
 
@@ -256,24 +249,18 @@ impl Mul for Transform {
     }
 }
 
-impl<T> Mul<Point3<T>> for &Transform
-where
-    T: Into<Float> + NumCast + Copy,
-{
-    type Output = Point3<T>;
+impl Mul<Point3f> for &Transform {
+    type Output = Point3f;
 
     /// Apply `self` to a point.
     #[inline]
-    fn mul(self, p: Point3<T>) -> Self::Output {
+    fn mul(self, p: Point3f) -> Self::Output {
         let m = &self.m.m;
 
-        // Convert to Float
-        let p = p.into_();
-
-        let mut x = p.x * m[0][0] + p.y * m[0][1] + p.z * m[0][2] + m[0][3];
-        let mut y = p.x * m[1][0] + p.y * m[1][1] + p.z * m[1][2] + m[1][3];
-        let mut z = p.x * m[2][0] + p.y * m[2][1] + p.z * m[2][2] + m[2][3];
-        let w = p.x * m[3][0] + p.y * m[3][1] + p.z * m[3][2] + m[3][3];
+        let mut x = p.x() * m[0][0] + p.y() * m[0][1] + p.z() * m[0][2] + m[0][3];
+        let mut y = p.x() * m[1][0] + p.y() * m[1][1] + p.z() * m[1][2] + m[1][3];
+        let mut z = p.x() * m[2][0] + p.y() * m[2][1] + p.z() * m[2][2] + m[2][3];
+        let w = p.x() * m[3][0] + p.y() * m[3][1] + p.z() * m[3][2] + m[3][3];
 
         if w == 0.0 {
             x /= w;
@@ -281,49 +268,38 @@ where
             z /= w;
         }
 
-        Self::Output {
-            x: NumCast::from(x).unwrap(),
-            y: NumCast::from(y).unwrap(),
-            z: NumCast::from(z).unwrap(),
-        }
+        Point3f::new(x, y, z)
     }
 }
 
-impl<T> Mul<Vec3<T>> for &Transform
-where
-    T: Num + Mul<Float, Output = T> + Copy,
-{
-    type Output = Vec3<T>;
+impl Mul<Vec3f> for &Transform {
+    type Output = Vec3f;
 
     /// Apply `self` to a vector.
     #[inline]
-    fn mul(self, v: Vec3<T>) -> Self::Output {
+    fn mul(self, v: Vec3f) -> Self::Output {
         let m = &self.m.m;
 
-        Self::Output {
-            x: v.x * m[0][0] + v.y * m[0][1] + v.z * m[0][2],
-            y: v.x * m[1][0] + v.y * m[1][1] + v.z * m[1][2],
-            z: v.x * m[2][0] + v.y * m[2][1] + v.z * m[2][2],
-        }
+        Vec3f::new(
+            v.x() * m[0][0] + v.y() * m[0][1] + v.z() * m[0][2],
+            v.x() * m[1][0] + v.y() * m[1][1] + v.z() * m[1][2],
+            v.x() * m[2][0] + v.y() * m[2][1] + v.z() * m[2][2],
+        )
     }
 }
 
-// TODO: Mul<Float, Output = T> too restrictive? Along other outputs?
-impl<T> Mul<Normal3<T>> for &Transform
-where
-    T: Num + Mul<Float, Output = T> + Copy,
-{
-    type Output = Normal3<T>;
+impl Mul<Normal3f> for &Transform {
+    type Output = Normal3f;
 
     /// Apply `self` to a normal.
-    fn mul(self, n: Normal3<T>) -> Self::Output {
+    fn mul(self, n: Normal3f) -> Self::Output {
         let m_inv = &self.m_inv.m;
 
-        Self::Output {
-            x: n.x * m_inv[0][0] + n.y * m_inv[1][0] + n.z * m_inv[2][0],
-            y: n.x * m_inv[0][1] + n.y * m_inv[1][1] + n.z * m_inv[2][1],
-            z: n.x * m_inv[0][2] + n.y * m_inv[1][2] + n.z * m_inv[2][2],
-        }
+        Normal3f::new(
+            n.x() * m_inv[0][0] + n.y() * m_inv[1][0] + n.z() * m_inv[2][0],
+            n.x() * m_inv[0][1] + n.y() * m_inv[1][1] + n.z() * m_inv[2][1],
+            n.x() * m_inv[0][2] + n.y() * m_inv[1][2] + n.z() * m_inv[2][2],
+        )
     }
 }
 
@@ -393,24 +369,21 @@ impl Mul<Bounds3f> for &Transform {
 mod test {
     use approx::{assert_relative_eq, AbsDiffEq, RelativeEq};
 
-    use crate::geometry::bounds3::Bounds3;
+    use crate::{self as pbrt, geometry::bounds3::Bounds3f};
 
     use super::*;
 
-    impl<T: AbsDiffEq> AbsDiffEq for Bounds3<T>
-    where
-        T::Epsilon: Copy,
-    {
-        type Epsilon = T::Epsilon;
+    impl AbsDiffEq for Bounds3f {
+        type Epsilon = <pbrt::Float as AbsDiffEq>::Epsilon;
 
         fn default_epsilon() -> Self::Epsilon {
-            T::default_epsilon()
+            pbrt::Float::default_epsilon()
         }
 
         fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
             for p in 0..2 {
                 for i in 0..3 {
-                    if T::abs_diff_ne(&self[p][i], &other[p][i], epsilon) {
+                    if pbrt::Float::abs_diff_ne(&self[p][i], &other[p][i], epsilon) {
                         return false;
                     }
                 }
@@ -420,12 +393,9 @@ mod test {
         }
     }
 
-    impl<T: RelativeEq> RelativeEq for Bounds3<T>
-    where
-        T::Epsilon: Copy,
-    {
+    impl RelativeEq for Bounds3f {
         fn default_max_relative() -> Self::Epsilon {
-            T::default_max_relative()
+            pbrt::Float::default_max_relative()
         }
 
         fn relative_eq(
@@ -436,7 +406,7 @@ mod test {
         ) -> bool {
             for p in 0..2 {
                 for i in 0..3 {
-                    if T::relative_ne(&self[p][i], &other[p][i], epsilon, max_relative) {
+                    if pbrt::Float::relative_ne(&self[p][i], &other[p][i], epsilon, max_relative) {
                         return false;
                     }
                 }
@@ -452,15 +422,15 @@ mod test {
             let mut ret = Bounds3f::new_with_point(t * b.corner(0));
 
             for i in 1..8 {
-                ret = ret.union_point_f(t * b.corner(i));
+                ret = ret.union_point(t * b.corner(i));
             }
 
             ret
         }
 
-        let b = Bounds3::new_f(Point3::new(-1.0, -1.0, -1.0), Point3::new(2.0, 2.0, 2.0));
+        let b = Bounds3f::new(Point3f::new(-1.0, -1.0, -1.0), Point3f::new(2.0, 2.0, 2.0));
 
-        let translate = Transform::translate(Vec3::new(-1.0, 2.0, 2.0));
+        let translate = Transform::translate(Vec3f::new(-1.0, 2.0, 2.0));
         let rotate = Transform::rotate_x(90.0);
         let scale = Transform::scale(1.1, 3.3, 4.3);
         let composite = translate.clone() * rotate.clone() * scale.clone();

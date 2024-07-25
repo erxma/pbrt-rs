@@ -6,8 +6,8 @@ use crate::{
     Float,
 };
 
-const LAMBDA_MIN: Float = 360.0;
-const LAMBDA_MAX: Float = 830.0;
+pub const LAMBDA_MIN: Float = 360.0;
+pub const LAMBDA_MAX: Float = 830.0;
 
 const N_SPECTRUM_SAMPLES: usize = 4;
 
@@ -105,7 +105,7 @@ pub struct DenselySampledSpectrum {
 }
 
 impl DenselySampledSpectrum {
-    pub fn new(spec: &impl Spectrum, lambda_min: Option<u32>, lambda_max: Option<u32>) -> Self {
+    pub fn new(spec: &dyn Spectrum, lambda_min: Option<u32>, lambda_max: Option<u32>) -> Self {
         let lambda_min = lambda_min.unwrap_or(LAMBDA_MIN as u32);
         let lambda_max = lambda_max.unwrap_or(LAMBDA_MAX as u32);
 
@@ -175,6 +175,56 @@ impl PiecewiseLinearSpectrum {
         }
     }
 
+    pub fn from_interleaved(interleaved_samples: &[Float], normalize: bool) -> Self {
+        assert_eq!(
+            0,
+            interleaved_samples.len() % 2,
+            "Interleaved format should pairs, and thus an even number of values"
+        );
+
+        let n = interleaved_samples.len() / 2;
+        let mut samples = Vec::with_capacity(n + 2);
+
+        // Extend samples to cover range of visible wavelengths if needed.
+        if interleaved_samples[0] > LAMBDA_MIN {
+            samples.push(SpectrumSample {
+                lambda: LAMBDA_MIN - 1.0,
+                value: interleaved_samples[1],
+            });
+        }
+
+        for i in 0..n {
+            samples.push(SpectrumSample {
+                lambda: interleaved_samples[2 * i],
+                value: interleaved_samples[2 * i + 1],
+            });
+        }
+
+        if samples.last().unwrap().lambda < LAMBDA_MAX {
+            samples.push(SpectrumSample {
+                lambda: LAMBDA_MAX + 1.0,
+                ..*samples.last().unwrap()
+            });
+        }
+
+        let mut spec = PiecewiseLinearSpectrum::new(&samples);
+
+        if normalize {
+            // Normalize to have luminance of 1.
+            let inner = CIE_Y_INTEGRAL / inner_product(&spec, spectra::y());
+            spec = spec.scale(inner);
+        }
+
+        spec
+    }
+
+    pub fn scale(mut self, s: Float) -> Self {
+        for sample in self.samples.iter_mut() {
+            sample.value *= s;
+        }
+        self
+    }
+
     fn find_interval(&self, lambda: Float) -> usize {
         // Binary search for
         match self
@@ -205,6 +255,7 @@ macro_rules! spectrum_samples {
     };
 }
 
+use spectra::CIE_Y_INTEGRAL;
 pub use spectrum_samples;
 
 impl Spectrum for PiecewiseLinearSpectrum {
@@ -578,6 +629,18 @@ impl Mul for &SampledSpectrum {
     }
 }
 
+impl Mul<&Self> for SampledSpectrum {
+    type Output = SampledSpectrum;
+
+    fn mul(self, rhs: &Self) -> Self::Output {
+        // Clone self and mul by rhs values
+        let mut ret = self.clone();
+        ret *= rhs;
+
+        ret
+    }
+}
+
 impl MulAssign<&Self> for SampledSpectrum {
     fn mul_assign(&mut self, rhs: &Self) {
         for i in 0..N_SPECTRUM_SAMPLES {
@@ -859,7 +922,7 @@ impl Spectrum for RGBIlluminantSpectrum<'_> {
     }
 }
 
-pub fn spectrum_to_xyz(s: &impl Spectrum) -> XYZ {
+pub fn spectrum_to_xyz(s: &dyn Spectrum) -> XYZ {
     XYZ::new(
         inner_product(spectra::x(), s),
         inner_product(spectra::y(), s),
@@ -867,7 +930,7 @@ pub fn spectrum_to_xyz(s: &impl Spectrum) -> XYZ {
     ) / spectra::CIE_Y_INTEGRAL
 }
 
-fn inner_product(f: &impl Spectrum, g: &impl Spectrum) -> Float {
+pub fn inner_product(f: &dyn Spectrum, g: &dyn Spectrum) -> Float {
     let mut integral = 0.0;
 
     let mut lambda = LAMBDA_MIN;

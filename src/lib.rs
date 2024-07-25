@@ -1,5 +1,6 @@
 pub mod camera;
 pub mod color;
+pub mod film;
 pub mod geometry;
 pub mod lights;
 pub mod math;

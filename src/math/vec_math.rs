@@ -49,13 +49,13 @@ impl Vec3f {
     /// Returns the `theta` of the spherical coordinates corresponding to vector `v`.
     #[inline]
     pub fn spherical_theta(self) -> Float {
-        safe_acos(self.z)
+        safe_acos(self.z())
     }
 
     /// Returns the `phi` of the spherical coordinates corresponding to vector `v`.
     #[inline]
     pub fn spherical_phi(self) -> Float {
-        let p = self.y.atan2(self.x);
+        let p = self.y().atan2(self.x());
 
         if p < 0.0 {
             p + 2.0 * PI
@@ -66,17 +66,17 @@ impl Vec3f {
 
     #[inline]
     pub fn cos_theta(self) -> Float {
-        self.z
+        self.z()
     }
 
     #[inline]
     pub fn cos2_theta(self) -> Float {
-        self.z * self.z
+        self.z() * self.z()
     }
 
     #[inline]
     pub fn abs_cos_theta(w: Vec3f) -> Float {
-        w.z.abs()
+        w.z().abs()
     }
 
     #[inline]
@@ -105,7 +105,7 @@ impl Vec3f {
         if sin_theta == 0.0 {
             1.0
         } else {
-            (self.x / sin_theta).clamp(-1.0, 1.0)
+            (self.x() / sin_theta).clamp(-1.0, 1.0)
         }
     }
 
@@ -115,18 +115,19 @@ impl Vec3f {
         if sin_theta == 0.0 {
             0.0
         } else {
-            (self.y / sin_theta).clamp(-1.0, 1.0)
+            (self.y() / sin_theta).clamp(-1.0, 1.0)
         }
     }
 
     #[inline]
     pub fn cos_delta_phi(self: Vec3f, other: Vec3f) -> Float {
-        let xy = self.x * self.x + self.y * self.y;
-        let other_xy = other.x * other.x + other.y * other.y;
+        let xy = self.x() * self.x() + self.y() * self.y();
+        let other_xy = other.x() * other.x() + other.y() * other.y();
         if xy == 0.0 || other_xy == 0.0 {
             1.0
         } else {
-            ((self.x * other.x + self.y * other.y) / (xy * other_xy).sqrt()).clamp(-1.0, 1.0)
+            ((self.x() * other.x() + self.y() * other.y()) / (xy * other_xy).sqrt())
+                .clamp(-1.0, 1.0)
         }
     }
 }

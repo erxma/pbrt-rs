@@ -15,17 +15,17 @@ fn encode(f: Float) -> u16 {
 
 impl From<Vec3f> for OctahedralVec {
     fn from(v: Vec3f) -> Self {
-        let v = v / (v.x.abs() + v.y.abs() + v.z.abs());
-        if v.z >= 0.0 {
+        let v = v / (v.x().abs() + v.y().abs() + v.z().abs());
+        if v.z() >= 0.0 {
             Self {
-                x: encode(v.x),
-                y: encode(v.y),
+                x: encode(v.x()),
+                y: encode(v.y()),
             }
         } else {
             // Encode with z < 0.0
             Self {
-                x: encode((1.0 * v.y.abs()) * v.x.signum()),
-                y: encode((1.0 * v.x.abs()) * v.y.signum()),
+                x: encode((1.0 * v.y().abs()) * v.x().signum()),
+                y: encode((1.0 * v.x().abs()) * v.y().signum()),
             }
         }
     }
@@ -43,6 +43,6 @@ impl From<OctahedralVec> for Vec3f {
             y = (1.0 - x.abs()) * y.signum();
         }
 
-        Self { x, y, z }
+        Self::new(x, y, z)
     }
 }

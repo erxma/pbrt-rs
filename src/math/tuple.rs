@@ -153,26 +153,6 @@ impl<T> TupleElement for T where T: Num + NumAssign + PartialOrd + Copy + Debug 
 #[macro_export]
 macro_rules! impl_tuple_math_ops {
     ($name:ty; $n:expr; $t:ty) => {
-        impl std::ops::Add for $name {
-            type Output = Self;
-
-            #[inline]
-            fn add(mut self, rhs: Self) -> Self {
-                self += rhs;
-                self
-            }
-        }
-
-        impl std::ops::Sub for $name {
-            type Output = Self;
-
-            #[inline]
-            fn sub(mut self, rhs: Self) -> Self {
-                self -= rhs;
-                self
-            }
-        }
-
         impl std::ops::Mul<$t> for $name {
             type Output = Self;
 
@@ -251,6 +231,19 @@ macro_rules! impl_tuple_math_ops_generic {
             {
                 let vals = core::array::from_fn(|i| self[i].into());
                 $name::from(vals)
+            }
+
+            pub fn num_cast<U>(self) -> Option<$name<U>>
+            where
+                T: num_traits::ToPrimitive + Copy,
+                U: NumCast + Default,
+            {
+                let mut vals: [U; $n] = Default::default();
+                for i in 0..$n {
+                    let casted = NumCast::from(self[i])?;
+                    vals[i] = casted;
+                }
+                Some($name::from(vals))
             }
         }
 

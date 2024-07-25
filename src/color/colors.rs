@@ -1,4 +1,6 @@
-use std::ops::{Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg};
+use std::ops::{Div, DivAssign, Index, IndexMut, Mul, MulAssign};
+
+use derive_more::{Add, Neg, Sub};
 
 use crate::{
     impl_tuple_math_ops,
@@ -6,7 +8,7 @@ use crate::{
     Float,
 };
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Add, Sub, Neg)]
 pub struct XYZ {
     pub x: Float,
     pub y: Float,
@@ -80,18 +82,6 @@ impl DivAssign for XYZ {
     }
 }
 
-impl Neg for XYZ {
-    type Output = Self;
-
-    fn neg(self) -> Self::Output {
-        Self {
-            x: -self.x,
-            y: -self.y,
-            z: -self.z,
-        }
-    }
-}
-
 impl From<[Float; 3]> for XYZ {
     fn from(arr: [Float; 3]) -> Self {
         Self {
@@ -126,7 +116,7 @@ impl IndexMut<usize> for XYZ {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Add, Sub)]
 pub struct RGB {
     pub r: Float,
     pub g: Float,

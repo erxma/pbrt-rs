@@ -1,4 +1,5 @@
 use crate::{
+    film::Film,
     geometry::ray::{Ray, RayDifferential},
     math::point::Point2f,
     sampling::spectrum::{SampledSpectrum, SampledWavelengths},
@@ -75,5 +76,3 @@ pub struct CameraRayDifferential<'a> {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CameraTransform {}
-
-pub trait Film {}

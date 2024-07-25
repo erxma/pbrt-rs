@@ -1,5 +1,7 @@
 use std::ops::{Add, AddAssign, Index, IndexMut, Mul, Sub, SubAssign};
 
+use itertools::iproduct;
+
 use crate::{math::tuple::Tuple, Float};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -71,6 +73,24 @@ impl<const N: usize> SquareMatrix<N> {
         }
 
         res
+    }
+
+    #[inline]
+    pub fn linear_least_squares<const ROWS: usize>(
+        a: &[[Float; N]; ROWS],
+        b: &[[Float; N]; ROWS],
+    ) -> Option<Self> {
+        let mut ata = Self::ZERO;
+        let mut atb = Self::ZERO;
+
+        for (i, j, r) in iproduct!(0..N, 0..N, 0..ROWS) {
+            ata[i][j] += a[r][i] * a[r][j];
+            atb[i][j] += a[r][i] * b[r][j];
+        }
+
+        let atai = ata.inverse()?;
+
+        Some((atai * atb).transpose())
     }
 }
 

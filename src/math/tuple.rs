@@ -18,6 +18,7 @@ pub trait Tuple<const N: usize, T: TupleElement>:
     + MulAssign<T>
     + DivAssign<T>
     + From<[T; N]>
+    + Into<[T; N]>
 {
     /// Returns a `Self` with the absolute values of the components.
     fn abs(mut self) -> Self
@@ -217,6 +218,13 @@ macro_rules! impl_tuple_math_ops {
                 }
             }
         }
+
+        impl From<$name> for [$t; $n] {
+            #[inline]
+            fn from(tuple: $name) -> Self {
+                std::array::from_fn(|i| tuple[i])
+            }
+        }
     };
 }
 
@@ -229,7 +237,7 @@ macro_rules! impl_tuple_math_ops_generic {
             where
                 T: Into<U> + Copy,
             {
-                let vals = core::array::from_fn(|i| self[i].into());
+                let vals = std::array::from_fn(|i| self[i].into());
                 $name::from(vals)
             }
 
@@ -334,6 +342,13 @@ macro_rules! impl_tuple_math_ops_generic {
                     self[i] = -self[i];
                 }
                 self
+            }
+        }
+
+        impl<T: Copy> From<$name<T>> for [T; $n] {
+            #[inline]
+            fn from(tuple: $name<T>) -> Self {
+                std::array::from_fn(|i| tuple[i])
             }
         }
     };

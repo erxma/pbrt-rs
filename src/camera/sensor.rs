@@ -1,4 +1,4 @@
-use std::{array, sync::OnceLock};
+use std::{array, sync::LazyLock};
 
 use derive_builder::Builder;
 
@@ -6,8 +6,8 @@ use crate::{
     color::{self, RGBColorSpace, RGB, XYZ},
     math::{square_matrix::SquareMatrix, tuple::Tuple},
     sampling::spectrum::{
-        self, spectra, DenselySampledSpectrum, PiecewiseLinearSpectrum, SampledSpectrum,
-        SampledWavelengths, Spectrum, LAMBDA_MAX, LAMBDA_MIN,
+        self, DenselySampledSpectrum, PiecewiseLinearSpectrum, SampledSpectrum, SampledWavelengths,
+        Spectrum, LAMBDA_MAX, LAMBDA_MIN,
     },
     util::data::SWATCH_REFLECTANCES_INTERLEAVED,
     Float,
@@ -23,16 +23,12 @@ pub struct PixelSensor {
 }
 
 pub const N_SWATCH_REFLECTANCES: usize = 24;
-static SWATCH_REFLECTANCES: OnceLock<[PiecewiseLinearSpectrum; N_SWATCH_REFLECTANCES]> =
-    OnceLock::new();
-
-fn swatch_reflectances() -> &'static [PiecewiseLinearSpectrum; N_SWATCH_REFLECTANCES] {
-    SWATCH_REFLECTANCES.get_or_init(|| {
+static SWATCH_REFLECTANCES: LazyLock<[PiecewiseLinearSpectrum; N_SWATCH_REFLECTANCES]> =
+    LazyLock::new(|| {
         core::array::from_fn(|i| {
             PiecewiseLinearSpectrum::from_interleaved(&SWATCH_REFLECTANCES_INTERLEAVED[i], false)
         })
-    })
-}
+    });
 
 impl PixelSensor {
     pub fn builder<'a>() -> PixelSensorBuilder<'a> {
@@ -96,7 +92,7 @@ impl<'a> PixelSensorBuilder<'a> {
         // Compute rgb_camera values for training swatches
         let rgb_camera: [[Float; 3]; N_SWATCH_REFLECTANCES] = array::from_fn(|row| {
             let rgb: RGB = project_reflectance(
-                &swatch_reflectances()[row],
+                &SWATCH_REFLECTANCES[row],
                 sensor_illum,
                 &r_bar,
                 &g_bar,
@@ -106,15 +102,15 @@ impl<'a> PixelSensorBuilder<'a> {
         });
 
         let sensor_white_g = spectrum::inner_product(sensor_illum, &g_bar);
-        let sensor_white_y = spectrum::inner_product(sensor_illum, spectra::y());
+        let sensor_white_y = spectrum::inner_product(sensor_illum, &*spectrum::Y);
 
         let xyz_output: [[Float; 3]; N_SWATCH_REFLECTANCES] = array::from_fn(|row| {
             let xyz = project_reflectance::<XYZ>(
-                &swatch_reflectances()[row],
+                &SWATCH_REFLECTANCES[row],
                 &params.output_color_space.illuminant,
-                spectra::x(),
-                spectra::y(),
-                spectra::z(),
+                &*spectrum::X,
+                &*spectrum::Y,
+                &*spectrum::Z,
             ) * (sensor_white_y / sensor_white_g);
             xyz.into()
         });
@@ -137,9 +133,9 @@ impl<'a> PixelSensorBuilder<'a> {
     fn build_with_xyz_matching(
         params: PixelSensorParams,
     ) -> Result<PixelSensor, PixelSensorBuilderError> {
-        let r_bar = DenselySampledSpectrum::new(spectra::x(), None, None);
-        let g_bar = DenselySampledSpectrum::new(spectra::y(), None, None);
-        let b_bar = DenselySampledSpectrum::new(spectra::z(), None, None);
+        let r_bar = DenselySampledSpectrum::new(&*spectrum::X, None, None);
+        let g_bar = DenselySampledSpectrum::new(&*spectrum::Y, None, None);
+        let b_bar = DenselySampledSpectrum::new(&*spectrum::Z, None, None);
 
         // Compute white balancing matrix for XYZ PixelSensor
         let xyz_from_sensor_rgb = match params.sensor_illum {

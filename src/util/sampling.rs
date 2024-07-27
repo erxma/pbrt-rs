@@ -29,7 +29,7 @@ pub fn power_heuristic(nf: i32, f_pdf: Float, ng: i32, g_pdf: Float) -> Float {
 /// Otherwise, returns:
 ///
 /// - The index of one of the `weights` with probability proportional to its weight,
-/// using `u` for the sample.
+///   using `u` for the sample.
 /// - The value of the PMF for the sample.
 /// - A new uniform random sample derived from `u`.
 #[inline]

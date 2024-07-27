@@ -1,8 +1,12 @@
-use std::ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Sub, SubAssign};
+use std::{
+    ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Sub, SubAssign},
+    sync::LazyLock,
+};
 
 use crate::{
     color::{RGBColorSpace, RGBSigmoidPolynomial, RGB, XYZ},
     math::routines::lerp,
+    util::data::{CIE_LAMBDA, CIE_X, CIE_Y, CIE_Z, N_CIE_SAMPLES},
     Float,
 };
 
@@ -11,57 +15,34 @@ pub const LAMBDA_MAX: Float = 830.0;
 
 const N_SPECTRUM_SAMPLES: usize = 4;
 
-pub mod spectra {
-    use super::*;
-    use crate::util::data::{CIE_LAMBDA, CIE_X, CIE_Y, CIE_Z, N_CIE_SAMPLES};
-    use std::sync::OnceLock;
+pub static X: LazyLock<DenselySampledSpectrum> = LazyLock::new(|| {
+    let samples: [SpectrumSample; N_CIE_SAMPLES] = core::array::from_fn(|i| SpectrumSample {
+        lambda: CIE_LAMBDA[i],
+        value: CIE_X[i],
+    });
+    let pls = PiecewiseLinearSpectrum::new(&samples);
+    DenselySampledSpectrum::new(&pls, None, None)
+});
 
-    static X: OnceLock<DenselySampledSpectrum> = OnceLock::new();
-    static Y: OnceLock<DenselySampledSpectrum> = OnceLock::new();
-    static Z: OnceLock<DenselySampledSpectrum> = OnceLock::new();
+pub static Y: LazyLock<DenselySampledSpectrum> = LazyLock::new(|| {
+    let samples: [SpectrumSample; N_CIE_SAMPLES] = core::array::from_fn(|i| SpectrumSample {
+        lambda: CIE_LAMBDA[i],
+        value: CIE_Y[i],
+    });
+    let pls = PiecewiseLinearSpectrum::new(&samples);
+    DenselySampledSpectrum::new(&pls, None, None)
+});
 
-    pub const CIE_Y_INTEGRAL: Float = 106.856895;
+pub static Z: LazyLock<DenselySampledSpectrum> = LazyLock::new(|| {
+    let samples: [SpectrumSample; N_CIE_SAMPLES] = core::array::from_fn(|i| SpectrumSample {
+        lambda: CIE_LAMBDA[i],
+        value: CIE_Z[i],
+    });
+    let pls = PiecewiseLinearSpectrum::new(&samples);
+    DenselySampledSpectrum::new(&pls, None, None)
+});
 
-    pub fn init() {
-        let x_samples: [SpectrumSample; N_CIE_SAMPLES] = core::array::from_fn(|i| SpectrumSample {
-            lambda: CIE_LAMBDA[i],
-            value: CIE_X[i],
-        });
-        let y_samples: [SpectrumSample; N_CIE_SAMPLES] = core::array::from_fn(|i| SpectrumSample {
-            lambda: CIE_LAMBDA[i],
-            value: CIE_Y[i],
-        });
-        let z_samples: [SpectrumSample; N_CIE_SAMPLES] = core::array::from_fn(|i| SpectrumSample {
-            lambda: CIE_LAMBDA[i],
-            value: CIE_Z[i],
-        });
-
-        let x_pls = PiecewiseLinearSpectrum::new(&x_samples);
-        let y_pls = PiecewiseLinearSpectrum::new(&y_samples);
-        let z_pls = PiecewiseLinearSpectrum::new(&z_samples);
-
-        X.set(DenselySampledSpectrum::new(&x_pls, None, None))
-            .unwrap();
-        Y.set(DenselySampledSpectrum::new(&y_pls, None, None))
-            .unwrap();
-        Z.set(DenselySampledSpectrum::new(&z_pls, None, None))
-            .unwrap();
-
-        println!("Initialized: Spectra");
-    }
-
-    pub fn x() -> &'static DenselySampledSpectrum {
-        X.get().unwrap()
-    }
-
-    pub fn y() -> &'static DenselySampledSpectrum {
-        Y.get().unwrap()
-    }
-
-    pub fn z() -> &'static DenselySampledSpectrum {
-        Z.get().unwrap()
-    }
-}
+pub const CIE_Y_INTEGRAL: Float = 106.856895;
 
 pub trait Spectrum {
     fn at(&self, lambda: Float) -> Float;
@@ -211,7 +192,7 @@ impl PiecewiseLinearSpectrum {
 
         if normalize {
             // Normalize to have luminance of 1.
-            let inner = CIE_Y_INTEGRAL / inner_product(&spec, spectra::y());
+            let inner = CIE_Y_INTEGRAL / inner_product(&spec, &*Y);
             spec = spec.scale(inner);
         }
 
@@ -255,7 +236,6 @@ macro_rules! spectrum_samples {
     };
 }
 
-use spectra::CIE_Y_INTEGRAL;
 pub use spectrum_samples;
 
 impl Spectrum for PiecewiseLinearSpectrum {
@@ -313,9 +293,9 @@ fn blackbody(lambda: Float, temp: Float) -> Float {
     // Speed of light
     const C: Float = 299792458.0;
     // Planck's constant
-    #[cfg(feature = "double_as_float")]
+    #[cfg(feature = "use-f64")]
     const H: Float = 6.62606957e-34;
-    #[cfg(not(feature = "double_as_float"))]
+    #[cfg(not(feature = "use-f64"))]
     const H: Float = 6.6260697e-34;
     // Boltzmann constant
     const K_B: Float = 1.3806488e-23;
@@ -498,9 +478,9 @@ impl SampledSpectrum {
 
     pub fn to_xyz(&self, wavelengths: &SampledWavelengths) -> XYZ {
         // Sample the X, Y, Z matching curves at lambda
-        let x = spectra::x().sample(wavelengths);
-        let y = spectra::y().sample(wavelengths);
-        let z = spectra::z().sample(wavelengths);
+        let x = X.sample(wavelengths);
+        let y = Y.sample(wavelengths);
+        let z = Z.sample(wavelengths);
 
         // Evaluate estimator to compute (x, y, z) coefficients
         let pdf = wavelengths.pdf();
@@ -508,12 +488,12 @@ impl SampledSpectrum {
             (&x * self).safe_div(&pdf).average().unwrap(),
             (&y * self).safe_div(&pdf).average().unwrap(),
             (&z * self).safe_div(&pdf).average().unwrap(),
-        ) / spectra::CIE_Y_INTEGRAL
+        ) / CIE_Y_INTEGRAL
     }
 
     pub fn y(&self, wavelengths: &SampledWavelengths) -> Float {
         // Sample the Y matching curve at lambda
-        let y = spectra::y().sample(wavelengths);
+        let y = Y.sample(wavelengths);
 
         // Evaluate estimator to compute y coefficient
         let pdf = wavelengths.pdf();
@@ -924,10 +904,10 @@ impl Spectrum for RGBIlluminantSpectrum<'_> {
 
 pub fn spectrum_to_xyz(s: &dyn Spectrum) -> XYZ {
     XYZ::new(
-        inner_product(spectra::x(), s),
-        inner_product(spectra::y(), s),
-        inner_product(spectra::z(), s),
-    ) / spectra::CIE_Y_INTEGRAL
+        inner_product(&*X, s),
+        inner_product(&*Y, s),
+        inner_product(&*Z, s),
+    ) / CIE_Y_INTEGRAL
 }
 
 pub fn inner_product(f: &dyn Spectrum, g: &dyn Spectrum) -> Float {

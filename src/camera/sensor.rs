@@ -13,8 +13,6 @@ use crate::{
     Float,
 };
 
-pub trait Film {}
-
 #[derive(Clone, Debug)]
 pub struct PixelSensor {
     r_bar: DenselySampledSpectrum,

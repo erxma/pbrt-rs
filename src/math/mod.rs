@@ -1,3 +1,4 @@
+pub mod array2d;
 pub mod equal_area_mapping;
 pub mod float_utility;
 pub mod interval;

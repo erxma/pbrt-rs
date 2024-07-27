@@ -1,11 +1,11 @@
 pub mod camera;
 pub mod color;
-pub mod film;
 pub mod geometry;
 pub mod lights;
 pub mod math;
 pub mod media;
 pub mod memory;
+pub mod parallel;
 pub mod sampling;
 pub mod shapes;
 pub mod util;

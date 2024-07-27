@@ -3,7 +3,7 @@ use std::ops::{Index, IndexMut};
 use crate::{
     self as pbrt,
     math::{
-        point::{Point3f, Point3i},
+        point::{Point2f, Point2i, Point3f, Point3i},
         routines::{gamma, lerp},
         vec3::{Vec3B, Vec3Usize, Vec3f, Vec3i},
     },
@@ -561,4 +561,18 @@ impl IndexMut<usize> for Bounds3f {
             _ => panic!("Index out of bounds for Bounds3"),
         }
     }
+}
+
+/// A 2D axis-aligned bounding box (AABB) of `i32`.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Bounds2i {
+    pub p_min: Point2i,
+    pub p_max: Point2i,
+}
+
+/// A 2D axis-aligned bounding box (AABB) of `i32`.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Bounds2f {
+    pub p_min: Point2f,
+    pub p_max: Point2f,
 }

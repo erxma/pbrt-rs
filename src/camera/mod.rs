@@ -1,5 +1,9 @@
+pub mod film;
+pub mod sensor;
+
+use film::Film;
+
 use crate::{
-    film::Film,
     geometry::ray::{Ray, RayDifferential},
     math::point::Point2f,
     sampling::spectrum::{SampledSpectrum, SampledWavelengths},
@@ -35,7 +39,7 @@ pub trait Camera: CameraCommon {
     ) -> Option<CameraRayDifferential>;
 
     /// Borrow `self`'s film.
-    fn film(&self) -> &dyn Film;
+    fn film(&self) -> &Film;
 
     /// Map a uniform random sample `u` (in range `[0,1)`)
     /// to a time when `self`'s shutter is open.

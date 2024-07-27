@@ -1,6 +1,6 @@
 #![allow(clippy::approx_constant)]
 
-use crate::{film::N_SWATCH_REFLECTANCES, Float};
+use crate::{camera::sensor::N_SWATCH_REFLECTANCES, Float};
 
 pub const N_CIE_SAMPLES: usize = 471;
 

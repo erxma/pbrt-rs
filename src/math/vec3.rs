@@ -550,7 +550,7 @@ mod glam_impl {
         }
 
         fn coordinate_system(self) -> (Vec3f, Vec3f, Vec3f) {
-            let v1: Vec3f = self.into();
+            let v1: Vec3f = self;
             let v2 = if v1.x.abs() > v1.y.abs() {
                 Vec3f::new(-v1.z, 0.0, v1.x) / (v1.x * v1.x + v1.z * v1.z).sqrt()
             } else {

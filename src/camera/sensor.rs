@@ -19,7 +19,7 @@ pub struct PixelSensor {
     g_bar: DenselySampledSpectrum,
     b_bar: DenselySampledSpectrum,
     imaging_ratio: Float,
-    xyz_from_sensor_rgb: SquareMatrix<3>,
+    pub xyz_from_sensor_rgb: SquareMatrix<3>,
 }
 
 pub const N_SWATCH_REFLECTANCES: usize = 24;

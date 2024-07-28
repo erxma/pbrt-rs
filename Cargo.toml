@@ -11,10 +11,10 @@ derive_builder = "0.20.0"
 derive_more = "0.99.18"
 getset = "0.1.2"
 glam = { version = "0.27.0", optional = true }
+internment = { version = "0.8.4", optional = true, features = ["arc"] }
 itertools = "0.13.0"
 num-traits = "0.2.19"
 
 [features]
 use-f64 = []
 external-impls = ["glam"]
-glam = ["dep:glam"]

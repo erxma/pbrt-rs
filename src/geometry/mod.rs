@@ -1,4 +1,4 @@
-pub mod bounds3;
+pub mod bounds;
 pub mod direction_cone;
 pub mod interaction;
 pub mod ray;

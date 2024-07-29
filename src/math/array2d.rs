@@ -1,4 +1,4 @@
-use crate::geometry::bounds3::Bounds2i;
+use crate::geometry::bounds::Bounds2i;
 
 #[derive(Clone, Debug)]
 pub struct Array2D<T> {

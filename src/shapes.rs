@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use crate::{
     geometry::{
-        bounds3::Bounds3f,
+        bounds::Bounds3f,
         direction_cone::DirectionCone,
         interaction::{Interaction, SurfaceInteraction},
         ray::Ray,

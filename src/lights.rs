@@ -1,6 +1,6 @@
 use crate::{
     geometry::{
-        bounds3::Bounds3f,
+        bounds::Bounds3f,
         interaction::{Interaction, SurfaceInteraction},
         ray::Ray,
     },

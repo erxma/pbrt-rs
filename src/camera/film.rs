@@ -1,5 +1,6 @@
 use std::{array, sync::atomic::Ordering};
 
+use delegate::delegate;
 use derive_builder::Builder;
 use enum_dispatch::enum_dispatch;
 
@@ -15,13 +16,33 @@ use crate::{
 
 use super::sensor::PixelSensor;
 
-#[enum_dispatch(FilmTrait)]
+#[enum_dispatch]
 #[derive(Clone, Debug)]
 pub enum Film<'a> {
     RGBFilm(RGBFilm<'a>),
 }
 
-#[enum_dispatch]
+impl<'a> Film<'a> {
+    delegate! {
+        #[through(FilmTrait)]
+        to self {
+            #[allow(non_snake_case)]
+            pub fn add_sample(
+                &mut self,
+                p_film: Point2i,
+                L: &SampledSpectrum,
+                lambda: &SampledWavelengths,
+                visible_surface: &VisibleSurface,
+                weight: Float,
+            );
+            #[allow(non_snake_case)]
+            pub fn add_splat(&mut self, p: Point2f, L: &SampledSpectrum, lambda: &SampledWavelengths);
+            pub fn full_resolution(&self) -> Point2i;
+        }
+    }
+}
+
+#[enum_dispatch(Film)]
 trait FilmTrait {
     #[allow(non_snake_case)]
     fn add_sample(
@@ -35,6 +56,8 @@ trait FilmTrait {
 
     #[allow(non_snake_case)]
     fn add_splat(&mut self, p: Point2f, L: &SampledSpectrum, lambda: &SampledWavelengths);
+
+    fn full_resolution(&self) -> Point2i;
 }
 
 #[derive(Clone, Debug)]
@@ -162,6 +185,10 @@ impl<'a> FilmTrait for RGBFilm<'a> {
                 }
             }
         }
+    }
+
+    fn full_resolution(&self) -> Point2i {
+        todo!()
     }
 }
 

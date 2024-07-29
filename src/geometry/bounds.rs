@@ -5,7 +5,7 @@ use crate::{
     math::{
         point::{Point2f, Point2i, Point3f, Point3i},
         routines::{gamma, lerp},
-        vec::{Vec3B, Vec3Usize, Vec3f, Vec3i},
+        vec::{Vec2f, Vec2i, Vec3B, Vec3Usize, Vec3f, Vec3i},
     },
 };
 
@@ -570,9 +570,359 @@ pub struct Bounds2i {
     pub p_max: Point2i,
 }
 
-/// A 2D axis-aligned bounding box (AABB) of `i32`.
+impl Bounds2i {
+    /// Construct a new bounding box with two corner points.
+    ///
+    /// The min and max points are determined by the component-wise mins and maxes
+    /// of the given points.
+    pub fn new(p1: Point2i, p2: Point2i) -> Self {
+        let p_min = Point2i::new(p1.x().min(p2.x()), p1.y().min(p2.y()));
+        let p_max = Point2i::new(p1.x().max(p2.x()), p1.y().max(p2.y()));
+
+        Self { p_min, p_max }
+    }
+
+    /// Construct a new bounding box that consists of a single point.
+    pub fn new_with_point(p: Point2i) -> Self {
+        Self { p_min: p, p_max: p }
+    }
+
+    /// Returns the coordinates of one of the four corners of `self`.
+    ///
+    /// 0 returns `p_min`, 3 returns `p_max`.
+    pub fn corner(&self, corner: usize) -> Point2i {
+        Point2i::new(
+            self[corner & 1].x(),
+            self[if corner & 2 != 0 { 1 } else { 0 }].y(),
+        )
+    }
+
+    /// Construct a new bounding box that is `self` but expanded by `delta`
+    /// on all axes, in both directions on the axis.
+    #[inline]
+    pub fn expand(self, delta: i32) -> Self {
+        Self {
+            p_min: self.p_min - Vec2i::new(delta, delta),
+            p_max: self.p_max + Vec2i::new(delta, delta),
+        }
+    }
+
+    /// Obtain the vector from the min to the max point of `self`
+    /// (which is along a diagonal line across the box).
+    pub fn diagonal(&self) -> Vec2i {
+        self.p_max - self.p_min
+    }
+
+    /// Compute the area of `self`.
+    pub fn area(&self) -> i32 {
+        let d = self.diagonal();
+        d.x() * d.y()
+    }
+
+    /// Determines the axis that `self` is widest on, and returns its index.
+    pub fn max_extent(&self) -> usize {
+        let d = self.diagonal();
+        if d.x() > d.y() {
+            0
+        } else {
+            1
+        }
+    }
+
+    /// Returns `true` if `self` and `other` intersect at any point, inclusive
+    /// (touching exactly on a corner counts), `false` otherwise.
+    pub fn overlaps(self, other: Self) -> bool {
+        let x_overlaps = self.p_max.x() >= other.p_min.x() && self.p_min.x() <= other.p_max.x();
+        let y_overlaps = self.p_max.y() >= other.p_min.y() && self.p_min.y() <= other.p_max.y();
+
+        x_overlaps && y_overlaps
+    }
+
+    pub fn contains(&self, p: Point2i) -> bool {
+        p.x() >= self.p_min.x()
+            && p.x() <= self.p_max.x()
+            && p.y() >= self.p_min.y()
+            && p.y() <= self.p_max.y()
+    }
+
+    /// Linearly interpolate between the min and max points of `self`, on all axes.
+    ///
+    /// Extrapolates for components of `t` `<0` or `>1`.
+    pub fn lerp(self, t: Point2i) -> Point2f {
+        let bounds: Bounds2f = self.into();
+        let t: Point2f = t.into();
+
+        Point2f::new(
+            lerp(bounds.p_min.x(), bounds.p_max.x(), t.x()),
+            lerp(bounds.p_min.x(), bounds.p_max.x(), t.y()),
+        )
+    }
+
+    /// Construct the union of `self` and `other`.
+    /// Specifically, a box using the min and max points of the two.
+    ///
+    /// Note that this new box doesn't necessarily consist of the exact same space
+    /// as the two combined.
+    pub fn union(self, other: Self) -> Self {
+        let p_min = Point2i::new(
+            self.p_min.x().min(other.p_min.x()),
+            self.p_min.y().min(other.p_min.y()),
+        );
+        let p_max = Point2i::new(
+            self.p_max.x().max(other.p_max.x()),
+            self.p_max.y().max(other.p_max.y()),
+        );
+
+        Self { p_min, p_max }
+    }
+
+    /// Construct the minimum bounding box that contains `self` as well as a point `p`.
+    ///
+    /// i.e., expand `self` by the amount needed to reach `p`
+    /// (which may be none if `p` is already inside).
+    pub fn union_point(self, p: Point2i) -> Self {
+        let p_min = Point2i::new(self.p_min.x().min(p.x()), self.p_min.y().min(p.y()));
+        let p_max = Point2i::new(self.p_max.x().max(p.x()), self.p_max.y().max(p.y()));
+
+        Self { p_min, p_max }
+    }
+
+    /// Construct a bounding box consisting of the intersection of `self` and `other`.
+    pub fn intersect(self, other: Self) -> Self {
+        let p_min = Point2i::new(
+            self.p_min.x().max(other.p_min.x()),
+            self.p_min.y().max(other.p_min.y()),
+        );
+        let p_max = Point2i::new(
+            self.p_max.x().min(other.p_max.x()),
+            self.p_max.y().min(other.p_max.y()),
+        );
+
+        Self { p_min, p_max }
+    }
+
+    /// Construct an empty box.
+    ///
+    /// This is done by setting the extents to an invalid config,
+    /// such that any operations with it would yield the expected result.
+    pub fn empty() -> Self {
+        let min_val = i32::MIN;
+        let max_val = i32::MAX;
+        let p_min = Point2i::new(max_val, max_val);
+        let p_max = Point2i::new(min_val, min_val);
+
+        Self { p_min, p_max }
+    }
+}
+
+impl Index<usize> for Bounds2i {
+    type Output = Point2i;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        match index {
+            0 => &self.p_min,
+            1 => &self.p_max,
+            _ => panic!("Index out of bounds for Bounds3"),
+        }
+    }
+}
+
+impl IndexMut<usize> for Bounds2i {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        match index {
+            0 => &mut self.p_min,
+            1 => &mut self.p_max,
+            _ => panic!("Index out of bounds for Bounds3"),
+        }
+    }
+}
+
+/// A 2D axis-aligned bounding box (AABB) of `f32`,
+/// or `f64` if feature `use-f64` is enabled.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Bounds2f {
     pub p_min: Point2f,
     pub p_max: Point2f,
+}
+
+impl Bounds2f {
+    /// Construct a new bounding box with two corner points.
+    ///
+    /// The min and max points are determined by the component-wise mins and maxes
+    /// of the given points.
+    pub fn new(p1: Point2f, p2: Point2f) -> Self {
+        let p_min = Point2f::new(p1.x().min(p2.x()), p1.y().min(p2.y()));
+        let p_max = Point2f::new(p1.x().max(p2.x()), p1.y().max(p2.y()));
+
+        Self { p_min, p_max }
+    }
+
+    /// Construct a new bounding box that consists of a single point.
+    pub fn new_with_point(p: Point2f) -> Self {
+        Self { p_min: p, p_max: p }
+    }
+
+    /// Returns the coordinates of one of the four corners of `self`.
+    ///
+    /// 0 returns `p_min`, 3 returns `p_max`.
+    pub fn corner(&self, corner: usize) -> Point2f {
+        Point2f::new(
+            self[corner & 1].x(),
+            self[if corner & 2 != 0 { 1 } else { 0 }].y(),
+        )
+    }
+
+    /// Construct a new bounding box that is `self` but expanded by `delta`
+    /// on all axes, in both directions on the axis.
+    #[inline]
+    pub fn expand(self, delta: pbrt::Float) -> Self {
+        Self {
+            p_min: self.p_min - Vec2f::new(delta, delta),
+            p_max: self.p_max + Vec2f::new(delta, delta),
+        }
+    }
+
+    /// Obtain the vector from the min to the max point of `self`
+    /// (which is along a diagonal line across the box).
+    pub fn diagonal(&self) -> Vec2f {
+        self.p_max - self.p_min
+    }
+
+    /// Compute the area of `self`.
+    pub fn area(&self) -> pbrt::Float {
+        let d = self.diagonal();
+        d.x() * d.y()
+    }
+
+    /// Determines the axis that `self` is widest on, and returns its index.
+    pub fn max_extent(&self) -> usize {
+        let d = self.diagonal();
+        if d.x() > d.y() {
+            0
+        } else {
+            1
+        }
+    }
+
+    /// Returns `true` if `self` and `other` intersect at any point, inclusive
+    /// (touching exactly on a corner counts), `false` otherwise.
+    pub fn overlaps(self, other: Self) -> bool {
+        let x_overlaps = self.p_max.x() >= other.p_min.x() && self.p_min.x() <= other.p_max.x();
+        let y_overlaps = self.p_max.y() >= other.p_min.y() && self.p_min.y() <= other.p_max.y();
+
+        x_overlaps && y_overlaps
+    }
+
+    pub fn contains(&self, p: Point2f) -> bool {
+        p.x() >= self.p_min.x()
+            && p.x() <= self.p_max.x()
+            && p.y() >= self.p_min.y()
+            && p.y() <= self.p_max.y()
+    }
+
+    /// Linearly interpolate between the min and max points of `self`, on all axes.
+    ///
+    /// Extrapolates for components of `t` `<0` or `>1`.
+    pub fn lerp(self, t: Point3f) -> Point2f {
+        Point2f::new(
+            lerp(self.p_min.x(), self.p_max.x(), t.x()),
+            lerp(self.p_min.x(), self.p_max.x(), t.y()),
+        )
+    }
+
+    /// Construct the union of `self` and `other`.
+    /// Specifically, a box using the min and max points of the two.
+    ///
+    /// Note that this new box doesn't necessarily consist of the exact same space
+    /// as the two combined.
+    pub fn union(self, other: Self) -> Self {
+        let p_min = Point2f::new(
+            self.p_min.x().min(other.p_min.x()),
+            self.p_min.y().min(other.p_min.y()),
+        );
+        let p_max = Point2f::new(
+            self.p_max.x().max(other.p_max.x()),
+            self.p_max.y().max(other.p_max.y()),
+        );
+
+        Self { p_min, p_max }
+    }
+
+    /// Construct the minimum bounding box that contains `self` as well as a point `p`.
+    ///
+    /// i.e., expand `self` by the amount needed to reach `p`
+    /// (which may be none if `p` is already inside).
+    pub fn union_point(self, p: Point2f) -> Self {
+        let p_min = Point2f::new(self.p_min.x().min(p.x()), self.p_min.y().min(p.y()));
+        let p_max = Point2f::new(self.p_max.x().max(p.x()), self.p_max.y().max(p.y()));
+
+        Self { p_min, p_max }
+    }
+
+    /// Construct a bounding box consisting of the intersection of `self` and `other`.
+    pub fn intersect(self, other: Self) -> Self {
+        let p_min = Point2f::new(
+            self.p_min.x().max(other.p_min.x()),
+            self.p_min.y().max(other.p_min.y()),
+        );
+        let p_max = Point2f::new(
+            self.p_max.x().min(other.p_max.x()),
+            self.p_max.y().min(other.p_max.y()),
+        );
+
+        Self { p_min, p_max }
+    }
+
+    /// Construct an empty box.
+    ///
+    /// This is done by setting the extents to an invalid config,
+    /// such that any operations with it would yield the expected result.
+    pub fn empty() -> Self {
+        let min_val = pbrt::Float::MIN;
+        let max_val = pbrt::Float::MAX;
+        let p_min = Point2f::new(max_val, max_val);
+        let p_max = Point2f::new(min_val, min_val);
+
+        Self { p_min, p_max }
+    }
+
+    /// Return the bounding sphere of `self`, as the (center, radius) of the sphere.
+    pub fn bounding_sphere(&self) -> (Point2f, pbrt::Float) {
+        let center = (self.p_min + self.p_max) / 2.0;
+        let radius = if self.contains(center) {
+            center.distance(self.p_max)
+        } else {
+            0.0
+        };
+
+        (center, radius)
+    }
+}
+
+impl From<Bounds2i> for Bounds2f {
+    fn from(v: Bounds2i) -> Self {
+        Self::new(v.p_min.into(), v.p_max.into())
+    }
+}
+
+impl Index<usize> for Bounds2f {
+    type Output = Point2f;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        match index {
+            0 => &self.p_min,
+            1 => &self.p_max,
+            _ => panic!("Index out of bounds for Bounds2"),
+        }
+    }
+}
+
+impl IndexMut<usize> for Bounds2f {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        match index {
+            0 => &mut self.p_min,
+            1 => &mut self.p_max,
+            _ => panic!("Index out of bounds for Bounds2"),
+        }
+    }
 }

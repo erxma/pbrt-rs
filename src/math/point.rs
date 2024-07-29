@@ -5,7 +5,7 @@ use derive_more::{Add, From, Neg};
 
 use crate::{
     self as pbrt,
-    geometry::bounds::{Bounds3f, Bounds3i},
+    geometry::bounds::{Bounds2f, Bounds2i, Bounds3f, Bounds3i},
     impl_tuple_math_ops,
     math::{interval::Interval, tuple::Tuple},
 };
@@ -332,7 +332,6 @@ impl Point2i {
         p0 * (1.0 - t) + p1 * t
     }
 
-    /*
     pub fn inside(self, b: Bounds2i) -> bool {
         let x_inside = self.x() >= b.p_min.x() && self.x() <= b.p_max.x();
         let y_inside = self.y() >= b.p_min.y() && self.y() <= b.p_max.y();
@@ -346,7 +345,6 @@ impl Point2i {
 
         x_inside && y_inside
     }
-    */
 }
 
 impl Index<usize> for Point2i {
@@ -461,7 +459,6 @@ impl Point2f {
         p0 * (1.0 - t) + p1 * t
     }
 
-    /*
     pub fn inside(self, b: Bounds2f) -> bool {
         let x_inside = self.x() >= b.p_min.x() && self.x() <= b.p_max.x();
         let y_inside = self.y() >= b.p_min.y() && self.y() <= b.p_max.y();
@@ -475,7 +472,6 @@ impl Point2f {
 
         x_inside && y_inside
     }
-    */
 }
 
 impl Index<usize> for Point2f {

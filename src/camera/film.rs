@@ -5,7 +5,7 @@ use enum_dispatch::enum_dispatch;
 
 use crate::{
     color::RGBColorSpace,
-    geometry::bounds3::Bounds2i,
+    geometry::bounds::Bounds2i,
     image::Filter,
     math::{array2d::Array2D, point::Point2i, square_matrix::SquareMatrix},
     parallel::AtomicF64,

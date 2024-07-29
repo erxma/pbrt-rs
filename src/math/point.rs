@@ -5,7 +5,7 @@ use derive_more::{Add, From, Neg};
 
 use crate::{
     self as pbrt,
-    geometry::bounds3::{Bounds3f, Bounds3i},
+    geometry::bounds::{Bounds3f, Bounds3i},
     impl_tuple_math_ops,
     math::{interval::Interval, tuple::Tuple},
 };

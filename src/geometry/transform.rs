@@ -7,7 +7,7 @@ use crate::{
     Float,
 };
 
-use super::{bounds3::Bounds3f, ray::Ray};
+use super::{bounds::Bounds3f, ray::Ray};
 
 /// Represents a 3D transformation.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -369,7 +369,7 @@ impl Mul<Bounds3f> for &Transform {
 mod test {
     use approx::{assert_relative_eq, AbsDiffEq, RelativeEq};
 
-    use crate::{self as pbrt, geometry::bounds3::Bounds3f};
+    use crate::{self as pbrt, geometry::bounds::Bounds3f};
 
     use super::*;
 

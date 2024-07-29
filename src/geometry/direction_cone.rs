@@ -1,5 +1,5 @@
 use crate::{
-    geometry::{bounds3::Bounds3f, transform::Transform},
+    geometry::{bounds::Bounds3f, transform::Transform},
     math::{
         point::Point3f,
         routines::{safe_acos, safe_sqrt},

@@ -5,7 +5,7 @@ use crate::{
     math::{
         point::{Point2f, Point2i, Point3f, Point3i},
         routines::{gamma, lerp},
-        vec3::{Vec3B, Vec3Usize, Vec3f, Vec3i},
+        vec::{Vec3B, Vec3Usize, Vec3f, Vec3i},
     },
 };
 

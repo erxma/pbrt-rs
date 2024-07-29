@@ -2,7 +2,7 @@ use crate::{
     math::{
         normal3::Normal3f,
         point::{Point2f, Point3f, Point3fi},
-        vec3::Vec3f,
+        vec::Vec3f,
     },
     media::{
         medium::{Medium, PhaseFunction},

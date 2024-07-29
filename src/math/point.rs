@@ -10,7 +10,7 @@ use crate::{
     math::{interval::Interval, tuple::Tuple},
 };
 
-use super::vec::{Vec3f, Vec3fi, Vec3i};
+use super::vec::{Vec2f, Vec2i, Vec3f, Vec3fi, Vec3i};
 
 /// A 3D point of i32.
 // Wrapper around the vector equivalent.
@@ -283,35 +283,266 @@ impl SubAssign<Vec3f> for Point3f {
     }
 }
 
-/*
-impl<T: Add<Output = T>> Add for Point3<T> {
-    type Output = Self;
+/// A 2D point of i32.
+// Wrapper around the vector equivalent.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Neg, Add, From)]
+#[repr(transparent)]
+pub struct Point2i(Vec2i);
 
-    /// Add another point to `self` to get a new point of same type.
-    ///
-    /// Doesn't make sense mathematically but useful for calculations.
-    fn add(self, rhs: Self) -> Self {
-        Self {
-            x: self.x + rhs.x,
-            y: self.y + rhs.y,
-            z: self.z + rhs.z,
+impl Tuple<2, i32> for Point2i {}
+impl_tuple_math_ops!(Point2i; 2; i32);
+
+impl From<[i32; 2]> for Point2i {
+    fn from(arr: [i32; 2]) -> Self {
+        let [x, y] = arr;
+        Self::new(x, y)
+    }
+}
+
+impl Point2i {
+    /// Construct a new point with given elements.
+    pub const fn new(x: i32, y: i32) -> Self {
+        Self(Vec2i::new(x, y))
+    }
+
+    delegate! {
+        to self.0 {
+            #[inline(always)] pub fn x(&self) -> i32;
+            #[inline(always)] pub fn y(&self) -> i32;
+            #[inline(always)] pub fn x_mut(&mut self) -> &mut i32;
+            #[inline(always)] pub fn y_mut(&mut self) -> &mut i32;
+        }
+    }
+
+    /// The squared distance between `self` and `p2`.
+    pub fn distance_squared(self, p2: Self) -> i32 {
+        (self - p2).length_squared()
+    }
+
+    /// The distance between `self` and `p2`.
+    pub fn distance(self, p2: Self) -> pbrt::Float {
+        (self - p2).length()
+    }
+
+    /// Linearly interpolate between two points. Returns p0 at t==0, p1 at t==1.
+    /// Extrapolates for t<0 or t>1.
+    pub fn lerp(t: pbrt::Float, p0: Self, p1: Self) -> Point2f {
+        let p0: Point2f = p0.into();
+        let p1: Point2f = p1.into();
+        p0 * (1.0 - t) + p1 * t
+    }
+
+    /*
+    pub fn inside(self, b: Bounds2i) -> bool {
+        let x_inside = self.x() >= b.p_min.x() && self.x() <= b.p_max.x();
+        let y_inside = self.y() >= b.p_min.y() && self.y() <= b.p_max.y();
+
+        x_inside && y_inside
+    }
+
+    pub fn inside_exclusive(self, b: Bounds2i) -> bool {
+        let x_inside = self.x() >= b.p_min.x() && self.x() < b.p_max.x();
+        let y_inside = self.y() >= b.p_min.y() && self.y() < b.p_max.y();
+
+        x_inside && y_inside
+    }
+    */
+}
+
+impl Index<usize> for Point2i {
+    type Output = i32;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        match index {
+            0..=1 => &self.0[index],
+            _ => panic!("Index out of bounds for Point2"),
         }
     }
 }
-    */
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct Point2<T> {
-    pub x: T,
-    pub y: T,
+impl IndexMut<usize> for Point2i {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        match index {
+            0..=1 => &mut self.0[index],
+            _ => panic!("Index out of bounds for Point2"),
+        }
+    }
 }
 
-pub type Point2i = Point2<i32>;
-pub type Point2f = Point2<pbrt::Float>;
+impl Add<Vec2i> for Point2i {
+    type Output = Self;
 
-impl<T> Point2<T> {
-    pub fn new(x: T, y: T) -> Self {
-        Self { x, y }
+    /// Add a vector to `self` to get a new point of same type.
+    fn add(mut self, rhs: Vec2i) -> Self {
+        self += rhs;
+        self
+    }
+}
+
+impl AddAssign<Vec2i> for Point2i {
+    /// Add assign a vector to `self`.
+    fn add_assign(&mut self, rhs: Vec2i) {
+        self.0 += rhs;
+    }
+}
+
+impl Sub for Point2i {
+    type Output = Vec2i;
+
+    /// Subtract two points to get the vector between them.
+    fn sub(self, rhs: Self) -> Self::Output {
+        Vec2i::new(self.x() - rhs.x(), self.y() - rhs.y())
+    }
+}
+
+impl Sub<Vec2i> for Point2i {
+    type Output = Self;
+
+    /// Subtract a vector from `self` to get a new point.
+    fn sub(self, rhs: Vec2i) -> Self {
+        Self::new(self.x() - rhs.x(), self.y() - rhs.y())
+    }
+}
+
+impl SubAssign<Vec2i> for Point2i {
+    /// Subtract assign a vector from `self`.
+    fn sub_assign(&mut self, rhs: Vec2i) {
+        *self = *self - rhs
+    }
+}
+
+/// A 3D point of `f32`, or `f64` if feature `use-f64` is enabled.
+// Wrapper around the vector equivalent.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Neg, Add, From)]
+#[repr(transparent)]
+pub struct Point2f(Vec2f);
+
+impl Tuple<2, pbrt::Float> for Point2f {}
+impl_tuple_math_ops!(Point2f; 2; pbrt::Float);
+
+impl From<[pbrt::Float; 2]> for Point2f {
+    fn from(arr: [pbrt::Float; 2]) -> Self {
+        let [x, y] = arr;
+        Self::new(x, y)
+    }
+}
+
+impl Point2f {
+    /// Construct a new point with given elements.
+    pub const fn new(x: pbrt::Float, y: pbrt::Float) -> Self {
+        Self(Vec2f::new(x, y))
+    }
+
+    delegate! {
+        to self.0 {
+            #[inline(always)] pub fn x(&self) -> pbrt::Float;
+            #[inline(always)] pub fn y(&self) -> pbrt::Float;
+            #[inline(always)] pub fn x_mut(&mut self) -> &mut pbrt::Float;
+            #[inline(always)] pub fn y_mut(&mut self) -> &mut pbrt::Float;
+        }
+    }
+
+    /// The squared distance between `self` and `p2`.
+    pub fn distance_squared(self, p2: Self) -> pbrt::Float {
+        (self - p2).length_squared()
+    }
+
+    /// The distance between `self` and `p2`.
+    pub fn distance(self, p2: Self) -> pbrt::Float {
+        (self - p2).length()
+    }
+
+    /// Linearly interpolate between two points. Returns p0 at t==0, p1 at t==1.
+    /// Extrapolates for t<0 or t>1.
+    pub fn lerp(t: pbrt::Float, p0: Self, p1: Self) -> Self
+    where
+        Self: Mul<pbrt::Float, Output = Self>,
+    {
+        p0 * (1.0 - t) + p1 * t
+    }
+
+    /*
+    pub fn inside(self, b: Bounds2f) -> bool {
+        let x_inside = self.x() >= b.p_min.x() && self.x() <= b.p_max.x();
+        let y_inside = self.y() >= b.p_min.y() && self.y() <= b.p_max.y();
+
+        x_inside && y_inside
+    }
+
+    pub fn inside_exclusive(self, b: Bounds2f) -> bool {
+        let x_inside = self.x() >= b.p_min.x() && self.x() < b.p_max.x();
+        let y_inside = self.y() >= b.p_min.y() && self.y() < b.p_max.y();
+
+        x_inside && y_inside
+    }
+    */
+}
+
+impl Index<usize> for Point2f {
+    type Output = pbrt::Float;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        match index {
+            0..=1 => &self.0[index],
+            _ => panic!("Index out of bounds for Point2"),
+        }
+    }
+}
+
+impl IndexMut<usize> for Point2f {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        match index {
+            0..=1 => &mut self.0[index],
+            _ => panic!("Index out of bounds for Point2"),
+        }
+    }
+}
+
+impl From<Point2i> for Point2f {
+    fn from(value: Point2i) -> Self {
+        Self(value.0.into())
+    }
+}
+
+impl Add<Vec2f> for Point2f {
+    type Output = Self;
+
+    /// Add a vector to `self` to get a new point of same type.
+    fn add(mut self, rhs: Vec2f) -> Self {
+        self += rhs;
+        self
+    }
+}
+
+impl AddAssign<Vec2f> for Point2f {
+    /// Add assign a vector to `self`.
+    fn add_assign(&mut self, rhs: Vec2f) {
+        self.0 += rhs;
+    }
+}
+
+impl Sub for Point2f {
+    type Output = Vec2f;
+
+    /// Subtract two points to get the vector between them.
+    fn sub(self, rhs: Self) -> Self::Output {
+        Vec2f::new(self.x() - rhs.x(), self.y() - rhs.y())
+    }
+}
+
+impl Sub<Vec2f> for Point2f {
+    type Output = Self;
+
+    /// Subtract a vector from `self` to get a new point.
+    fn sub(self, rhs: Vec2f) -> Self {
+        Self::new(self.x() - rhs.x(), self.y() - rhs.y())
+    }
+}
+
+impl SubAssign<Vec2f> for Point2f {
+    /// Subtract assign a vector from `self`.
+    fn sub_assign(&mut self, rhs: Vec2f) {
+        *self = *self - rhs
     }
 }
 

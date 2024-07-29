@@ -738,8 +738,6 @@ impl IndexMut<usize> for Bounds2i {
     }
 }
 
-/// A 2D axis-aligned bounding box (AABB) of `f32`,
-/// or `f64` if feature `use-f64` is enabled.
 impl IntoIterator for Bounds2i {
     type Item = Point2i;
     type IntoIter = Bounds2iIterator;

@@ -26,7 +26,7 @@ use super::{
 //
 // Public types aren't generic as glam doesn't offer that.
 
-// ==================== OUTER PUBLIC TYPES ====================
+// ==================== OUTER PUBLIC TYPES FOR VEC3 ====================
 
 /// A 3-element vector of `i32`.
 // Wrapper around the concrete implementation.
@@ -251,7 +251,7 @@ impl Sub for Vec3f {
     }
 }
 
-// ==================== HELPER TRAIT FOR INNER TYPES ====================
+// ==================== HELPER TRAIT FOR VEC3 INNER TYPES ====================
 pub(in crate::math) trait Vec3<T: TupleElement>: Tuple<3, T> {
     /// The type to be used for vecs of float where necessary.
     /// Should always be set to "Self" with T = Float.
@@ -292,7 +292,207 @@ pub(in crate::math) trait Vec3<T: TupleElement>: Tuple<3, T> {
         T: ToPrimitive;
 }
 
-// ==================== SELECTION OF INNER TYPE ====================
+// ==================== OUTER PUBLIC TYPES FOR VEC2 ====================
+
+/// A 2-element vector of `i32`.
+// Wrapper around the concrete implementation.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Index, IndexMut, Neg, From)]
+#[repr(transparent)]
+pub struct Vec2i(inner::Vec2i);
+
+impl Vec2i {
+    pub const fn new(x: i32, y: i32) -> Self {
+        Self(inner::Vec2i::new(x, y))
+    }
+
+    #[inline(always)]
+    pub fn x(&self) -> i32 {
+        self.0.x
+    }
+
+    #[inline(always)]
+    pub fn y(&self) -> i32 {
+        self.0.y
+    }
+
+    #[inline(always)]
+    pub fn x_mut(&mut self) -> &mut i32 {
+        &mut self.0.x
+    }
+
+    #[inline(always)]
+    pub fn y_mut(&mut self) -> &mut i32 {
+        &mut self.0.y
+    }
+
+    // The following are directly delegated to the inner function
+    // of the same name listed in the `Vec2` trait.
+    delegate! {
+        to self.0 {
+            /// The squared length of a vector.
+            pub fn length_squared(self) -> i32;
+            /// Returns the dot product of two vectors.
+            pub fn dot(self, #[newtype] rhs: Self) -> i32;
+            /// The absolute value of the dot product of two vectors.
+            pub fn absdot(self, #[newtype] rhs: Self) -> i32;
+            /// The length of a vector.
+            pub fn length(self) -> pbrt::Float;
+            /// Returns the normalization of a vector.
+            #[into]
+            pub fn normalized(self) -> Vec2f;
+    }}
+}
+
+impl Tuple<2, i32> for Vec2i {}
+impl_tuple_math_ops!(Vec2i; 2; i32);
+
+impl From<[i32; 2]> for Vec2i {
+    fn from(arr: [i32; 2]) -> Self {
+        let [x, y] = arr;
+        Self::new(x, y)
+    }
+}
+
+impl Add for Vec2i {
+    type Output = Self;
+
+    fn add(mut self, rhs: Self) -> Self::Output {
+        self += rhs;
+        self
+    }
+}
+
+impl Sub for Vec2i {
+    type Output = Self;
+
+    fn sub(mut self, rhs: Self) -> Self::Output {
+        self -= rhs;
+        self
+    }
+}
+
+// f version is largely the same idea as i
+
+/// A 2-element vector of `f32`, or `f64` if feature `use-f64` is enabled.
+// Wrapper around the concrete implementation.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Index, IndexMut, Neg, From)]
+#[repr(transparent)]
+pub struct Vec2f(inner::Vec2f);
+
+impl Vec2f {
+    pub const fn new(x: pbrt::Float, y: pbrt::Float) -> Self {
+        Self(inner::Vec2f::new(x, y))
+    }
+
+    #[inline(always)]
+    pub fn x(&self) -> pbrt::Float {
+        self.0.x
+    }
+
+    #[inline(always)]
+    pub fn y(&self) -> pbrt::Float {
+        self.0.y
+    }
+
+    #[inline(always)]
+    pub fn x_mut(&mut self) -> &mut pbrt::Float {
+        &mut self.0.x
+    }
+
+    #[inline(always)]
+    pub fn y_mut(&mut self) -> &mut pbrt::Float {
+        &mut self.0.y
+    }
+
+    delegate! {
+        to self.0 {
+            /// The squared length of a vector.
+            pub fn length_squared(self) -> pbrt::Float;
+            /// Returns the dot product of two vectors.
+            pub fn dot(self, #[newtype] rhs: Self) -> pbrt::Float;
+            /// The absolute value of the dot product of two vectors.
+            pub fn absdot(self, #[newtype] rhs: Self) -> pbrt::Float;
+            /// The length of a vector.
+            pub fn length(self) -> pbrt::Float;
+            /// Returns the normalization of a vector.
+            #[into]
+            pub fn normalized(self) -> Self;
+    }}
+}
+
+impl Tuple<2, pbrt::Float> for Vec2f {}
+impl_tuple_math_ops!(Vec2f; 2; pbrt::Float);
+
+impl From<[pbrt::Float; 2]> for Vec2f {
+    fn from(arr: [pbrt::Float; 2]) -> Self {
+        let [x, y] = arr;
+        Self::new(x, y)
+    }
+}
+
+/*
+// Convert from normal to vec
+impl From<Normal2f> for Vec2f {
+    fn from(n: Normal2f) -> Self {
+        Self::new(n.x(), n.y())
+    }
+}
+*/
+
+impl From<Vec2i> for Vec2f {
+    fn from(value: Vec2i) -> Self {
+        Self::new(value.x() as pbrt::Float, value.y() as pbrt::Float)
+    }
+}
+
+impl Add for Vec2f {
+    type Output = Self;
+
+    fn add(mut self, rhs: Self) -> Self::Output {
+        self += rhs;
+        self
+    }
+}
+
+impl Sub for Vec2f {
+    type Output = Self;
+
+    fn sub(mut self, rhs: Self) -> Self::Output {
+        self -= rhs;
+        self
+    }
+}
+
+// ==================== HELPER TRAIT FOR VEC2 INNER TYPES ====================
+pub(in crate::math) trait Vec2<T: TupleElement>: Tuple<2, T> {
+    /// The type to be used for vecs of float where necessary.
+    /// Should always be set to "Self" with T = Float.
+    ///
+    /// This is here instead of just using "inner::" because having both impls
+    /// active (to the compiler) at the same time causes the unselected one
+    /// to refer to the wrong type...
+    type VecFloat;
+
+    fn length_squared(self) -> T {
+        self.dot(self)
+    }
+
+    fn dot(self, rhs: Self) -> T;
+
+    fn absdot(self, rhs: Self) -> T
+    where
+        T: Signed;
+
+    fn length(self) -> pbrt::Float
+    where
+        T: ToPrimitive;
+
+    fn normalized(self) -> Self::VecFloat
+    where
+        T: ToPrimitive;
+}
+
+// ==================== SELECTION OF INNER TYPES ====================
 mod inner {
     #[cfg(not(feature = "glam"))]
     pub use super::custom_impl::*;
@@ -314,6 +514,7 @@ pub(crate) mod custom_impl {
         },
     };
 
+    use super::Vec2 as Vec2Trait;
     use super::Vec3 as Vec3Trait;
 
     /// A 3D vector.
@@ -460,11 +661,113 @@ pub(crate) mod custom_impl {
             self
         }
     }
+
+    // Vec2
+    /// A 2D vector.
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+    pub struct Vec2<T> {
+        pub x: T,
+        pub y: T,
+    }
+
+    #[allow(dead_code)]
+    pub type Vec2i = Vec2<i32>;
+    pub type Vec2f = Vec2<pbrt::Float>;
+
+    impl<T> Vec2<T> {
+        /// Construct a new vector with given elements.
+        pub const fn new(x: T, y: T) -> Self {
+            Self { x, y }
+        }
+    }
+
+    impl<T: TupleElement> Vec2Trait<T> for Vec2<T> {
+        type VecFloat = Vec2<pbrt::Float>;
+
+        fn dot(self, rhs: Self) -> T {
+            self.x * rhs.x + self.y * rhs.y
+        }
+
+        fn absdot(self, rhs: Self) -> T
+        where
+            T: Signed,
+        {
+            self.dot(rhs).abs()
+        }
+
+        fn length(self) -> pbrt::Float
+        where
+            T: ToPrimitive,
+        {
+            let sqlen: pbrt::Float = NumCast::from(self.length_squared()).unwrap();
+            sqlen.sqrt()
+        }
+
+        fn normalized(self) -> Vec2f
+        where
+            T: ToPrimitive,
+        {
+            let vec_f: Vec2f = self.num_cast().unwrap();
+            vec_f / vec_f.length()
+        }
+    }
+
+    impl<T: TupleElement> Tuple<2, T> for Vec2<T> {}
+
+    impl_tuple_math_ops_generic!(Vec2; 2);
+
+    impl<T> From<[T; 2]> for Vec2<T> {
+        fn from(arr: [T; 2]) -> Self {
+            let [x, y] = arr;
+            Self::new(x, y)
+        }
+    }
+
+    impl<T> Index<usize> for Vec2<T> {
+        type Output = T;
+
+        fn index(&self, index: usize) -> &Self::Output {
+            match index {
+                0 => &self.x,
+                1 => &self.y,
+                _ => panic!("Index out of bounds for Vec2"),
+            }
+        }
+    }
+
+    impl<T> IndexMut<usize> for Vec2<T> {
+        fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+            match index {
+                0 => &mut self.x,
+                1 => &mut self.y,
+                _ => panic!("Index out of bounds for Vec2"),
+            }
+        }
+    }
+
+    impl<T: AddAssign + Copy> Add for Vec2<T> {
+        type Output = Self;
+
+        fn add(mut self, rhs: Self) -> Self::Output {
+            self += rhs;
+            self
+        }
+    }
+
+    impl<T: SubAssign + Copy> Sub for Vec2<T> {
+        type Output = Self;
+
+        fn sub(mut self, rhs: Self) -> Self::Output {
+            self -= rhs;
+            self
+        }
+    }
 }
 
 // ==================== GLAM IMPL ====================
 #[cfg(feature = "glam")]
 mod glam_impl {
+    use super::Vec2 as Vec2Trait;
     use super::Vec3 as Vec3Trait;
     use crate::{self as pbrt, math::tuple::Tuple};
 
@@ -563,6 +866,63 @@ mod glam_impl {
     }
 
     impl Tuple<3, pbrt::Float> for Vec3f {}
+
+    // VEC2
+    pub type Vec2i = glam::IVec2;
+
+    #[cfg(feature = "use-f64")]
+    pub type Vec2f = glam::DVec2;
+    #[cfg(not(feature = "use-f64"))]
+    pub type Vec2f = glam::Vec2;
+
+    impl Vec2Trait<i32> for Vec2i {
+        type VecFloat = Vec2f;
+
+        delegate! {
+            to self {
+                fn dot(self, rhs: Self) -> i32;
+            }
+        }
+
+        fn absdot(self, rhs: Self) -> i32 {
+            self.dot(rhs).abs()
+        }
+
+        fn length(self) -> pbrt::Float {
+            #[cfg(feature = "use-f64")]
+            return self.as_dvec2().length();
+            #[cfg(not(feature = "use-f64"))]
+            return self.as_vec2().length();
+        }
+
+        fn normalized(self) -> Vec2f {
+            #[cfg(feature = "use-f64")]
+            return self.as_dvec2().normalize();
+            #[cfg(not(feature = "use-f64"))]
+            return self.as_vec2().normalize();
+        }
+    }
+
+    impl Tuple<2, i32> for Vec2i {}
+
+    impl Vec2Trait<pbrt::Float> for Vec2f {
+        type VecFloat = Vec2f;
+
+        delegate! {
+            to self {
+                fn dot(self, rhs: Self) -> pbrt::Float;
+                fn length(self) -> pbrt::Float;
+                #[call(normalize)]
+                fn normalized(self) -> Vec2f;
+            }
+        }
+
+        fn absdot(self, rhs: Self) -> pbrt::Float {
+            self.dot(rhs).abs()
+        }
+    }
+
+    impl Tuple<2, pbrt::Float> for Vec2f {}
 }
 
 // ==================== VEC3FI - NO GLAM EQUIVALENT ====================

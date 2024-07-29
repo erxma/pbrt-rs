@@ -7,10 +7,9 @@ use crate::{
     self as pbrt,
     geometry::bounds::{Bounds2f, Bounds2i, Bounds3f, Bounds3i},
     impl_tuple_math_ops,
-    math::{interval::Interval, tuple::Tuple},
 };
 
-use super::vec::{Vec2f, Vec2i, Vec3f, Vec3fi, Vec3i};
+use super::{Interval, Tuple, Vec2f, Vec2i, Vec3f, Vec3fi, Vec3i};
 
 /// A 3D point of i32.
 // Wrapper around the vector equivalent.

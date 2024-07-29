@@ -6,11 +6,7 @@ use num_traits::{NumCast, Signed, ToPrimitive};
 
 use crate::{self as pbrt, impl_tuple_math_ops};
 
-use super::{
-    interval::Interval,
-    normal3::Normal3f,
-    tuple::{Tuple, TupleElement},
-};
+use super::{tuple::TupleElement, Interval, Normal3f, Tuple};
 
 // To facilitate choosing between the implementation from scratch
 // ("custom_impl") and glam's, a wrapper is added around the concrete type,

@@ -1,6 +1,6 @@
-use crate::{math::vec::Vec3f, Float, PI};
+use crate::{Float, PI};
 
-use super::routines::safe_acos;
+use super::{safe_acos, Vec3f};
 
 #[inline]
 pub fn spherical_triangle_area(a: Vec3f, b: Vec3f, c: Vec3f) -> Float {

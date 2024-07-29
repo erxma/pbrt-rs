@@ -4,11 +4,7 @@ use std::{
 };
 
 use crate::{
-    math::{
-        point::Point2f,
-        routines::{evaluate_polynomial, lerp},
-        square_matrix::SquareMatrix,
-    },
+    math::{evaluate_polynomial, lerp, Point2f, SquareMatrix},
     sampling::spectrum::{spectrum_to_xyz, DenselySampledSpectrum, Spectrum},
     Float,
 };

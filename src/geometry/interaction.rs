@@ -1,9 +1,5 @@
 use crate::{
-    math::{
-        normal3::Normal3f,
-        point::{Point2f, Point3f, Point3fi},
-        vec::Vec3f,
-    },
+    math::{Normal3f, Point2f, Point3f, Point3fi, Vec3f},
     media::{
         medium::{Medium, PhaseFunction},
         medium_interface::MediumInterface,

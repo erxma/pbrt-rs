@@ -3,7 +3,7 @@ use std::ops::Mul;
 use approx::abs_diff_ne;
 
 use crate::{
-    math::{matrix4x4::Matrix4x4, normal3::Normal3f, point::Point3f, vec::Vec3f},
+    math::{Matrix4x4, Normal3f, Point3f, Vec3f},
     Float,
 };
 

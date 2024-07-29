@@ -8,11 +8,7 @@ use crate::{
         ray::Ray,
         transform::Transform,
     },
-    math::{
-        normal3::Normal3f,
-        point::{Point2f, Point3fi},
-        vec::Vec3f,
-    },
+    math::{Normal3f, Point2f, Point3fi, Vec3f},
     Float,
 };
 

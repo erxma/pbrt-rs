@@ -1,9 +1,6 @@
-use crate::{
-    math::{point::Point2f, routines::evaluate_polynomial, vec::Vec3f},
-    Float, PI,
-};
+use crate::{Float, PI};
 
-use super::routines::safe_sqrt;
+use super::{evaluate_polynomial, safe_sqrt, Point2f, Vec3f};
 
 pub fn equal_area_square_to_sphere(p: Point2f) -> Vec3f {
     assert!(

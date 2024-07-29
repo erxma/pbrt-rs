@@ -211,6 +211,10 @@ impl Point3f {
 
         x_inside && y_inside && z_inside
     }
+
+    pub fn as_point3i(self) -> Point3i {
+        Point3i::new(self.x() as i32, self.y() as i32, self.z() as i32)
+    }
 }
 
 impl Index<usize> for Point3f {
@@ -471,6 +475,10 @@ impl Point2f {
         let y_inside = self.y() >= b.p_min.y() && self.y() < b.p_max.y();
 
         x_inside && y_inside
+    }
+
+    pub fn as_point2i(self) -> Point2i {
+        Point2i::new(self.x() as i32, self.y() as i32)
     }
 }
 

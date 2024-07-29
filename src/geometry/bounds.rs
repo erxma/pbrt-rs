@@ -1,4 +1,6 @@
-use std::ops::{Index, IndexMut};
+use std::ops::{Index, IndexMut, RangeInclusive};
+
+use itertools::iproduct;
 
 use crate::{
     self as pbrt,
@@ -739,6 +741,36 @@ impl IndexMut<usize> for Bounds2i {
 
 /// A 2D axis-aligned bounding box (AABB) of `f32`,
 /// or `f64` if feature `use-f64` is enabled.
+impl IntoIterator for Bounds2i {
+    type Item = Point2i;
+    type IntoIter = Bounds2iIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Bounds2iIterator::new(self)
+    }
+}
+
+pub struct Bounds2iIterator(itertools::Product<RangeInclusive<i32>, RangeInclusive<i32>>);
+
+impl Bounds2iIterator {
+    pub fn new(bounds: Bounds2i) -> Self {
+        Self(iproduct!(
+            bounds.p_min.x()..=bounds.p_max.x(),
+            bounds.p_min.y()..=bounds.p_max.y()
+        ))
+    }
+}
+
+impl Iterator for Bounds2iIterator {
+    type Item = Point2i;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (x, y) = self.0.next()?;
+        Some(Point2i::new(x, y))
+    }
+}
+
+/// A 2D axis-aligned bounding box (AABB) of `i32`.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Bounds2f {
     pub p_min: Point2f,

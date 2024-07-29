@@ -7,8 +7,15 @@ use crate::{
     color::RGBColorSpace,
     geometry::bounds::Bounds2i,
     image::Filter,
-    math::{array2d::Array2D, point::Point2i, square_matrix::SquareMatrix},
+    math::{
+        array2d::Array2D,
+        point::{Point2f, Point2i},
+        square_matrix::SquareMatrix,
+        tuple::Tuple,
+        vec::{Vec2f, Vec2i},
+    },
     parallel::AtomicF64,
+    sampling::spectrum::{SampledSpectrum, SampledWavelengths},
     Float,
 };
 
@@ -18,16 +25,28 @@ use super::sensor::PixelSensor;
 #[derive(Clone, Debug)]
 pub enum Film<'a> {
     RGBFilm(RGBFilm<'a>),
-    GBufferFilm,
-    SpectralFilm,
 }
 
 #[enum_dispatch]
-trait FilmTrait {}
+trait FilmTrait {
+    #[allow(non_snake_case)]
+    fn add_sample(
+        &mut self,
+        p_film: Point2i,
+        L: &SampledSpectrum,
+        lambda: &SampledWavelengths,
+        visible_surface: &VisibleSurface,
+        weight: Float,
+    );
+
+    #[allow(non_snake_case)]
+    fn add_splat(&mut self, p: Point2f, L: &SampledSpectrum, lambda: &SampledWavelengths);
+}
 
 #[derive(Clone, Debug)]
 pub struct RGBFilm<'a> {
     full_resolution: Point2i,
+    pixel_bounds: Bounds2i,
     filter: &'a Filter,
     diagonal: Float,
     sensor: &'a PixelSensor,
@@ -54,6 +73,7 @@ impl<'a> RGBFilm<'a> {
 )]
 struct RGBFilmParams<'a> {
     full_resolution: Point2i,
+    pixel_bounds: Bounds2i,
     filter: &'a Filter,
     diagonal: Float,
     sensor: &'a PixelSensor,
@@ -61,7 +81,6 @@ struct RGBFilmParams<'a> {
     color_space: &'a RGBColorSpace<'a>,
     max_component_value: Float,
     write_fp16: bool,
-    pixels_bounds: Bounds2i,
 }
 
 impl<'a> RGBFilmBuilder<'a> {
@@ -76,6 +95,7 @@ impl<'a> RGBFilmBuilder<'a> {
 
         Ok(RGBFilm {
             full_resolution: params.full_resolution,
+            pixel_bounds: params.pixel_bounds,
             filter: params.filter,
             diagonal: params.diagonal,
             sensor: params.sensor,
@@ -84,8 +104,70 @@ impl<'a> RGBFilmBuilder<'a> {
             write_fp16: params.write_fp16,
             filter_integral,
             output_rgb_from_sensor_rgb,
-            pixels: Array2D::fill_default(params.pixels_bounds),
+            pixels: Array2D::fill_default(params.pixel_bounds),
         })
+    }
+}
+
+impl<'a> FilmTrait for RGBFilm<'a> {
+    #[allow(non_snake_case)]
+    fn add_sample(
+        &mut self,
+        p_film: Point2i,
+        L: &SampledSpectrum,
+        lambda: &SampledWavelengths,
+        _visible_surface: &VisibleSurface,
+        weight: Float,
+    ) {
+        // Convert sample radiance to PixelSensor RGB
+        let mut rgb = self.sensor.to_sensor_rgb(L, lambda);
+
+        // Optionally clamp sensor RGB value
+        let m = rgb.max_component();
+        if m > self.max_component_value {
+            rgb *= self.max_component_value / m;
+        }
+
+        // Update pixel values with filtered sample contribution
+        let pixel = &mut self.pixels[p_film];
+        for i in 0..3 {
+            pixel.rgb_sum[i] += (weight * rgb[i]) as f64;
+        }
+        pixel.weight_sum += weight as f64;
+    }
+
+    #[allow(non_snake_case)]
+    fn add_splat(&mut self, p: Point2f, L: &SampledSpectrum, lambda: &SampledWavelengths) {
+        // Convert sample radiance to PixelSensor RGB
+        let mut rgb = self.sensor.to_sensor_rgb(L, lambda);
+
+        // Optionally clamp sensor RGB value
+        let m = rgb.max_component();
+        if m > self.max_component_value {
+            rgb *= self.max_component_value / m;
+        }
+
+        // Compute bounds of affected pixels for splat, splat_bounds
+        let p_discrete = p + Vec2f::new(0.5, 0.5);
+        let radius = self.filter.radius();
+        let splat_bounds = Bounds2i::new(
+            (p_discrete - radius).floor().as_point2i(),
+            (p_discrete + radius).floor().as_point2i() + Vec2i::new(1, 1),
+        )
+        .intersect(self.pixel_bounds);
+
+        for pi in splat_bounds {
+            // Evaluate filter at pi and add splat contribution
+            let wt = self
+                .filter
+                .eval((p - Point2f::from(pi) - Vec2f::new(0.5, 0.5)).into());
+
+            if wt != 0.0 {
+                for i in 0..3 {
+                    self.pixels[pi].rgb_splat[i].fetch_add((wt * rgb[i]) as f64, Ordering::Relaxed);
+                }
+            }
+        }
     }
 }
 
@@ -120,16 +202,5 @@ impl Clone for RGBPixel {
     }
 }
 
-impl<'a> FilmTrait for RGBFilm<'a> {}
-
 #[derive(Clone, Debug)]
-pub struct GBufferFilm {}
-
-impl FilmTrait for GBufferFilm {}
-
-#[derive(Clone, Debug)]
-pub struct SpectralFilm {}
-
-impl FilmTrait for SpectralFilm {}
-
 pub struct VisibleSurface {}

@@ -26,10 +26,10 @@ impl XYZ {
         #![allow(non_snake_case)]
 
         let Y = Y.unwrap_or(1.0);
-        if xy.y == 0.0 {
+        if xy.y() == 0.0 {
             XYZ::new(0.0, 0.0, 0.0)
         } else {
-            XYZ::new(xy.x * Y / xy.y, Y, (1.0 - xy.x - xy.y) * Y / xy.y)
+            XYZ::new(xy.x() * Y / xy.y(), Y, (1.0 - xy.x() - xy.y()) * Y / xy.y())
         }
     }
 

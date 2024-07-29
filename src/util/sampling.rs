@@ -93,15 +93,15 @@ pub fn invert_linear_sample(x: Float, a: Float, b: Float) -> Float {
 pub fn bilinear_pdf(p: Point2f, w: &[Float]) -> Float {
     let w_sum: Float = w.iter().sum();
 
-    if p.x < 0.0 || p.x > 1.0 || p.y < 0.0 || p.y > 1.0 {
+    if p.x() < 0.0 || p.x() > 1.0 || p.y() < 0.0 || p.y() > 1.0 {
         0.0
     } else if w_sum == 0.0 {
         1.0
     } else {
-        4.0 * ((1.0 - p.x) * (1.0 - p.y) * w[0]
-            + p.x * (1.0 - p.y) * w[1]
-            + p.y * (1.0 - p.x) * w[2]
-            + p.x * p.y * w[3])
+        4.0 * ((1.0 - p.x()) * (1.0 - p.y()) * w[0]
+            + p.x() * (1.0 - p.y()) * w[1]
+            + p.y() * (1.0 - p.x()) * w[2]
+            + p.x() * p.y() * w[3])
             / w_sum
     }
 }
@@ -109,16 +109,16 @@ pub fn bilinear_pdf(p: Point2f, w: &[Float]) -> Float {
 #[inline]
 pub fn sample_bilinear(u: Point2f, w: &[Float]) -> Point2f {
     // Sample y for bilnear marginal distribution
-    let y = sample_linear(u.y, w[0] + w[1], w[2] + w[3]);
-    let x = sample_linear(u.x, lerp(y, w[0], w[2]), lerp(y, w[1], w[3]));
+    let y = sample_linear(u.y(), w[0] + w[1], w[2] + w[3]);
+    let x = sample_linear(u.x(), lerp(y, w[0], w[2]), lerp(y, w[1], w[3]));
 
     Point2f::new(x, y)
 }
 
 #[inline]
 pub fn invert_bilinear_sample(p: Point2f, w: &[Float]) -> Point2f {
-    let x = invert_linear_sample(p.x, lerp(p.y, w[0], w[2]), lerp(p.y, w[1], w[3]));
-    let y = invert_linear_sample(p.y, w[0] + w[1], w[2] + w[3]);
+    let x = invert_linear_sample(p.x(), lerp(p.y(), w[0], w[2]), lerp(p.y(), w[1], w[3]));
+    let y = invert_linear_sample(p.y(), w[0] + w[1], w[2] + w[3]);
 
     Point2f::new(x, y)
 }

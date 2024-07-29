@@ -7,13 +7,13 @@ use super::routines::safe_sqrt;
 
 pub fn equal_area_square_to_sphere(p: Point2f) -> Vec3f {
     assert!(
-        p.x >= 0.0 && p.x <= 1.0 && p.y >= 0.0 && p.y <= 1.0,
+        p.x() >= 0.0 && p.x() <= 1.0 && p.y() >= 0.0 && p.y() <= 1.0,
         "Given square coordinates should be within [-0.0, 1.0]^2"
     );
 
     // Transform p to [-1, 1]^2 and compute absolute values
-    let u = 2.0 * p.x - 1.0;
-    let v = 2.0 * p.y - 1.0;
+    let u = 2.0 * p.x() - 1.0;
+    let v = 2.0 * p.y() - 1.0;
     let up = u.abs();
     let vp = v.abs();
 
@@ -106,8 +106,8 @@ pub fn equal_area_sphere_to_square(d: Vec3f) -> Point2f {
 /// and wraps them around to the appropriate valid coordinates
 /// that can be passed to [equal_area_square_to_sphere].
 pub fn wrap_equal_area_square(uv: Point2f) -> Point2f {
-    let mut x = uv.x;
-    let mut y = uv.y;
+    let mut x = uv.x();
+    let mut y = uv.y();
 
     if x < 0.0 {
         x = -x;

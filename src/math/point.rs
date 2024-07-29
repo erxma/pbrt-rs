@@ -10,7 +10,7 @@ use crate::{
     math::{interval::Interval, tuple::Tuple},
 };
 
-use super::vec3::{Vec3f, Vec3fi, Vec3i};
+use super::vec::{Vec3f, Vec3fi, Vec3i};
 
 /// A 3D point of i32.
 // Wrapper around the vector equivalent.

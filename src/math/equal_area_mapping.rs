@@ -1,5 +1,5 @@
 use crate::{
-    math::{point::Point2f, routines::evaluate_polynomial, vec3::Vec3f},
+    math::{point::Point2f, routines::evaluate_polynomial, vec::Vec3f},
     Float, PI,
 };
 

@@ -3,7 +3,7 @@ use crate::{
     math::{
         point::Point3f,
         routines::{safe_acos, safe_sqrt},
-        vec3::Vec3f,
+        vec::Vec3f,
     },
     Float, PI,
 };

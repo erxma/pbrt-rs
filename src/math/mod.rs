@@ -9,5 +9,5 @@ pub mod point;
 pub mod routines;
 pub mod square_matrix;
 pub mod tuple;
-pub mod vec3;
+pub mod vec;
 pub mod vec_math;

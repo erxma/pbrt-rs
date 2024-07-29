@@ -5,7 +5,7 @@ use derive_more::{Add, Neg, Sub};
 
 use crate::{self as pbrt, impl_tuple_math_ops};
 
-use super::{tuple::Tuple, vec::Vec3f};
+use super::{Tuple, Vec3f};
 
 /// A 3-element normal of `f32`, or `f64` if feature `use-f64` is enabled.
 // Wrapper around the vector equivalent.

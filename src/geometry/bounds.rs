@@ -5,9 +5,8 @@ use itertools::iproduct;
 use crate::{
     self as pbrt,
     math::{
-        point::{Point2f, Point2i, Point3f, Point3i},
-        routines::{gamma, lerp},
-        vec::{Vec2f, Vec2i, Vec3B, Vec3Usize, Vec3f, Vec3i},
+        gamma, lerp, Point2f, Point2i, Point3f, Point3i, Vec2f, Vec2i, Vec3B, Vec3Usize, Vec3f,
+        Vec3i,
     },
 };
 

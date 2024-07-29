@@ -5,7 +5,7 @@ use film::Film;
 
 use crate::{
     geometry::ray::{Ray, RayDifferential},
-    math::point::Point2f,
+    math::Point2f,
     sampling::spectrum::{SampledSpectrum, SampledWavelengths},
     Float,
 };

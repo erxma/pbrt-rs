@@ -1,7 +1,7 @@
 use crate::{
     self as pbrt,
     camera::CameraSample,
-    math::point::{Point2f, Point2i},
+    math::{Point2f, Point2i},
 };
 
 pub trait Sampler {

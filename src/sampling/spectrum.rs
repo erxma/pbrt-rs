@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     color::{RGBColorSpace, RGBSigmoidPolynomial, RGB, XYZ},
-    math::routines::lerp,
+    math::lerp,
     util::data::{CIE_LAMBDA, CIE_X, CIE_Y, CIE_Z, N_CIE_SAMPLES},
     Float,
 };

@@ -1,4 +1,6 @@
-use crate::{math::vec::Vec3f, Float};
+use crate::Float;
+
+use super::Vec3f;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct OctahedralVec {

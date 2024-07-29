@@ -4,7 +4,7 @@ use derive_builder::Builder;
 
 use crate::{
     color::{self, RGBColorSpace, RGB, XYZ},
-    math::{square_matrix::SquareMatrix, tuple::Tuple},
+    math::{SquareMatrix, Tuple},
     sampling::spectrum::{
         self, DenselySampledSpectrum, PiecewiseLinearSpectrum, SampledSpectrum, SampledWavelengths,
         Spectrum, LAMBDA_MAX, LAMBDA_MIN,

@@ -2,7 +2,9 @@ use std::ops::{Add, AddAssign, Index, IndexMut, Mul, Sub, SubAssign};
 
 use itertools::iproduct;
 
-use crate::{math::tuple::Tuple, Float};
+use crate::Float;
+
+use super::Tuple;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SquareMatrix<const N: usize> {

@@ -4,7 +4,7 @@ use derive_more::{Add, Neg, Sub};
 
 use crate::{
     impl_tuple_math_ops,
-    math::{point::Point2f, tuple::Tuple},
+    math::{Point2f, Tuple},
     Float,
 };
 

@@ -1,10 +1,6 @@
 use crate::{
     geometry::{bounds::Bounds3f, transform::Transform},
-    math::{
-        point::Point3f,
-        routines::{safe_acos, safe_sqrt},
-        vec::Vec3f,
-    },
+    math::{safe_acos, safe_sqrt, Point3f, Vec3f},
     Float, PI,
 };
 

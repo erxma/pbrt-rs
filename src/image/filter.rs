@@ -2,7 +2,7 @@ use delegate::delegate;
 use enum_dispatch::enum_dispatch;
 
 use crate::{
-    math::{point::Point2f, vec::Vec2f},
+    math::{Point2f, Vec2f},
     Float,
 };
 

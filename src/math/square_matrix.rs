@@ -5,7 +5,10 @@ use itertools::iproduct;
 
 use crate::Float;
 
-use super::{routines::difference_of_products, Tuple};
+use super::{
+    routines::{difference_of_products, inner_product},
+    Tuple,
+};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SquareMatrix<const N: usize> {
@@ -191,76 +194,70 @@ impl SquareMatrix<4> {
 
 #[inherent]
 impl Invert for SquareMatrix<4> {
-    // FIXME: Better impl available in book, need to impl inner_product first
     #[allow(clippy::needless_range_loop)]
     pub fn inverse(&self) -> Option<Self> {
-        let mut indxc = [0; 4];
-        let mut indxr = [0; 4];
-        let mut ipiv = [0; 4];
-        let mut minv = self.m;
-        for i in 0..4 {
-            let mut irow = 0;
-            let mut icol = 0;
-            let mut big: Float = 0.0;
-            // Choose pivot
-            for j in 0..4 {
-                if ipiv[j] != 1 {
-                    for k in 0..4 {
-                        if ipiv[k] == 0 {
-                            if minv[j][k].abs() >= big {
-                                big = minv[j][k].abs();
-                                irow = j;
-                                icol = k;
-                            }
-                        } else if ipiv[k] > 1 {
-                            return None;
-                        }
-                    }
-                }
-            }
-            ipiv[icol] += 1;
-            // Swap rows _irow_ and _icol_ for pivot
-            if irow != icol {
-                for k in 0..4 {
-                    // Swap
-                    (minv[irow][k], minv[icol][k]) = (minv[icol][k], minv[irow][k])
-                }
-            }
-            indxr[i] = irow;
-            indxc[i] = icol;
-            if minv[icol][icol] == 0.0 {
-                return None;
-            }
+        // Via: https://github.com/google/ion/blob/master/ion/math/matrixutils.cc,
+        // (c) Google, Apache license.
 
-            // Set $m[icol][icol]$ to one by scaling row _icol_ appropriately
-            let pivinv = 1. / minv[icol][icol];
-            minv[icol][icol] = 1.;
-            for j in 0..4 {
-                minv[icol][j] *= pivinv;
-            }
+        // For 4x4 do not compute the adjugate as the transpose of the cofactor
+        // matrix, because this results in extra work. Several calculations can be
+        // shared across the sub-determinants.
+        //
+        // This approach is explained in David Eberly's Geometric Tools book,
+        // excerpted here:
+        //   http://www.geometrictools.com/Documentation/LaplaceExpansionTheorem.pdf
+        let m = &self.m;
 
-            // Subtract this row from others to zero out their columns
-            for j in 0..4 {
-                if j != icol {
-                    let save = minv[j][icol];
-                    minv[j][icol] = 0.0;
-                    for k in 0..4 {
-                        minv[j][k] -= minv[icol][k] * save;
-                    }
-                }
-            }
+        let s0 = difference_of_products(m[0][0], m[1][1], m[1][0], m[0][1]);
+        let s1 = difference_of_products(m[0][0], m[1][2], m[1][0], m[0][2]);
+        let s2 = difference_of_products(m[0][0], m[1][3], m[1][0], m[0][3]);
+
+        let s3 = difference_of_products(m[0][1], m[1][2], m[1][1], m[0][2]);
+        let s4 = difference_of_products(m[0][1], m[1][3], m[1][1], m[0][3]);
+        let s5 = difference_of_products(m[0][2], m[1][3], m[1][2], m[0][3]);
+
+        let c0 = difference_of_products(m[2][0], m[3][1], m[3][0], m[2][1]);
+        let c1 = difference_of_products(m[2][0], m[3][2], m[3][0], m[2][2]);
+        let c2 = difference_of_products(m[2][0], m[3][3], m[3][0], m[2][3]);
+
+        let c3 = difference_of_products(m[2][1], m[3][2], m[3][1], m[2][2]);
+        let c4 = difference_of_products(m[2][1], m[3][3], m[3][1], m[2][3]);
+        let c5 = difference_of_products(m[2][2], m[3][3], m[3][2], m[2][3]);
+
+        let det = inner_product!(s0, c5, -s1, c4, s2, c3, s3, c2, s5, c0, -s4, c1).val;
+        if det == 0.0 {
+            return None;
         }
-        // Swap columns to reflect permutation
-        for j in (0..=3).rev() {
-            if indxr[j] != indxc[j] {
-                for k in 0..4 {
-                    // Swap
-                    (minv[k][indxr[j]], minv[k][indxc[j]]) = (minv[k][indxc[j]], minv[k][indxr[j]]);
-                }
-            }
-        }
+        let s = 1.0 / det;
 
-        Some(Self::new(minv))
+        let inv = [
+            [
+                s * inner_product!(m[1][1], c5, m[1][3], c3, -m[1][2], c4).val,
+                s * inner_product!(-m[0][1], c5, m[0][2], c4, -m[0][3], c3).val,
+                s * inner_product!(m[3][1], s5, m[3][3], s3, -m[3][2], s4).val,
+                s * inner_product!(-m[2][1], s5, m[2][2], s4, -m[2][3], s3).val,
+            ],
+            [
+                s * inner_product!(-m[1][0], c5, m[1][2], c2, -m[1][3], c1).val,
+                s * inner_product!(m[0][0], c5, m[0][3], c1, -m[0][2], c2).val,
+                s * inner_product!(-m[3][0], s5, m[3][2], s2, -m[3][3], s1).val,
+                s * inner_product!(m[2][0], s5, m[2][3], s1, -m[2][2], s2).val,
+            ],
+            [
+                s * inner_product!(m[1][0], c4, m[1][3], c0, -m[1][1], c2).val,
+                s * inner_product!(-m[0][0], c4, m[0][1], c2, -m[0][3], c0).val,
+                s * inner_product!(m[3][0], s4, m[3][3], s0, -m[3][1], s2).val,
+                s * inner_product!(-m[2][0], s4, m[2][1], s2, -m[2][3], s0).val,
+            ],
+            [
+                s * inner_product!(-m[1][0], c3, m[1][1], c1, -m[1][2], c0).val,
+                s * inner_product!(m[0][0], c3, m[0][2], c0, -m[0][1], c1).val,
+                s * inner_product!(-m[3][0], s3, m[3][1], s1, -m[3][2], s0).val,
+                s * inner_product!(m[2][0], s3, m[2][2], s0, -m[2][1], s1).val,
+            ],
+        ];
+
+        Some(Self::new(inv))
     }
 }
 

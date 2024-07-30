@@ -1,6 +1,6 @@
 mod array2d;
 mod equal_area_mapping;
-pub mod float_utility;
+mod float_utility;
 mod interval;
 mod normal3;
 mod octahedral_vec;
@@ -15,6 +15,7 @@ pub use array2d::Array2D;
 pub use equal_area_mapping::{
     equal_area_sphere_to_square, equal_area_square_to_sphere, wrap_equal_area_square,
 };
+pub use float_utility::{next_float_down, next_float_up, CompensatedFloat, ONE_MINUS_EPSILON};
 pub use interval::Interval;
 pub use normal3::Normal3f;
 pub use octahedral_vec::OctahedralVec;

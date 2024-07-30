@@ -7,7 +7,7 @@ use crate::{
     math::{SquareMatrix, Tuple},
     sampling::spectrum::{
         self, DenselySampledSpectrum, PiecewiseLinearSpectrum, SampledSpectrum, SampledWavelengths,
-        Spectrum, LAMBDA_MAX, LAMBDA_MIN,
+        Spectrum, SpectrumEnum, LAMBDA_MAX, LAMBDA_MIN,
     },
     util::data::SWATCH_REFLECTANCES_INTERLEAVED,
     Float,
@@ -57,10 +57,10 @@ impl PixelSensor {
 )]
 struct PixelSensorParams<'a> {
     #[builder(default)]
-    rgb_matching: Option<[&'a dyn Spectrum; 3]>,
+    rgb_matching: Option<[&'a SpectrumEnum<'a>; 3]>,
     output_color_space: &'a RGBColorSpace<'a>,
     #[builder(default)]
-    sensor_illum: Option<&'a dyn Spectrum>,
+    sensor_illum: Option<&'a SpectrumEnum<'a>>,
     imaging_ratio: Float,
 }
 
@@ -160,7 +160,7 @@ impl<'a> PixelSensorBuilder<'a> {
 #[inline]
 fn project_reflectance<Triplet: Tuple<3, Float>>(
     reflectance: &impl Spectrum,
-    illum: &dyn Spectrum,
+    illum: &impl Spectrum,
     b1: &impl Spectrum,
     b2: &impl Spectrum,
     b3: &impl Spectrum,

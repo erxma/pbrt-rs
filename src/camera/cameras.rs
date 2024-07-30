@@ -5,7 +5,7 @@ use crate::{
         ray::{Ray, RayDifferential},
         transform::Transform,
     },
-    math::{Point2f, Vec3f},
+    math::{lerp, Point2f, Vec3f},
     media::medium::Medium,
     sampling::spectrum::{SampledSpectrum, SampledWavelengths},
     Float,
@@ -16,7 +16,7 @@ use enum_dispatch::enum_dispatch;
 
 #[enum_dispatch]
 pub enum Camera<'a> {
-    ProjectiveCamera(ProjectiveCamera<'a>),
+    Orthographic(OrthographicCamera<'a>),
 }
 
 impl<'a> Camera<'a> {
@@ -31,7 +31,7 @@ impl<'a> Camera<'a> {
            pub fn generate_ray(
                &self,
                sample: CameraSample,
-               wavelengths: &mut SampledWavelengths,
+               wavelengths: &SampledWavelengths,
            ) -> Option<CameraRay>;
 
            /// Compute the ray corresponding to a given image `sample`,
@@ -45,7 +45,7 @@ impl<'a> Camera<'a> {
            pub fn generate_ray_differential(
                &self,
                sample: CameraSample,
-               wavelengths: &mut SampledWavelengths,
+               wavelengths: &SampledWavelengths,
            ) -> Option<CameraRayDifferential>;
 
            /// Borrow `self`'s film.
@@ -66,20 +66,25 @@ trait CameraTrait {
     fn generate_ray(
         &self,
         sample: CameraSample,
-        wavelengths: &mut SampledWavelengths,
+        wavelengths: &SampledWavelengths,
     ) -> Option<CameraRay>;
 
     fn generate_ray_differential(
         &self,
         sample: CameraSample,
-        wavelengths: &mut SampledWavelengths,
+        wavelengths: &SampledWavelengths,
     ) -> Option<CameraRayDifferential>;
 
     fn film(&self) -> &Film;
 
-    fn sample_time(&self, u: Float) -> Float;
+    fn sample_time(&self, u: Float) -> Float {
+        lerp(u, self.shutter_open(), self.shutter_close())
+    }
 
     fn camera_transform(&self) -> &CameraTransform;
+
+    fn shutter_open(&self) -> Float;
+    fn shutter_close(&self) -> Float;
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -106,27 +111,21 @@ pub struct CameraRayDifferential<'a> {
 pub struct CameraTransform {}
 
 #[derive(Clone, Debug)]
-pub struct ProjectiveCamera<'a> {
+struct ProjectiveCamera<'a> {
     transform: CameraTransform,
     shutter_open: Float,
     shutter_close: Float,
     film: &'a Film<'a>,
-    medium: &'a Medium,
+    _medium: &'a Medium,
 
-    screen_from_camera: Transform,
+    _screen_from_camera: Transform,
     camera_from_raster: Transform,
-    raster_from_screen: Transform,
-    screen_from_raster: Transform,
-    lens_radius: Float,
-    focal_distance: Float,
+    _raster_from_screen: Transform,
+    _screen_from_raster: Transform,
+    _lens_radius: Float,
+    _focal_distance: Float,
 }
 
-#[derive(Builder)]
-#[builder(
-    name = "ProjectiveCameraBuilder",
-    public,
-    build_fn(private, name = "build_params")
-)]
 struct ProjectiveCameraParams<'a> {
     transform: CameraTransform,
     shutter_open: Float,
@@ -140,10 +139,8 @@ struct ProjectiveCameraParams<'a> {
     focal_distance: Float,
 }
 
-impl<'a> ProjectiveCameraBuilder<'a> {
-    pub fn build(&self) -> Result<ProjectiveCamera<'_>, ProjectiveCameraBuilderError> {
-        let params = self.build_params()?;
-
+impl<'a> ProjectiveCamera<'a> {
+    fn new(params: ProjectiveCameraParams<'a>) -> Self {
         // Compute projective camera transforms
 
         let ndc_from_screen = Transform::scale(
@@ -164,49 +161,108 @@ impl<'a> ProjectiveCameraBuilder<'a> {
 
         let camera_from_raster = params.screen_from_camera.inverse() * screen_from_raster.clone();
 
-        Ok(ProjectiveCamera {
+        Self {
+            transform: params.transform,
+            shutter_open: params.shutter_open,
+            shutter_close: params.shutter_close,
+            film: params.film,
+            _medium: params.medium,
+
+            _screen_from_camera: params.screen_from_camera,
+            camera_from_raster,
+            _raster_from_screen: raster_from_screen,
+            _screen_from_raster: screen_from_raster,
+            _lens_radius: params.lens_radius,
+            _focal_distance: params.focal_distance,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct OrthographicCamera<'a> {
+    projective: ProjectiveCamera<'a>,
+    _dx_camera: Vec3f,
+    _dy_camera: Vec3f,
+}
+
+#[derive(Builder)]
+#[builder(
+    name = "OrthographicCameraBuilder",
+    public,
+    build_fn(private, name = "build_params")
+)]
+struct OrthographicCameraParams<'a> {
+    transform: CameraTransform,
+    shutter_open: Float,
+    shutter_close: Float,
+    film: &'a Film<'a>,
+    medium: &'a Medium,
+
+    screen_from_camera: Transform,
+    screen_window: Bounds2f,
+    lens_radius: Float,
+    focal_distance: Float,
+}
+
+impl<'a> OrthographicCameraBuilder<'a> {
+    pub fn build(&self) -> Result<OrthographicCamera<'a>, OrthographicCameraBuilderError> {
+        let params = self.build_params()?;
+
+        let projective_params = ProjectiveCameraParams {
             transform: params.transform,
             shutter_open: params.shutter_open,
             shutter_close: params.shutter_close,
             film: params.film,
             medium: params.medium,
-
             screen_from_camera: params.screen_from_camera,
-            camera_from_raster,
-            raster_from_screen,
-            screen_from_raster,
+            screen_window: params.screen_window,
             lens_radius: params.lens_radius,
             focal_distance: params.focal_distance,
+        };
+        let projective = ProjectiveCamera::new(projective_params);
+
+        // Compute differential changes in origin for orthographic cam rays
+        let dx_camera = &projective.camera_from_raster * Vec3f::new(1.0, 0.0, 0.0);
+        let dy_camera = &projective.camera_from_raster * Vec3f::new(0.0, 1.0, 0.0);
+
+        Ok(OrthographicCamera {
+            projective,
+            _dx_camera: dx_camera,
+            _dy_camera: dy_camera,
         })
     }
 }
 
-impl<'a> CameraTrait for ProjectiveCamera<'a> {
+impl<'a> CameraTrait for OrthographicCamera<'a> {
     fn generate_ray(
         &self,
-        sample: CameraSample,
-        wavelengths: &mut SampledWavelengths,
+        _sample: CameraSample,
+        _wavelengths: &SampledWavelengths,
     ) -> Option<CameraRay> {
         todo!()
     }
 
     fn generate_ray_differential(
         &self,
-        sample: CameraSample,
-        wavelengths: &mut SampledWavelengths,
+        _sample: CameraSample,
+        _wavelengths: &SampledWavelengths,
     ) -> Option<CameraRayDifferential> {
         todo!()
     }
 
     fn film(&self) -> &Film {
-        self.film
-    }
-
-    fn sample_time(&self, u: Float) -> Float {
-        todo!()
+        self.projective.film
     }
 
     fn camera_transform(&self) -> &CameraTransform {
-        &self.transform
+        &self.projective.transform
+    }
+
+    fn shutter_open(&self) -> Float {
+        self.projective.shutter_open
+    }
+
+    fn shutter_close(&self) -> Float {
+        self.projective.shutter_close
     }
 }

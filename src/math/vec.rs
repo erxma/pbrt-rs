@@ -31,6 +31,11 @@ use super::{tuple::TupleElement, Interval, Normal3f, Tuple};
 pub struct Vec3i(inner::Vec3i);
 
 impl Vec3i {
+    pub const ZERO: Self = Self::new(0, 0, 0);
+    pub const FORWARD: Self = Self::new(0, 0, 1);
+    pub const UP: Self = Self::new(0, 1, 0);
+    pub const RIGHT: Self = Self::new(1, 0, 0);
+
     pub const fn new(x: i32, y: i32, z: i32) -> Self {
         Self(inner::Vec3i::new(x, y, z))
     }
@@ -136,6 +141,11 @@ impl Sub for Vec3i {
 pub struct Vec3f(inner::Vec3f);
 
 impl Vec3f {
+    pub const ZERO: Self = Self::new(0.0, 0.0, 0.0);
+    pub const FORWARD: Self = Self::new(0.0, 0.0, 1.0);
+    pub const UP: Self = Self::new(0.0, 1.0, 0.0);
+    pub const RIGHT: Self = Self::new(1.0, 0.0, 0.0);
+
     pub const fn new(x: pbrt::Float, y: pbrt::Float, z: pbrt::Float) -> Self {
         Self(inner::Vec3f::new(x, y, z))
     }

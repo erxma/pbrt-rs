@@ -3,9 +3,10 @@ use std::{array, sync::atomic::Ordering};
 use delegate::delegate;
 use derive_builder::Builder;
 use enum_dispatch::enum_dispatch;
+use num_traits::{AsPrimitive, NumCast};
 
 use crate::{
-    color::RGBColorSpace,
+    color::{RGBColorSpace, RGB},
     geometry::bounds::Bounds2i,
     image::Filter,
     math::{Array2D, Point2f, Point2i, SquareMatrix, Tuple, Vec2f, Vec2i},
@@ -37,7 +38,13 @@ impl<'a> Film<'a> {
             );
             #[allow(non_snake_case)]
             pub fn add_splat(&mut self, p: Point2f, L: &SampledSpectrum, lambda: &SampledWavelengths);
+            pub fn sample_wavelengths(&self, u: Float) -> SampledWavelengths;
+            pub fn get_pixel_rgb(&self, p: Point2i, splat_scale: Float) -> RGB;
             pub fn full_resolution(&self) -> Point2i;
+            pub fn pixel_bounds(&self) -> Bounds2i;
+            pub fn diagonal(&self) -> Float;
+            pub fn filter(&self) -> &Filter;
+            pub fn sensor(&self) -> &PixelSensor;
         }
     }
 }
@@ -57,7 +64,15 @@ trait FilmTrait {
     #[allow(non_snake_case)]
     fn add_splat(&mut self, p: Point2f, L: &SampledSpectrum, lambda: &SampledWavelengths);
 
+    fn sample_wavelengths(&self, u: Float) -> SampledWavelengths;
+
+    fn get_pixel_rgb(&self, p: Point2i, splat_scale: Float) -> RGB;
+
     fn full_resolution(&self) -> Point2i;
+    fn pixel_bounds(&self) -> Bounds2i;
+    fn diagonal(&self) -> Float;
+    fn filter(&self) -> &Filter;
+    fn sensor(&self) -> &PixelSensor;
 }
 
 #[derive(Clone, Debug)]
@@ -68,9 +83,7 @@ pub struct RGBFilm<'a> {
     diagonal: Float,
     sensor: &'a PixelSensor,
 
-    color_space: &'a RGBColorSpace<'a>,
     max_component_value: Float,
-    write_fp16: bool,
     filter_integral: Float,
     output_rgb_from_sensor_rgb: SquareMatrix<3>,
     pixels: Array2D<RGBPixel>,
@@ -97,7 +110,6 @@ struct RGBFilmParams<'a> {
 
     color_space: &'a RGBColorSpace<'a>,
     max_component_value: Float,
-    write_fp16: bool,
 }
 
 impl<'a> RGBFilmBuilder<'a> {
@@ -116,9 +128,7 @@ impl<'a> RGBFilmBuilder<'a> {
             filter: params.filter,
             diagonal: params.diagonal,
             sensor: params.sensor,
-            color_space: params.color_space,
             max_component_value: params.max_component_value,
-            write_fp16: params.write_fp16,
             filter_integral,
             output_rgb_from_sensor_rgb,
             pixels: Array2D::fill_default(params.pixel_bounds),
@@ -136,6 +146,8 @@ impl<'a> FilmTrait for RGBFilm<'a> {
         _visible_surface: &VisibleSurface,
         weight: Float,
     ) {
+        let weight: f64 = weight.as_();
+
         // Convert sample radiance to PixelSensor RGB
         let mut rgb = self.sensor.to_sensor_rgb(L, lambda);
 
@@ -148,9 +160,10 @@ impl<'a> FilmTrait for RGBFilm<'a> {
         // Update pixel values with filtered sample contribution
         let pixel = &mut self.pixels[p_film];
         for i in 0..3 {
-            pixel.rgb_sum[i] += (weight * rgb[i]) as f64;
+            let rgb_val: f64 = rgb[i].as_();
+            pixel.rgb_sum[i] += weight * rgb_val;
         }
-        pixel.weight_sum += weight as f64;
+        pixel.weight_sum += weight;
     }
 
     #[allow(non_snake_case)]
@@ -181,14 +194,55 @@ impl<'a> FilmTrait for RGBFilm<'a> {
 
             if wt != 0.0 {
                 for i in 0..3 {
-                    self.pixels[pi].rgb_splat[i].fetch_add((wt * rgb[i]) as f64, Ordering::Relaxed);
+                    self.pixels[pi].rgb_splat[i]
+                        .fetch_add(NumCast::from(wt * rgb[i]).unwrap(), Ordering::Relaxed);
                 }
             }
         }
     }
 
+    fn sample_wavelengths(&self, u: Float) -> SampledWavelengths {
+        SampledWavelengths::sample_visible(u)
+    }
+
+    fn get_pixel_rgb(&self, p: Point2i, splat_scale: Float) -> RGB {
+        let pixel = &self.pixels[p];
+        let rgb_sum = pixel.rgb_sum.map(|v| v.as_());
+        let mut rgb = RGB::from(rgb_sum);
+
+        // Normalize with weight sum
+        if pixel.weight_sum != 0.0 {
+            rgb /= pixel.weight_sum.as_();
+        }
+
+        // Add splat value at pixel
+        for c in 0..3 {
+            let splat: Float = pixel.rgb_splat[c].load(Ordering::Acquire).as_();
+            rgb[c] += splat_scale * splat / self.filter_integral;
+        }
+
+        // Convert to output RGB color space
+        &self.output_rgb_from_sensor_rgb * rgb
+    }
+
     fn full_resolution(&self) -> Point2i {
-        todo!()
+        self.full_resolution
+    }
+
+    fn pixel_bounds(&self) -> Bounds2i {
+        self.pixel_bounds
+    }
+
+    fn diagonal(&self) -> Float {
+        self.diagonal
+    }
+
+    fn filter(&self) -> &Filter {
+        self.filter
+    }
+
+    fn sensor(&self) -> &PixelSensor {
+        self.sensor
     }
 }
 

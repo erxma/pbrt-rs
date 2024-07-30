@@ -334,6 +334,23 @@ impl<const N: usize> Mul for &SquareMatrix<N> {
     }
 }
 
+impl<const N: usize, T> Mul<T> for &SquareMatrix<N>
+where
+    T: Tuple<N, Float>,
+{
+    type Output = T;
+
+    fn mul(self, rhs: T) -> Self::Output {
+        let mut ret = [0.0; N];
+
+        for (i, j) in iproduct!(0..N, 0..N) {
+            ret[i] += self.m[i][j] * rhs[j];
+        }
+
+        T::from(ret)
+    }
+}
+
 impl<const N: usize> Index<usize> for SquareMatrix<N> {
     type Output = [Float; N];
 

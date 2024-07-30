@@ -46,6 +46,23 @@ where
     diff_of_prods + error
 }
 
+macro_rules! inner_product {
+    ($a: expr $(,)?) => {
+        compile_error!("inner_product must receive an even number of arguments")
+    };
+    ($a:expr, $b:expr $(,)?) => {
+        crate::math::CompensatedFloat::from_mul($a, $b)
+    };
+    ($a: expr, $b:expr, $($rest:expr),+ $(,)?) => {
+        let ab = crate::math::CompensatedFloat::from_mul($a, $b);
+        let tp = inner_product!($($rest),+);
+        let sum = crate::math::CompensatedFloat::from_add(ab.val, tp.val);
+        crate::math::CompensatedFloat::new(sum.val, tp.err + sum.err)
+    }
+}
+
+pub(crate) use inner_product;
+
 #[cfg(test)]
 mod test {
     use super::*;

@@ -1,3 +1,5 @@
+use std::ops::{Add, AddAssign};
+
 use crate::Float;
 
 pub const ONE_MINUS_EPSILON: Float = 1.0 - Float::EPSILON;
@@ -47,4 +49,53 @@ pub fn next_float_down(mut v: Float) -> Float {
     };
 
     Float::from_bits(next_bits)
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct CompensatedFloat {
+    pub val: Float,
+    pub err: Float,
+}
+
+impl CompensatedFloat {
+    pub const ZERO: Self = Self::new(0.0, 0.0);
+
+    pub const fn new(val: Float, err: Float) -> Self {
+        Self { val, err }
+    }
+
+    pub fn from_mul(a: Float, b: Float) -> Self {
+        let product = a * b;
+        let err = a.mul_add(b, -product);
+        Self::new(product, err)
+    }
+
+    pub fn from_add(a: Float, b: Float) -> Self {
+        let sum = a + b;
+        let delta = sum - a;
+        let err = a - (sum - delta) + (b - delta);
+        Self::new(sum, err)
+    }
+
+    pub fn compensated_val(self) -> Float {
+        self.val + self.err
+    }
+}
+
+impl Add<Float> for CompensatedFloat {
+    type Output = Self;
+
+    fn add(mut self, rhs: Float) -> Self::Output {
+        self += rhs;
+        self
+    }
+}
+
+impl AddAssign<Float> for CompensatedFloat {
+    fn add_assign(&mut self, rhs: Float) {
+        let delta = rhs - self.err;
+        let sum = self.val + delta;
+        self.err = sum - self.val - delta;
+        self.val = sum;
+    }
 }

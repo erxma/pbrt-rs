@@ -1,8 +1,5 @@
 use crate::{
-    math::{
-        float_utility::{next_float_down, ONE_MINUS_EPSILON},
-        lerp, Point2f,
-    },
+    math::{lerp, next_float_down, Point2f, ONE_MINUS_EPSILON},
     Float,
 };
 

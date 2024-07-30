@@ -3,7 +3,7 @@ use std::ops::Mul;
 use approx::abs_diff_ne;
 
 use crate::{
-    math::{Matrix4x4, Normal3f, Point3f, Vec3f},
+    math::{Normal3f, Point3f, SquareMatrix, Vec3f},
     Float,
 };
 
@@ -12,20 +12,20 @@ use super::{bounds::Bounds3f, ray::Ray};
 /// Represents a 3D transformation.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Transform {
-    m: Matrix4x4,
-    m_inv: Matrix4x4,
+    m: SquareMatrix<4>,
+    m_inv: SquareMatrix<4>,
 }
 
 impl Transform {
     pub const IDENTITY: Self = Self {
-        m: Matrix4x4::IDENTITY,
-        m_inv: Matrix4x4::IDENTITY,
+        m: SquareMatrix::IDENTITY,
+        m_inv: SquareMatrix::IDENTITY,
     };
 
     /// Construct a new transform with the given matrix and inverse.
     ///
     /// The given inverse `m_inv` is assumed to be correct.
-    pub fn new(m: Matrix4x4, m_inv: Matrix4x4) -> Self {
+    pub fn new(m: SquareMatrix<4>, m_inv: SquareMatrix<4>) -> Self {
         Self { m, m_inv }
     }
 
@@ -33,7 +33,7 @@ impl Transform {
     ///
     /// The inverse is calculated from the matrix.
     pub fn new_from_mat(mat: [[Float; 4]; 4]) -> Self {
-        let m = Matrix4x4::new(mat);
+        let m = SquareMatrix::new(mat);
         let m_inv = m
             .inverse()
             .expect("Supplied matrix should have an inverse (not singular)");
@@ -43,13 +43,13 @@ impl Transform {
 
     /// Construct a transform representing a translation.
     pub fn translate(delta: Vec3f) -> Self {
-        let m = Matrix4x4::new([
+        let m = SquareMatrix::new([
             [1.0, 0.0, 0.0, delta.x()],
             [0.0, 1.0, 0.0, delta.y()],
             [0.0, 0.0, 1.0, delta.z()],
             [0.0, 0.0, 0.0, 1.0],
         ]);
-        let m_inv = Matrix4x4::new([
+        let m_inv = SquareMatrix::new([
             [1.0, 0.0, 0.0, -delta.x()],
             [0.0, 1.0, 0.0, -delta.y()],
             [0.0, 0.0, 1.0, -delta.z()],
@@ -61,13 +61,13 @@ impl Transform {
 
     /// Construct a transform representing a scale.
     pub fn scale(x: Float, y: Float, z: Float) -> Self {
-        let m = Matrix4x4::new([
+        let m = SquareMatrix::new([
             [x, 0.0, 0.0, 0.0],
             [0.0, y, 0.0, 0.0],
             [0.0, 0.0, z, 0.0],
             [0.0, 0.0, 0.0, 1.0],
         ]);
-        let m_inv = Matrix4x4::new([
+        let m_inv = SquareMatrix::new([
             [1.0 / x, 0.0, 0.0, 0.0],
             [0.0, 1.0 / y, 0.0, 0.0],
             [0.0, 0.0, 1.0 / z, 0.0],
@@ -83,7 +83,7 @@ impl Transform {
     pub fn rotate(theta: Float, axis: Vec3f) -> Self {
         let a = axis.normalized();
         let (sin_theta, cos_theta) = theta.to_radians().sin_cos();
-        let m = Matrix4x4::new([
+        let m = SquareMatrix::new([
             [
                 a.x() * a.x() + (1.0 - a.x() * a.x()) * cos_theta,
                 a.x() * a.y() * (1.0 - cos_theta) - a.z() * sin_theta,
@@ -115,7 +115,7 @@ impl Transform {
     /// `theta` should be given in degrees.
     pub fn rotate_x(theta: Float) -> Self {
         let (sin_theta, cos_theta) = theta.to_radians().sin_cos();
-        let m = Matrix4x4::new([
+        let m = SquareMatrix::new([
             [1.0, 0.0, 0.0, 0.0],
             [0.0, cos_theta, -sin_theta, 0.0],
             [0.0, sin_theta, cos_theta, 0.0],
@@ -132,7 +132,7 @@ impl Transform {
     /// `theta` should be given in degrees.
     pub fn rotate_y(theta: Float) -> Self {
         let (sin_theta, cos_theta) = theta.to_radians().sin_cos();
-        let m = Matrix4x4::new([
+        let m = SquareMatrix::new([
             [cos_theta, 0.0, sin_theta, 0.0],
             [0.0, 1.0, 0.0, 0.0],
             [-sin_theta, 0.0, cos_theta, 0.0],
@@ -149,7 +149,7 @@ impl Transform {
     /// `theta` should be given in degrees.
     pub fn rotate_z(theta: Float) -> Self {
         let (sin_theta, cos_theta) = theta.to_radians().sin_cos();
-        let m = Matrix4x4::new([
+        let m = SquareMatrix::new([
             [cos_theta, -sin_theta, 0.0, 0.0],
             [sin_theta, cos_theta, 0.0, 0.0],
             [0.0, 0.0, 1.0, 0.0],
@@ -170,7 +170,7 @@ impl Transform {
         let right = up.normalized().cross(dir).normalized();
         let new_up = dir.cross(right);
 
-        let camera_to_world = Matrix4x4::new([
+        let camera_to_world = SquareMatrix::new([
             [right.x(), new_up.x(), dir.x(), cam_pos.x()],
             [right.y(), new_up.y(), dir.y(), cam_pos.y()],
             [right.z(), new_up.z(), dir.z(), cam_pos.z()],
@@ -216,7 +216,7 @@ impl Transform {
     /// Returns `true` if the `self` changes a left-handed coordinate system
     /// into a right-handed one, or vice versa.
     pub fn swaps_handedness(&self) -> bool {
-        let m = &self.m.m;
+        let m = &self.m;
 
         let det = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
             - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
@@ -226,12 +226,12 @@ impl Transform {
     }
 
     /// Get the transform's matrix.
-    pub fn matrix(&self) -> &Matrix4x4 {
+    pub fn matrix(&self) -> &SquareMatrix<4> {
         &self.m
     }
 
     /// Get the transform's inverse matrix.
-    pub fn inverse_matrix(&self) -> &Matrix4x4 {
+    pub fn inverse_matrix(&self) -> &SquareMatrix<4> {
         &self.m_inv
     }
 }
@@ -255,7 +255,7 @@ impl Mul<Point3f> for &Transform {
     /// Apply `self` to a point.
     #[inline]
     fn mul(self, p: Point3f) -> Self::Output {
-        let m = &self.m.m;
+        let m = &self.m;
 
         let mut x = p.x() * m[0][0] + p.y() * m[0][1] + p.z() * m[0][2] + m[0][3];
         let mut y = p.x() * m[1][0] + p.y() * m[1][1] + p.z() * m[1][2] + m[1][3];
@@ -278,7 +278,7 @@ impl Mul<Vec3f> for &Transform {
     /// Apply `self` to a vector.
     #[inline]
     fn mul(self, v: Vec3f) -> Self::Output {
-        let m = &self.m.m;
+        let m = &self.m;
 
         Vec3f::new(
             v.x() * m[0][0] + v.y() * m[0][1] + v.z() * m[0][2],
@@ -293,7 +293,7 @@ impl Mul<Normal3f> for &Transform {
 
     /// Apply `self` to a normal.
     fn mul(self, n: Normal3f) -> Self::Output {
-        let m_inv = &self.m_inv.m;
+        let m_inv = &self.m_inv;
 
         Normal3f::new(
             n.x() * m_inv[0][0] + n.y() * m_inv[1][0] + n.z() * m_inv[2][0],
@@ -329,7 +329,7 @@ impl Mul<Bounds3f> for &Transform {
     fn mul(self, b: Bounds3f) -> Self::Output {
         #![allow(clippy::needless_range_loop)]
 
-        let m = &self.m.m;
+        let m = &self.m;
 
         // Each transformation can be split into a translation and rotation--
 

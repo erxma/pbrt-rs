@@ -2,7 +2,6 @@ mod array2d;
 mod equal_area_mapping;
 pub mod float_utility;
 mod interval;
-mod matrix4x4;
 mod normal3;
 mod octahedral_vec;
 mod point;
@@ -17,7 +16,6 @@ pub use equal_area_mapping::{
     equal_area_sphere_to_square, equal_area_square_to_sphere, wrap_equal_area_square,
 };
 pub use interval::Interval;
-pub use matrix4x4::Matrix4x4;
 pub use normal3::Normal3f;
 pub use octahedral_vec::OctahedralVec;
 pub use point::{Point2f, Point2i, Point3f, Point3fi, Point3i};

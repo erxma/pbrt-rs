@@ -227,6 +227,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 
 [[package]]
+name = "inherent"
+version = "1.0.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0122b7114117e64a63ac49f752a5ca4624d534c7b1c7de796ac196381cd2d947"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.72",
+]
+
+[[package]]
 name = "internment"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -302,6 +313,7 @@ dependencies = [
  "enum_dispatch",
  "getset",
  "glam",
+ "inherent",
  "internment",
  "itertools",
  "num-traits",

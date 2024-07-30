@@ -1,14 +1,16 @@
-use std::{
-    array,
-    ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Sub, SubAssign},
-    sync::LazyLock,
-};
-
 use crate::{
     color::{RGBColorSpace, RGBSigmoidPolynomial, RGB, XYZ},
     math::lerp,
     util::data::{CIE_LAMBDA, CIE_X, CIE_Y, CIE_Z, N_CIE_SAMPLES},
     Float,
+};
+use delegate::delegate;
+use enum_as_inner::EnumAsInner;
+use enum_dispatch::enum_dispatch;
+use std::{
+    array,
+    ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Sub, SubAssign},
+    sync::LazyLock,
 };
 
 pub const LAMBDA_MIN: Float = 360.0;
@@ -16,31 +18,31 @@ pub const LAMBDA_MAX: Float = 830.0;
 
 const N_SPECTRUM_SAMPLES: usize = 4;
 
-pub static X: LazyLock<DenselySampledSpectrum> = LazyLock::new(|| {
+pub static X: LazyLock<SpectrumEnum> = LazyLock::new(|| {
     let samples: [SpectrumSample; N_CIE_SAMPLES] = core::array::from_fn(|i| SpectrumSample {
         lambda: CIE_LAMBDA[i],
         value: CIE_X[i],
     });
     let pls = PiecewiseLinearSpectrum::new(&samples);
-    DenselySampledSpectrum::new(&pls, None, None)
+    DenselySampledSpectrum::new(&pls.into(), None, None).into()
 });
 
-pub static Y: LazyLock<DenselySampledSpectrum> = LazyLock::new(|| {
+pub static Y: LazyLock<SpectrumEnum> = LazyLock::new(|| {
     let samples: [SpectrumSample; N_CIE_SAMPLES] = core::array::from_fn(|i| SpectrumSample {
         lambda: CIE_LAMBDA[i],
         value: CIE_Y[i],
     });
     let pls = PiecewiseLinearSpectrum::new(&samples);
-    DenselySampledSpectrum::new(&pls, None, None)
+    DenselySampledSpectrum::new(&pls.into(), None, None).into()
 });
 
-pub static Z: LazyLock<DenselySampledSpectrum> = LazyLock::new(|| {
+pub static Z: LazyLock<SpectrumEnum> = LazyLock::new(|| {
     let samples: [SpectrumSample; N_CIE_SAMPLES] = core::array::from_fn(|i| SpectrumSample {
         lambda: CIE_LAMBDA[i],
         value: CIE_Z[i],
     });
     let pls = PiecewiseLinearSpectrum::new(&samples);
-    DenselySampledSpectrum::new(&pls, None, None)
+    DenselySampledSpectrum::new(&pls.into(), None, None).into()
 });
 
 pub const CIE_Y_INTEGRAL: Float = 106.856895;
@@ -65,6 +67,30 @@ pub fn sample_visible_wavelengths(u: Float) -> Float {
     return 538.0 - 138.888889 * (0.85691062 - 1.82750197 * u).atanh();
 }
 
+#[enum_dispatch]
+#[derive(Clone, EnumAsInner)]
+pub enum SpectrumEnum<'a> {
+    Constant(ConstantSpectrum),
+    DenselySampled(DenselySampledSpectrum),
+    PiecewiseLinear(PiecewiseLinearSpectrum),
+    Blackbody(BlackbodySpectrum),
+    RgbAlbedo(RgbAlbedoSpectrum),
+    RgbUnbounded(RgbUnboundedSpectrum),
+    RgbIlluminant(RgbIlluminantSpectrum<'a>),
+}
+
+impl<'a> SpectrumEnum<'a> {
+    delegate! {
+        #[through(Spectrum)]
+        to self {
+            pub fn at(&self, lambda: Float) -> Float;
+            pub fn max_value(&self) -> Float;
+            pub fn sample(&self, wavelengths: &SampledWavelengths) -> SampledSpectrum;
+        }
+    }
+}
+
+#[enum_dispatch(SpectrumEnum)]
 pub trait Spectrum {
     fn at(&self, lambda: Float) -> Float;
     fn max_value(&self) -> Float;
@@ -107,7 +133,7 @@ pub struct DenselySampledSpectrum {
 }
 
 impl DenselySampledSpectrum {
-    pub fn new(spec: &dyn Spectrum, lambda_min: Option<u32>, lambda_max: Option<u32>) -> Self {
+    pub fn new(spec: &SpectrumEnum, lambda_min: Option<u32>, lambda_max: Option<u32>) -> Self {
         let lambda_min = lambda_min.unwrap_or(LAMBDA_MIN as u32);
         let lambda_max = lambda_max.unwrap_or(LAMBDA_MAX as u32);
 
@@ -161,6 +187,7 @@ pub struct SpectrumSample {
     pub value: Float,
 }
 
+#[derive(Clone)]
 pub struct PiecewiseLinearSpectrum {
     samples: Vec<SpectrumSample>,
 }
@@ -849,11 +876,11 @@ impl IndexMut<usize> for SampledWavelengths {
 }
 
 #[derive(Clone, Debug)]
-pub struct RGBAlbedoSpectrum {
+pub struct RgbAlbedoSpectrum {
     rsp: RGBSigmoidPolynomial,
 }
 
-impl RGBAlbedoSpectrum {
+impl RgbAlbedoSpectrum {
     pub fn new(cs: &RGBColorSpace, rgb: RGB) -> Self {
         Self {
             rsp: cs.to_rgb_coeffs(rgb),
@@ -861,7 +888,7 @@ impl RGBAlbedoSpectrum {
     }
 }
 
-impl Spectrum for RGBAlbedoSpectrum {
+impl Spectrum for RgbAlbedoSpectrum {
     fn at(&self, lambda: Float) -> Float {
         self.rsp.at(lambda)
     }
@@ -872,12 +899,12 @@ impl Spectrum for RGBAlbedoSpectrum {
 }
 
 #[derive(Clone, Debug)]
-pub struct RGBUnboundedSpectrum {
+pub struct RgbUnboundedSpectrum {
     scale: Float,
     rsp: RGBSigmoidPolynomial,
 }
 
-impl RGBUnboundedSpectrum {
+impl RgbUnboundedSpectrum {
     pub fn new(cs: RGBColorSpace, rgb: RGB) -> Self {
         let m = rgb.r.max(rgb.g).max(rgb.b);
 
@@ -892,7 +919,7 @@ impl RGBUnboundedSpectrum {
     }
 }
 
-impl Spectrum for RGBUnboundedSpectrum {
+impl Spectrum for RgbUnboundedSpectrum {
     fn at(&self, lambda: Float) -> Float {
         self.scale * self.rsp.at(lambda)
     }
@@ -903,13 +930,13 @@ impl Spectrum for RGBUnboundedSpectrum {
 }
 
 #[derive(Clone, Copy)]
-pub struct RGBIlluminantSpectrum<'a> {
+pub struct RgbIlluminantSpectrum<'a> {
     scale: Float,
     rsp: RGBSigmoidPolynomial,
     illuminant: &'a DenselySampledSpectrum,
 }
 
-impl<'a> RGBIlluminantSpectrum<'a> {
+impl<'a> RgbIlluminantSpectrum<'a> {
     pub fn new(cs: &'a RGBColorSpace, rgb: RGB) -> Self {
         let m = rgb.r.max(rgb.g).max(rgb.b);
 
@@ -928,7 +955,7 @@ impl<'a> RGBIlluminantSpectrum<'a> {
     }
 }
 
-impl Spectrum for RGBIlluminantSpectrum<'_> {
+impl Spectrum for RgbIlluminantSpectrum<'_> {
     fn at(&self, lambda: Float) -> Float {
         self.scale * self.rsp.at(lambda) * self.illuminant.at(lambda)
     }
@@ -938,7 +965,7 @@ impl Spectrum for RGBIlluminantSpectrum<'_> {
     }
 }
 
-pub fn spectrum_to_xyz(s: &dyn Spectrum) -> XYZ {
+pub fn spectrum_to_xyz(s: &impl Spectrum) -> XYZ {
     XYZ::new(
         inner_product(&*X, s),
         inner_product(&*Y, s),
@@ -946,7 +973,7 @@ pub fn spectrum_to_xyz(s: &dyn Spectrum) -> XYZ {
     ) / CIE_Y_INTEGRAL
 }
 
-pub fn inner_product(f: &dyn Spectrum, g: &dyn Spectrum) -> Float {
+pub fn inner_product(f: &impl Spectrum, g: &impl Spectrum) -> Float {
     let mut integral = 0.0;
 
     let mut lambda = LAMBDA_MIN;

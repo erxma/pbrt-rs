@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     math::{evaluate_polynomial, lerp, Point2f, SquareMatrix},
-    sampling::spectrum::{spectrum_to_xyz, DenselySampledSpectrum, Spectrum},
+    sampling::spectrum::{spectrum_to_xyz, DenselySampledSpectrum, SpectrumEnum},
     Float,
 };
 
@@ -30,7 +30,7 @@ impl<'a> RGBColorSpace<'a> {
         r: Point2f,
         g: Point2f,
         b: Point2f,
-        illuminant: impl Spectrum,
+        illuminant: SpectrumEnum,
         rgb_to_spectrum_table: &'a RGBToSpectrumTable,
     ) -> Self {
         // Compute whitepoint primaries and XYZ coordinates

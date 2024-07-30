@@ -35,6 +35,17 @@ pub fn evaluate_polynomial(t: Float, coefficients: &[Float]) -> Float {
     coefficients.iter().rfold(0.0, |sum, &c| sum.mul_add(t, c))
 }
 
+#[inline]
+pub fn difference_of_products<T>(a: T, b: T, c: T, d: T) -> T
+where
+    T: num_traits::Float,
+{
+    let cd = c * d;
+    let diff_of_prods = a.mul_add(b, -cd);
+    let error = (-c).mul_add(d, cd);
+    diff_of_prods + error
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

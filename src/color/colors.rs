@@ -4,7 +4,7 @@ use derive_more::{Add, Neg, Sub};
 
 use crate::{
     impl_tuple_math_ops,
-    math::{Point2f, Tuple},
+    math::{Point2f, SquareMatrix, Tuple},
     Float,
 };
 
@@ -168,5 +168,21 @@ impl IndexMut<usize> for RGB {
             2 => &mut self.b,
             _ => panic!("Index for RGB must be within 0..3"),
         }
+    }
+}
+
+impl Mul<RGB> for SquareMatrix<3> {
+    type Output = RGB;
+
+    fn mul(self, rhs: RGB) -> Self::Output {
+        todo!()
+    }
+}
+
+impl Mul<RGB> for &SquareMatrix<3> {
+    type Output = RGB;
+
+    fn mul(self, rhs: RGB) -> Self::Output {
+        todo!()
     }
 }

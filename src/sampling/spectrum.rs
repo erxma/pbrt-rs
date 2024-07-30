@@ -1,4 +1,5 @@
 use std::{
+    array,
     ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Sub, SubAssign},
     sync::LazyLock,
 };
@@ -43,6 +44,26 @@ pub static Z: LazyLock<DenselySampledSpectrum> = LazyLock::new(|| {
 });
 
 pub const CIE_Y_INTEGRAL: Float = 106.856895;
+
+#[inline]
+pub fn visible_wavelengths_pdf(lambda: Float) -> Float {
+    if (LAMBDA_MIN..=LAMBDA_MAX).contains(&lambda) {
+        #[cfg(not(feature = "use-f64"))]
+        return 0.003939804 / (0.0072 * (lambda - 538.0)).cosh().sqrt();
+        #[cfg(feature = "use-f64")]
+        return 0.0039398042 / (0.0072 * (lambda - 538.0)).cosh().sqrt();
+    } else {
+        0.0
+    }
+}
+
+#[inline]
+pub fn sample_visible_wavelengths(u: Float) -> Float {
+    #[cfg(not(feature = "use-f64"))]
+    return 538.0 - 138.88889 * (0.85691062 - 1.827502 * u).atanh();
+    #[cfg(feature = "use-f64")]
+    return 538.0 - 138.888889 * (0.85691062 - 1.82750197 * u).atanh();
+}
 
 pub trait Spectrum {
     fn at(&self, lambda: Float) -> Float;
@@ -771,6 +792,21 @@ impl SampledWavelengths {
 
         // Compute PDF for sample wavelengths
         let pdf = [1.0 / (lambda_max - lambda_min); N_SPECTRUM_SAMPLES];
+
+        Self { lambdas, pdf }
+    }
+
+    pub fn sample_visible(u: Float) -> Self {
+        let lambdas: [Float; N_SPECTRUM_SAMPLES] = array::from_fn(|i| {
+            let mut up = u + (i as Float) / (N_SPECTRUM_SAMPLES as Float);
+            if up > 1.0 {
+                up -= 1.0;
+            }
+
+            sample_visible_wavelengths(up)
+        });
+
+        let pdf = lambdas.map(visible_wavelengths_pdf);
 
         Self { lambdas, pdf }
     }

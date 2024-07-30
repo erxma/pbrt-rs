@@ -202,7 +202,7 @@ impl<'a> CameraTrait for ProjectiveCamera<'a> {
     }
 
     fn film(&self) -> &Film {
-        &self.film
+        self.film
     }
 
     fn sample_time(&self, u: Float) -> Float {

@@ -54,10 +54,12 @@ macro_rules! inner_product {
         crate::math::CompensatedFloat::from_mul($a, $b)
     };
     ($a: expr, $b:expr, $($rest:expr),+ $(,)?) => {
-        let ab = crate::math::CompensatedFloat::from_mul($a, $b);
-        let tp = inner_product!($($rest),+);
-        let sum = crate::math::CompensatedFloat::from_add(ab.val, tp.val);
-        crate::math::CompensatedFloat::new(sum.val, tp.err + sum.err)
+        {
+            let ab = crate::math::CompensatedFloat::from_mul($a, $b);
+            let tp = inner_product!($($rest),+);
+            let sum = crate::math::CompensatedFloat::from_add(ab.val, tp.val);
+            crate::math::CompensatedFloat::new(sum.val, tp.err + sum.err)
+        }
     }
 }
 

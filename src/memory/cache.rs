@@ -11,13 +11,13 @@ impl<T: Eq + Hash + Send + Sync + 'static> ArcInternCache<T> {
         }
     }
 
-    pub fn lookup(&mut self, item: T) -> ArcIntern<T> {
+    pub fn lookup(&self, item: T) -> ArcIntern<T> {
         ArcIntern {
             inner: self.inner.lookup(item),
         }
     }
 
-    pub fn lookup_with_creator<F: Fn(T) -> T>(&mut self, item: T, create_fn: F) -> ArcIntern<T> {
+    pub fn lookup_with_creator<F: Fn(T) -> T>(&self, item: T, create_fn: F) -> ArcIntern<T> {
         ArcIntern {
             inner: self.inner.lookup_with_creator(item, create_fn),
         }
@@ -47,8 +47,8 @@ trait ArcInternCacheImpl<T> {
     type Intern: Deref<Target = T>;
 
     fn new() -> Self;
-    fn lookup(&mut self, item: T) -> Self::Intern;
-    fn lookup_with_creator<F: Fn(T) -> T>(&mut self, item: T, create_fn: F) -> Self::Intern;
+    fn lookup(&self, item: T) -> Self::Intern;
+    fn lookup_with_creator<F: Fn(T) -> T>(&self, item: T, create_fn: F) -> Self::Intern;
 }
 
 mod inner {
@@ -79,11 +79,11 @@ mod internment_impl {
             }
         }
 
-        fn lookup(&mut self, item: T) -> Self::Intern {
+        fn lookup(&self, item: T) -> Self::Intern {
             ArcIntern::new(item)
         }
 
-        fn lookup_with_creator<F: Fn(T) -> T>(&mut self, _item: T, _create_fn: F) -> Self::Intern {
+        fn lookup_with_creator<F: Fn(T) -> T>(&self, _item: T, _create_fn: F) -> Self::Intern {
             unimplemented!()
         }
     }
@@ -114,12 +114,12 @@ mod custom_impl {
             }
         }
 
-        fn lookup(&mut self, item: T) -> Self::Intern {
+        fn lookup(&self, item: T) -> Self::Intern {
             // Creator fn is to just return as is
             self.lookup_with_creator(item, |t| t)
         }
 
-        fn lookup_with_creator<F: Fn(T) -> T>(&mut self, item: T, create_fn: F) -> Self::Intern {
+        fn lookup_with_creator<F: Fn(T) -> T>(&self, item: T, create_fn: F) -> Self::Intern {
             let mut set_guard = self.hash_set.lock().unwrap();
             if let Some(existing) = set_guard.get(&item) {
                 ArcIntern(existing.clone())

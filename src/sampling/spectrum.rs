@@ -7,6 +7,7 @@ use crate::{
 use delegate::delegate;
 use enum_as_inner::EnumAsInner;
 use enum_dispatch::enum_dispatch;
+use ordered_float::NotNan;
 use std::{
     array,
     ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Sub, SubAssign},
@@ -24,7 +25,7 @@ pub static X: LazyLock<SpectrumEnum> = LazyLock::new(|| {
         value: CIE_X[i],
     });
     let pls = PiecewiseLinearSpectrum::new(&samples);
-    DenselySampledSpectrum::new(&pls.into(), None, None).into()
+    DenselySampledSpectrum::new(&pls, None, None).into()
 });
 
 pub static Y: LazyLock<SpectrumEnum> = LazyLock::new(|| {
@@ -33,7 +34,7 @@ pub static Y: LazyLock<SpectrumEnum> = LazyLock::new(|| {
         value: CIE_Y[i],
     });
     let pls = PiecewiseLinearSpectrum::new(&samples);
-    DenselySampledSpectrum::new(&pls.into(), None, None).into()
+    DenselySampledSpectrum::new(&pls, None, None).into()
 });
 
 pub static Z: LazyLock<SpectrumEnum> = LazyLock::new(|| {
@@ -42,7 +43,7 @@ pub static Z: LazyLock<SpectrumEnum> = LazyLock::new(|| {
         value: CIE_Z[i],
     });
     let pls = PiecewiseLinearSpectrum::new(&samples);
-    DenselySampledSpectrum::new(&pls.into(), None, None).into()
+    DenselySampledSpectrum::new(&pls, None, None).into()
 });
 
 pub const CIE_Y_INTEGRAL: Float = 106.856895;
@@ -125,15 +126,15 @@ impl Spectrum for ConstantSpectrum {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct DenselySampledSpectrum {
     lambda_min: u32,
     lambda_max: u32,
-    values: Vec<Float>,
+    values: Vec<NotNan<Float>>,
 }
 
 impl DenselySampledSpectrum {
-    pub fn new(spec: &SpectrumEnum, lambda_min: Option<u32>, lambda_max: Option<u32>) -> Self {
+    pub fn new(spec: &impl Spectrum, lambda_min: Option<u32>, lambda_max: Option<u32>) -> Self {
         let lambda_min = lambda_min.unwrap_or(LAMBDA_MIN as u32);
         let lambda_max = lambda_max.unwrap_or(LAMBDA_MAX as u32);
 
@@ -141,7 +142,9 @@ impl DenselySampledSpectrum {
 
         let mut values = Vec::with_capacity((lambda_max - lambda_min + 1) as usize);
         for lambda in lambda_min..=lambda_max {
-            values.push(spec.at(lambda as Float));
+            values.push(NotNan::new(spec.at(lambda as Float)).expect(
+                "There should not be NaNs in spectrum, but one was found when sampling `spec`",
+            ));
         }
 
         Self {
@@ -165,19 +168,12 @@ impl Spectrum for DenselySampledSpectrum {
             0.0
         } else {
             let offset = (lambda - self.lambda_min) as usize;
-            self.values[offset]
+            *self.values[offset]
         }
     }
 
     fn max_value(&self) -> Float {
-        *self
-            .values
-            .iter()
-            .max_by(|a, b| {
-                a.partial_cmp(b)
-                    .expect("There should not be NaNs in spectrum")
-            })
-            .unwrap()
+        **self.values.iter().max().unwrap()
     }
 }
 

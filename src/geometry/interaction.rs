@@ -175,6 +175,10 @@ impl<'a> MediumInterfaceInteraction<'a> {
             phase,
         }
     }
+
+    pub fn with_point_and_interface(p: Point3f, medium_interface: MediumInterface<'a>) -> Self {
+        todo!()
+    }
 }
 
 #[derive(Clone, Debug)]

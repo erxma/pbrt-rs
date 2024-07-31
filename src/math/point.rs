@@ -28,6 +28,8 @@ impl From<[i32; 3]> for Point3i {
 }
 
 impl Point3i {
+    pub const ZERO: Self = Self::new(0, 0, 0);
+
     /// Construct a new point with given elements.
     pub const fn new(x: i32, y: i32, z: i32) -> Self {
         Self(Vec3i::new(x, y, z))
@@ -160,6 +162,8 @@ impl From<[pbrt::Float; 3]> for Point3f {
 }
 
 impl Point3f {
+    pub const ZERO: Self = Self::new(0.0, 0.0, 0.0);
+
     /// Construct a new point with given elements.
     pub const fn new(x: pbrt::Float, y: pbrt::Float, z: pbrt::Float) -> Self {
         Self(Vec3f::new(x, y, z))

@@ -51,6 +51,12 @@ pub fn next_float_down(mut v: Float) -> Float {
     Float::from_bits(next_bits)
 }
 
+#[inline]
+pub fn exponent(value: f32) -> i16 {
+    const EXPONENT_MASK: u32 = 0x7F800000;
+    ((value.to_bits() & EXPONENT_MASK) - 127) as i16
+}
+
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CompensatedFloat {
     pub val: Float,

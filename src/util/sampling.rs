@@ -1,6 +1,6 @@
 use crate::{
-    math::{lerp, next_float_down, Point2f, ONE_MINUS_EPSILON},
-    Float,
+    math::{self, gaussian, lerp, next_float_down, safe_sqrt, Point2f, Vec3f, ONE_MINUS_EPSILON},
+    Float, PI, SQRT_2,
 };
 
 #[inline]
@@ -20,14 +20,16 @@ pub fn power_heuristic(nf: i32, f_pdf: Float, ng: i32, g_pdf: Float) -> Float {
 
 /// Samples a discrete distribution with a given uniform random sample `u`.
 ///
-/// If `weights` is empty, returns None.
-///
-/// Otherwise, returns:
+/// If `weights` is non-empty, returns:
 ///
 /// - The index of one of the `weights` with probability proportional to its weight,
 ///   using `u` for the sample.
 /// - The value of the PMF for the sample.
 /// - A new uniform random sample derived from `u`.
+///
+/// If `weights` is empty, returns `None`.
+///
+/// The set of weights does not need to be normalized.
 #[inline]
 pub fn sample_discrete(weights: &[Float], u: Float) -> Option<(usize, Float, Float)> {
     // Handle empty weights for discrete sampling
@@ -59,30 +61,152 @@ pub fn sample_discrete(weights: &[Float], u: Float) -> Option<(usize, Float, Flo
     Some((offset, pmf, u_remapped))
 }
 
+/// Compute the probability density function (PDF) for a linear distribution,
+/// defined with `[a, b]` as the endpoint values, normalized so that the total probability is 1,
+/// where `x` is the input value in `[0.0, 1.0]` to evaluate at.
+///
+/// If `x` is not in `[0.0, 1.0]`, returns 0.0.
 #[inline]
 pub fn linear_pdf(x: Float, a: Float, b: Float) -> Float {
     if !(0.0..=1.0).contains(&x) {
         0.0
     } else {
-        2.0 * lerp(x, a, b) / (a + b)
+        2.0 * lerp(a, b, x) / (a + b)
     }
 }
 
+/// Sample the probability density function (PDF) for a linear distribution,
+/// defined with `[a, b]` as the endpoint values, normalized so that the total probability is 1,
+/// using random variable `u` in `[0, 1)`.
+///
+/// Returns value in `[0.0, 1.0)`.
 #[inline]
 pub fn sample_linear(u: Float, a: Float, b: Float) -> Float {
     if u == 0.0 || a == 0.0 {
         return 0.0;
     }
 
-    let x = u * (a + b) / (a + lerp(u, a * a, b * b).sqrt());
+    let x = u * (a + b) / (a + lerp(a * a, b * b, u).sqrt());
     // Ensure < 1.0
     x.min(ONE_MINUS_EPSILON)
 }
 
-/// For a 1D function, return the random sample that corresponds to the value `x`.
+/// For a 1D linear function between `a` and `b`, return the random sample
+/// that corresponds to the value `x` (equivalent to evaluating the CDF).
 #[inline]
 pub fn invert_linear_sample(x: Float, a: Float, b: Float) -> Float {
     x * (a * (2.0 - x) + b * x) / (a + b)
+}
+
+#[inline]
+pub fn tent_pdf(x: Float, r: Float) -> Float {
+    if x.abs() < r {
+        1.0 / r - x.abs() / r.sqrt()
+    } else {
+        0.0
+    }
+}
+
+/// Samples the [tent/trianglular function](https://en.wikipedia.org/wiki/Triangular_function)
+/// with a given uniform random sample `u`, within the interval `[-r, r]`.
+#[inline]
+pub fn sample_tent(u: Float, r: Float) -> Float {
+    // Pick negative (idx 0) or positive (idx 1) half with probs 0.5.
+    // "This property is helpful for preserving well-distributed sample points
+    // (e.g., if they have low discrepancy)."
+    let (idx, _, u) = sample_discrete(&[0.5, 0.5], u).unwrap();
+    if idx == 0 {
+        // Negative
+        -r + r * sample_linear(u, 0.0, 1.0)
+    } else {
+        // Positive
+        r * sample_linear(u, 1.0, 0.0)
+    }
+}
+
+pub fn invert_tent_sample(x: Float, r: Float) -> Float {
+    if x <= 0.0 {
+        (1.0 - invert_linear_sample(-x / r, 1.0, 0.0)) / 2.0
+    } else {
+        0.5 + invert_linear_sample(x / r, 1.0, 0.0) / 2.0
+    }
+}
+
+#[inline]
+pub fn exponential_pdf(x: Float, a: Float) -> Float {
+    a * (-a * x).exp()
+}
+
+#[inline]
+pub fn sample_exponential(u: Float, a: Float) -> Float {
+    -(1.0 - u).ln() / a
+}
+
+pub fn invert_exponential_sample(x: Float, a: Float) -> Float {
+    1.0 - (-a * x).exp()
+}
+
+#[inline]
+pub fn normal_pdf(x: Float, mu: Float, sigma: Float) -> Float {
+    gaussian(x, mu, sigma)
+}
+
+#[inline]
+pub fn std_normal_pdf(x: Float) -> Float {
+    normal_pdf(x, 0.0, 1.0)
+}
+
+#[inline]
+pub fn sample_normal(u: Float, mu: Float, sigma: Float) -> Float {
+    mu + SQRT_2 * sigma * math::erf_inv(2.0 * u - 1.0)
+}
+
+#[inline]
+pub fn sample_std_normal(u: Float) -> Float {
+    sample_normal(u, 0.0, 1.0)
+}
+
+#[inline]
+pub fn invert_normal_sample(x: Float, mu: Float, sigma: Float) -> Float {
+    #[cfg(not(feature = "use-f64"))]
+    return 0.5 * (1.0 + math::erff((x - mu) / (sigma * SQRT_2)));
+    #[cfg(feature = "use-f64")]
+    return 0.5 * (1.0 + math::erf((x - mu) / (sigma * SQRT_2)));
+}
+
+#[inline]
+pub fn invert_std_normal_sample(x: Float) -> Float {
+    invert_normal_sample(x, 0.0, 1.0)
+}
+
+#[inline]
+pub fn sample_two_normal(u: Point2f, mu: Float, sigma: Float) -> Point2f {
+    let r2 = -2.0 * (1.0 - u.x()).ln();
+    Point2f::new(
+        mu + sigma * (r2 * (2.0 * PI * u.y()).cos()).sqrt(),
+        mu + sigma * (r2 * (2.0 * PI * u.y()).sin()).sqrt(),
+    )
+}
+
+#[inline]
+pub fn sample_two_std_normal(u: Point2f) -> Point2f {
+    sample_two_normal(u, 0.0, 1.0)
+}
+
+#[inline]
+pub fn logistic_pdf(mut x: Float, s: Float) -> Float {
+    x = x.abs();
+    (-x / s).exp() / (s * (1.0 + (-x / s).exp()).sqrt())
+}
+
+#[inline]
+pub fn sample_logistic(u: Float, s: Float) -> Float {
+    -s * (1.0 / u - 1.0).ln()
+}
+
+#[inline]
+pub fn invert_logistic_sample(x: Float, s: Float) -> Float {
+    1.0 / (1.0 + (-x / s).exp())
 }
 
 #[inline]
@@ -117,4 +241,12 @@ pub fn invert_bilinear_sample(p: Point2f, w: &[Float]) -> Point2f {
     let y = invert_linear_sample(p.y(), w[0] + w[1], w[2] + w[3]);
 
     Point2f::new(x, y)
+}
+
+#[inline]
+pub fn sample_uniform_sphere(u: Point2f) -> Vec3f {
+    let z = 1.0 - 2.0 * u.x();
+    let r = safe_sqrt(1.0 - z.sqrt());
+    let phi = 2.0 * PI * u.y();
+    Vec3f::new(r * phi.cos(), r * phi.sin(), z)
 }

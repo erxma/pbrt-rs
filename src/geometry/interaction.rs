@@ -4,13 +4,13 @@ use crate::{
         medium::{Medium, PhaseFunction},
         medium_interface::MediumInterface,
     },
-    shapes::Shape,
     Float,
 };
+use derive_builder::Builder;
 
 #[derive(Clone, Debug)]
 pub enum Interaction<'a> {
-    Surface(SurfaceInteraction<'a>),
+    Surface(SurfaceInteraction),
     MediumInterface(MediumInterfaceInteraction<'a>),
     IntraMedium(IntraMediumInteraction<'a>),
 }
@@ -54,7 +54,7 @@ pub struct Shading {
 }
 
 #[derive(Clone, Debug)]
-pub struct SurfaceInteraction<'a> {
+pub struct SurfaceInteraction {
     pub common: InteractionCommon,
     pub n: Normal3f,
     pub uv: Point2f,
@@ -62,91 +62,89 @@ pub struct SurfaceInteraction<'a> {
     pub dpdv: Vec3f,
     pub dndu: Normal3f,
     pub dndv: Normal3f,
-    shape: &'a dyn Shape,
     pub shading: Shading,
 }
 
-#[derive(Clone)]
-pub struct SurfaceInteractionParams<'a> {
-    pub pi: Point3fi,
-    pub uv: Point2f,
-    pub wo: Option<Vec3f>,
-    pub dpdu: Vec3f,
-    pub dpdv: Vec3f,
-    pub dndu: Normal3f,
-    pub dndv: Normal3f,
-    pub time: Float,
-    pub shape: &'a dyn Shape,
+#[derive(Builder)]
+#[builder(
+    name = "SurfaceInteractionBuilder",
+    public,
+    build_fn(private, name = "build_params")
+)]
+struct SurfaceInteractionParams {
+    pi: Point3fi,
+    uv: Point2f,
+    wo: Option<Vec3f>,
+    dpdu: Vec3f,
+    dpdv: Vec3f,
+    dndu: Normal3f,
+    dndv: Normal3f,
+    time: Float,
+    flip_normal: bool,
 }
 
-impl<'a> SurfaceInteraction<'a> {
-    pub fn new(params: &SurfaceInteractionParams<'a>) -> Self {
-        let &SurfaceInteractionParams {
-            pi,
-            uv,
-            wo,
-            dpdu,
-            dpdv,
-            dndu,
-            dndv,
-            time,
-            shape,
-        } = params;
-
-        let mut n = dpdu.cross(dpdv).normalized().into();
-        // Adjust normal based on orientation and handedness
-        if shape.reverse_orientation() ^ shape.transform_swaps_handedness() {
-            n *= -1.0;
-        }
-        Self {
-            common: InteractionCommon { pi, time, wo },
-            n,
-            uv,
-            dpdu,
-            dpdv,
-            dndu,
-            dndv,
-            shape,
-            shading: Shading {
-                n,
-                dpdu,
-                dpdv,
-                dndu,
-                dndv,
-            },
-        }
+impl SurfaceInteraction {
+    pub fn builder() -> SurfaceInteractionBuilder {
+        SurfaceInteractionBuilder::default()
     }
 
     // Update the shading geometry info
     pub fn set_shading_geometry(
         &mut self,
-        dpdu: Vec3f,
-        dpdv: Vec3f,
-        dndu: Normal3f,
-        dndv: Normal3f,
+        mut n_s: Normal3f,
+        dpdu_s: Vec3f,
+        dpdv_s: Vec3f,
+        dndu_s: Normal3f,
+        dndv_s: Normal3f,
         orientation_is_authoritative: bool,
     ) {
-        // Compute shading normal, flip if needed
-        let mut shading_n = Normal3f::from(dpdu.cross(dpdv).normalized());
-        if self.shape.reverse_orientation() ^ self.shape.transform_swaps_handedness() {
-            shading_n *= -1.0;
-        }
-
-        // Align geometric normal to shading, or vice versa
+        // Compute shading normal
         if orientation_is_authoritative {
-            self.n = self.n.face_forward(shading_n.into());
+            self.n = self.n.face_forward(n_s.into());
         } else {
-            shading_n = shading_n.face_forward(self.n.into());
+            n_s = n_s.face_forward(self.n.into());
         }
 
         // Set shading values
         self.shading = Shading {
-            n: shading_n,
-            dpdu,
-            dpdv,
-            dndu,
-            dndv,
+            n: n_s,
+            dpdu: dpdu_s,
+            dpdv: dpdv_s,
+            dndu: dndu_s,
+            dndv: dndv_s,
         }
+    }
+}
+
+impl SurfaceInteractionBuilder {
+    pub fn build(&self) -> Result<SurfaceInteraction, SurfaceInteractionBuilderError> {
+        let params = self.build_params()?;
+
+        let mut n = params.dpdu.cross(params.dpdv).normalized().into();
+        // Adjust normal based on orientation and handedness
+        if params.flip_normal {
+            n *= -1.0;
+        }
+        Ok(SurfaceInteraction {
+            common: InteractionCommon {
+                pi: params.pi,
+                time: params.time,
+                wo: params.wo,
+            },
+            n,
+            uv: params.uv,
+            dpdu: params.dpdu,
+            dpdv: params.dpdv,
+            dndu: params.dndu,
+            dndv: params.dndv,
+            shading: Shading {
+                n,
+                dpdu: params.dpdu,
+                dpdv: params.dpdv,
+                dndu: params.dndu,
+                dndv: params.dndv,
+            },
+        })
     }
 }
 

@@ -20,7 +20,10 @@ pub use interval::Interval;
 pub use normal3::Normal3f;
 pub use octahedral_vec::OctahedralVec;
 pub use point::{Point2f, Point2i, Point3f, Point3fi, Point3i};
-pub use routines::{evaluate_polynomial, gamma, lerp, safe_acos, safe_asin, safe_sqrt};
+pub use routines::{
+    erf, erf_inv, erff, evaluate_polynomial, fast_exp, gamma, gaussian, lerp, safe_acos, safe_asin,
+    safe_sqrt,
+};
 pub use square_matrix::SquareMatrix;
 pub use tuple::Tuple;
 pub use vec::{Vec2f, Vec2i, Vec3B, Vec3Usize, Vec3f, Vec3fi, Vec3i};

@@ -1,5 +1,6 @@
 use std::ops::{Add, Sub};
 
+use bytemuck::NoUninit;
 use delegate::delegate;
 use derive_more::{From, Index, IndexMut, Neg};
 use num_traits::{NumCast, Signed, ToPrimitive};
@@ -302,7 +303,7 @@ pub(in crate::math) trait Vec3<T: TupleElement>: Tuple<3, T> {
 
 /// A 2-element vector of `i32`.
 // Wrapper around the concrete implementation.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Index, IndexMut, Neg, From)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Index, IndexMut, Neg, From, NoUninit)]
 #[repr(transparent)]
 pub struct Vec2i(inner::Vec2i);
 
@@ -510,6 +511,7 @@ mod inner {
 pub(crate) mod custom_impl {
     use std::ops::{Add, AddAssign, Index, IndexMut, Sub, SubAssign};
 
+    use bytemuck::NoUninit;
     use num_traits::{NumCast, Signed, ToPrimitive};
 
     use crate::{
@@ -671,6 +673,7 @@ pub(crate) mod custom_impl {
     // Vec2
     /// A 2D vector.
     #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+    #[repr(C)]
     pub struct Vec2<T> {
         pub x: T,
         pub y: T,
@@ -679,6 +682,8 @@ pub(crate) mod custom_impl {
     #[allow(dead_code)]
     pub type Vec2i = Vec2<i32>;
     pub type Vec2f = Vec2<pbrt::Float>;
+
+    unsafe impl NoUninit for Vec2i {}
 
     impl<T> Vec2<T> {
         /// Construct a new vector with given elements.

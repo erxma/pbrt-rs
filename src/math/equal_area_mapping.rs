@@ -52,7 +52,9 @@ pub fn equal_area_sphere_to_square(d: Vec3f) -> Point2f {
     b = if a == 0.0 { 0.0 } else { b / a };
 
     // Polynomial approximation of atan(x)*2/pi, x=b (x=[0,1])
-    #[cfg(feature = "use-f64")]
+    // The values written here exceed precision for both f32 and f64
+    // and will be truncated, which is fine.
+    #[allow(clippy::excessive_precision)]
     const COEFFICENTS: [Float; 7] = [
         0.406758566246788489601959989e-5,
         0.636226545274016134946890922156,
@@ -61,17 +63,6 @@ pub fn equal_area_sphere_to_square(d: Vec3f) -> Point2f {
         0.881770664775316294736387951347e-1,
         0.419038818029165735901852432784e-1,
         -0.251390972343483509333252996350e-1,
-    ];
-
-    #[cfg(not(feature = "use-f64"))]
-    const COEFFICENTS: [Float; 7] = [
-        4.0675855e-6,
-        0.63622563,
-        6.1572017e-3,
-        -0.24733374,
-        8.817707e-2,
-        4.1903883e-2,
-        -2.5139097e-2,
     ];
 
     let mut phi = evaluate_polynomial(b, &COEFFICENTS);

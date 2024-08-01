@@ -10,7 +10,7 @@ use derive_builder::Builder;
 
 #[derive(Clone, Debug)]
 pub enum Interaction<'a> {
-    Surface(SurfaceInteraction),
+    Surface(Box<SurfaceInteraction>),
     MediumInterface(MediumInterfaceInteraction<'a>),
     IntraMedium(IntraMediumInteraction<'a>),
 }

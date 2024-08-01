@@ -1,5 +1,6 @@
 use std::ops::{Add, AddAssign, Index, IndexMut, Mul, Sub, SubAssign};
 
+use bytemuck::NoUninit;
 use delegate::delegate;
 use derive_more::{Add, From, Neg};
 
@@ -292,7 +293,7 @@ impl SubAssign<Vec3f> for Point3f {
 
 /// A 2D point of i32.
 // Wrapper around the vector equivalent.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Neg, Add, From)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Neg, Add, From, NoUninit)]
 #[repr(transparent)]
 pub struct Point2i(Vec2i);
 

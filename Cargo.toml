@@ -6,20 +6,26 @@ rust-version = "1.80"
 
 [dependencies]
 approx = "0.5.1"
+bytemuck = { version = "1.16.3", features = ["derive"] }
 delegate = "0.12.0"
 derive_builder = "0.20.0"
 derive_more = "0.99.18"
 enum-as-inner = "0.6.0"
 enum_dispatch = "0.3.13"
 getset = "0.1.2"
-glam = { version = "0.27.0", optional = true }
+glam = { version = "0.27.0", optional = true, features = ["bytemuck"] }
 inherent = "1.0.11"
 internment = { version = "0.8.4", optional = true, features = ["arc"] }
 itertools = "0.13.0"
 libm = "0.2.8"
+murmur3 = "0.5.2"
 num-traits = "0.2.19"
 ordered-float = "4.2.2"
+rand = "0.8.5"
+rand_pcg = "0.3.1"
+thiserror = "1.0.63"
 
 [features]
 use-f64 = []
 external-impls = ["glam"]
+glam = ["dep:glam"]

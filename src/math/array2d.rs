@@ -3,7 +3,7 @@ use std::{
     vec,
 };
 
-use crate::geometry::bounds::Bounds2i;
+use crate::geometry::Bounds2i;
 
 use super::point::Point2i;
 

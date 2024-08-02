@@ -1,11 +1,5 @@
 use crate::{
-    geometry::{
-        bounds::Bounds3f,
-        direction_cone::DirectionCone,
-        interaction::{Interaction, SurfaceInteraction},
-        ray::Ray,
-        transform::Transform,
-    },
+    geometry::{Bounds3f, DirectionCone, Interaction, Ray, SurfaceInteraction, Transform},
     math::{Normal3f, Point2f, Point3f, Point3fi, Vec3f},
     Float,
 };

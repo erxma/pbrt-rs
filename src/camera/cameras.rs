@@ -1,12 +1,8 @@
 use super::film::Film;
 use crate::{
-    geometry::{
-        bounds::Bounds2f,
-        ray::{Ray, RayDifferential},
-        transform::Transform,
-    },
+    geometry::{Bounds2f, Ray, RayDifferential, Transform},
     math::{lerp, Point2f, Vec3f},
-    media::medium::Medium,
+    medium::Medium,
     sampling::spectrum::{SampledSpectrum, SampledWavelengths},
     Float,
 };

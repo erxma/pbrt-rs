@@ -1,6 +1,6 @@
 use crate::{
     math::{Point3f, Vec3f},
-    media::medium::Medium,
+    medium::Medium,
     Float,
 };
 

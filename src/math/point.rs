@@ -6,7 +6,7 @@ use derive_more::{Add, From, Neg};
 
 use crate::{
     self as pbrt,
-    geometry::bounds::{Bounds2f, Bounds2i, Bounds3f, Bounds3i},
+    geometry::{Bounds2f, Bounds2i, Bounds3f, Bounds3i},
     impl_tuple_math_ops,
 };
 

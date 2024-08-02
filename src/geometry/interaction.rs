@@ -1,9 +1,6 @@
 use crate::{
     math::{Normal3f, Point2f, Point3f, Point3fi, Vec3f},
-    media::{
-        medium::{Medium, PhaseFunction},
-        medium_interface::MediumInterface,
-    },
+    medium::{Medium, MediumInterface, PhaseFunction},
     Float,
 };
 use derive_builder::Builder;

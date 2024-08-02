@@ -4,7 +4,7 @@ pub mod geometry;
 pub mod image;
 pub mod lights;
 pub mod math;
-pub mod media;
+pub mod medium;
 pub mod memory;
 pub mod parallel;
 pub mod sampling;

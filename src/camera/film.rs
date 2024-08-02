@@ -7,7 +7,7 @@ use num_traits::{AsPrimitive, NumCast};
 
 use crate::{
     color::{RGBColorSpace, RGB},
-    geometry::bounds::Bounds2i,
+    geometry::Bounds2i,
     image::Filter,
     math::{Array2D, Point2f, Point2i, SquareMatrix, Tuple, Vec2f, Vec2i},
     parallel::AtomicF64,

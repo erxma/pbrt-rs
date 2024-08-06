@@ -8,7 +8,7 @@ use derive_builder::Builder;
 #[derive(Clone, Debug)]
 pub enum Interaction<'a> {
     Surface(Box<SurfaceInteraction>),
-    MediumInterface(MediumInterfaceInteraction<'a>),
+    MediumInterface(MediumInterfaceInteraction),
     IntraMedium(IntraMediumInteraction<'a>),
 }
 
@@ -146,18 +146,18 @@ impl SurfaceInteractionBuilder {
 }
 
 #[derive(Clone, Debug)]
-pub struct MediumInterfaceInteraction<'a> {
+pub struct MediumInterfaceInteraction {
     pub common: InteractionCommon,
-    pub medium_interface: MediumInterface<'a>,
+    pub medium_interface: MediumInterface,
     pub phase: PhaseFunction,
 }
 
-impl<'a> MediumInterfaceInteraction<'a> {
+impl MediumInterfaceInteraction {
     pub fn new(
         p: Point3f,
         wo: Option<Vec3f>,
         time: Float,
-        medium_interface: MediumInterface<'a>,
+        medium_interface: MediumInterface,
         phase: PhaseFunction,
     ) -> Self {
         Self {
@@ -171,7 +171,7 @@ impl<'a> MediumInterfaceInteraction<'a> {
         }
     }
 
-    pub fn with_point_and_interface(p: Point3f, medium_interface: MediumInterface<'a>) -> Self {
+    pub fn with_point_and_interface(p: Point3f, medium_interface: MediumInterface) -> Self {
         todo!()
     }
 }

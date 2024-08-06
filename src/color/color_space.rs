@@ -1,6 +1,7 @@
 use std::{
     cmp::min,
     ops::{Index, IndexMut},
+    sync::Arc,
 };
 
 use crate::{
@@ -12,7 +13,7 @@ use crate::{
 use super::{RGB, XYZ};
 
 #[derive(Clone, Debug)]
-pub struct RGBColorSpace<'a> {
+pub struct RGBColorSpace {
     pub r: Point2f,
     pub g: Point2f,
     pub b: Point2f,
@@ -21,17 +22,17 @@ pub struct RGBColorSpace<'a> {
     pub xyz_from_rgb: SquareMatrix<3>,
     pub rgb_from_xyz: SquareMatrix<3>,
 
-    rgb_to_spectrum_table: &'a RGBToSpectrumTable,
+    rgb_to_spectrum_table: Arc<RGBToSpectrumTable>,
 }
 
-impl<'a> RGBColorSpace<'a> {
+impl RGBColorSpace {
     #[allow(non_snake_case)]
     pub fn new(
         r: Point2f,
         g: Point2f,
         b: Point2f,
         illuminant: SpectrumEnum,
-        rgb_to_spectrum_table: &'a RGBToSpectrumTable,
+        rgb_to_spectrum_table: Arc<RGBToSpectrumTable>,
     ) -> Self {
         // Compute whitepoint primaries and XYZ coordinates
         let W = spectrum_to_xyz(&illuminant);

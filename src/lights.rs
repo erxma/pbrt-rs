@@ -16,11 +16,11 @@ use enum_dispatch::enum_dispatch;
 use std::sync::LazyLock;
 
 #[enum_dispatch]
-pub enum LightEnum<'a> {
-    Point(PointLight<'a>),
+pub enum LightEnum {
+    Point(PointLight),
 }
 
-impl<'a> LightEnum<'a> {
+impl LightEnum {
     delegate! {
         #[through(Light)]
         to self {
@@ -186,28 +186,50 @@ impl SpectrumCache {
     }
 }
 
-#[derive(Builder)]
-pub struct PointLight<'a> {
-    #[builder(default = "LightType::DeltaPosition", setter(skip))]
+pub struct PointLight {
     light_type: LightType,
     render_from_light: Transform,
-    medium_interface: MediumInterface<'a>,
+    medium_interface: MediumInterface,
 
-    #[builder(field(
-        ty = "Option<&'a SpectrumEnum<'a>>",
-        build = "SpectrumCache::lookup_spectrum(self.i.unwrap())"
-    ))]
     i: ArcIntern<DenselySampledSpectrum>,
     scale: Float,
 }
 
-impl<'a> PointLight<'a> {
-    pub fn builder() -> PointLightBuilder<'a> {
+#[derive(Builder)]
+#[builder(
+    public,
+    name = "PointLightBuilder",
+    build_fn(private, name = "build_params")
+)]
+struct PointLightParams<'a> {
+    render_from_light: Transform,
+    medium_interface: MediumInterface,
+
+    i: &'a SpectrumEnum<'a>,
+    scale: Float,
+}
+
+impl<'a> PointLightBuilder<'a> {
+    pub fn build(&self) -> Result<PointLight, PointLightBuilderError> {
+        let params = self.build_params()?;
+
+        Ok(PointLight {
+            light_type: LightType::DeltaPosition,
+            render_from_light: params.render_from_light,
+            medium_interface: params.medium_interface,
+            i: SpectrumCache::lookup_spectrum(params.i),
+            scale: params.scale,
+        })
+    }
+}
+
+impl PointLight {
+    pub fn builder<'a>() -> PointLightBuilder<'a> {
         PointLightBuilder::default()
     }
 }
 
-impl<'a> Light for PointLight<'a> {
+impl Light for PointLight {
     fn phi(&self, wavelengths: &SampledWavelengths) -> SampledSpectrum {
         4.0 * PI * self.scale * self.i.sample(wavelengths)
     }
@@ -232,7 +254,10 @@ impl<'a> Light for PointLight<'a> {
             wi,
             pdf: 1.0,
             p_light: Interaction::MediumInterface(
-                MediumInterfaceInteraction::with_point_and_interface(p, self.medium_interface),
+                MediumInterfaceInteraction::with_point_and_interface(
+                    p,
+                    self.medium_interface.clone(),
+                ),
             ),
         })
     }
@@ -256,5 +281,7 @@ impl<'a> Light for PointLight<'a> {
         SampledSpectrum::with_single_value(0.0)
     }
 
-    fn preprocess(&self, _scene_bounds: Bounds3f) {}
+    fn preprocess(&self, _scene_bounds: Bounds3f) {
+        // Nothing to do
+    }
 }

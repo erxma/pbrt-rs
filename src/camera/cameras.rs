@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::film::Film;
 use crate::{
     geometry::{Bounds2f, Ray, RayDifferential, Transform},
@@ -11,11 +13,11 @@ use derive_builder::Builder;
 use enum_dispatch::enum_dispatch;
 
 #[enum_dispatch]
-pub enum Camera<'a> {
-    Orthographic(OrthographicCamera<'a>),
+pub enum Camera {
+    Orthographic(OrthographicCamera),
 }
 
-impl<'a> Camera<'a> {
+impl Camera {
     delegate! {
        #[through(CameraTrait)]
        to self {
@@ -107,12 +109,12 @@ pub struct CameraRayDifferential<'a> {
 pub struct CameraTransform {}
 
 #[derive(Clone, Debug)]
-struct ProjectiveCamera<'a> {
+struct ProjectiveCamera {
     transform: CameraTransform,
     shutter_open: Float,
     shutter_close: Float,
-    film: &'a Film<'a>,
-    _medium: &'a Medium,
+    film: Arc<Film>,
+    _medium: Arc<Medium>,
 
     _screen_from_camera: Transform,
     camera_from_raster: Transform,
@@ -122,12 +124,12 @@ struct ProjectiveCamera<'a> {
     _focal_distance: Float,
 }
 
-struct ProjectiveCameraParams<'a> {
+struct ProjectiveCameraParams {
     transform: CameraTransform,
     shutter_open: Float,
     shutter_close: Float,
-    film: &'a Film<'a>,
-    medium: &'a Medium,
+    film: Arc<Film>,
+    medium: Arc<Medium>,
 
     screen_from_camera: Transform,
     screen_window: Bounds2f,
@@ -135,8 +137,8 @@ struct ProjectiveCameraParams<'a> {
     focal_distance: Float,
 }
 
-impl<'a> ProjectiveCamera<'a> {
-    fn new(params: ProjectiveCameraParams<'a>) -> Self {
+impl ProjectiveCamera {
+    fn new(params: ProjectiveCameraParams) -> Self {
         // Compute projective camera transforms
 
         let ndc_from_screen = Transform::scale(
@@ -175,8 +177,8 @@ impl<'a> ProjectiveCamera<'a> {
 }
 
 #[derive(Clone, Debug)]
-pub struct OrthographicCamera<'a> {
-    projective: ProjectiveCamera<'a>,
+pub struct OrthographicCamera {
+    projective: ProjectiveCamera,
     _dx_camera: Vec3f,
     _dy_camera: Vec3f,
 }
@@ -187,12 +189,12 @@ pub struct OrthographicCamera<'a> {
     public,
     build_fn(private, name = "build_params")
 )]
-struct OrthographicCameraParams<'a> {
+struct OrthographicCameraParams {
     transform: CameraTransform,
     shutter_open: Float,
     shutter_close: Float,
-    film: &'a Film<'a>,
-    medium: &'a Medium,
+    film: Arc<Film>,
+    medium: Arc<Medium>,
 
     screen_from_camera: Transform,
     screen_window: Bounds2f,
@@ -200,8 +202,8 @@ struct OrthographicCameraParams<'a> {
     focal_distance: Float,
 }
 
-impl<'a> OrthographicCameraBuilder<'a> {
-    pub fn build(&self) -> Result<OrthographicCamera<'a>, OrthographicCameraBuilderError> {
+impl OrthographicCameraBuilder {
+    pub fn build(&self) -> Result<OrthographicCamera, OrthographicCameraBuilderError> {
         let params = self.build_params()?;
 
         let projective_params = ProjectiveCameraParams {
@@ -229,7 +231,7 @@ impl<'a> OrthographicCameraBuilder<'a> {
     }
 }
 
-impl<'a> CameraTrait for OrthographicCamera<'a> {
+impl CameraTrait for OrthographicCamera {
     fn generate_ray(
         &self,
         _sample: CameraSample,
@@ -247,7 +249,7 @@ impl<'a> CameraTrait for OrthographicCamera<'a> {
     }
 
     fn film(&self) -> &Film {
-        self.projective.film
+        &self.projective.film
     }
 
     fn camera_transform(&self) -> &CameraTransform {

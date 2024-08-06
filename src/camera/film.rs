@@ -1,4 +1,7 @@
-use std::{array, sync::atomic::Ordering};
+use std::{
+    array,
+    sync::{atomic::Ordering, Arc},
+};
 
 use delegate::delegate;
 use derive_builder::Builder;
@@ -19,11 +22,11 @@ use super::sensor::PixelSensor;
 
 #[enum_dispatch]
 #[derive(Clone, Debug)]
-pub enum Film<'a> {
-    RGBFilm(RGBFilm<'a>),
+pub enum Film {
+    RGBFilm(RGBFilm),
 }
 
-impl<'a> Film<'a> {
+impl Film {
     delegate! {
         #[through(FilmTrait)]
         to self {
@@ -76,12 +79,12 @@ trait FilmTrait {
 }
 
 #[derive(Clone, Debug)]
-pub struct RGBFilm<'a> {
+pub struct RGBFilm {
     full_resolution: Point2i,
     pixel_bounds: Bounds2i,
-    filter: &'a Filter,
+    filter: Arc<Filter>,
     diagonal: Float,
-    sensor: &'a PixelSensor,
+    sensor: Arc<PixelSensor>,
 
     max_component_value: Float,
     filter_integral: Float,
@@ -89,8 +92,8 @@ pub struct RGBFilm<'a> {
     pixels: Array2D<RGBPixel>,
 }
 
-impl<'a> RGBFilm<'a> {
-    pub fn builder() -> RGBFilmBuilder<'a> {
+impl RGBFilm {
+    pub fn builder<'a>() -> RGBFilmBuilder<'a> {
         Default::default()
     }
 }
@@ -104,16 +107,16 @@ impl<'a> RGBFilm<'a> {
 struct RGBFilmParams<'a> {
     full_resolution: Point2i,
     pixel_bounds: Bounds2i,
-    filter: &'a Filter,
+    filter: Arc<Filter>,
     diagonal: Float,
-    sensor: &'a PixelSensor,
+    sensor: Arc<PixelSensor>,
 
-    color_space: &'a RGBColorSpace<'a>,
+    color_space: &'a RGBColorSpace,
     max_component_value: Float,
 }
 
 impl<'a> RGBFilmBuilder<'a> {
-    pub fn build(&self) -> Result<RGBFilm<'_>, RGBFilmBuilderError> {
+    pub fn build(&self) -> Result<RGBFilm, RGBFilmBuilderError> {
         let params = self.build_params()?;
 
         let filter_integral = params.filter.integral();
@@ -136,7 +139,7 @@ impl<'a> RGBFilmBuilder<'a> {
     }
 }
 
-impl<'a> FilmTrait for RGBFilm<'a> {
+impl FilmTrait for RGBFilm {
     #[allow(non_snake_case)]
     fn add_sample(
         &mut self,
@@ -238,11 +241,11 @@ impl<'a> FilmTrait for RGBFilm<'a> {
     }
 
     fn filter(&self) -> &Filter {
-        self.filter
+        &self.filter
     }
 
     fn sensor(&self) -> &PixelSensor {
-        self.sensor
+        &self.sensor
     }
 }
 

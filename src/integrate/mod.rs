@@ -16,8 +16,8 @@ pub trait Integrate {
 
 struct Integrator<'a> {
     aggregate: PrimitiveEnum,
-    lights: Vec<&'a LightEnum<'a>>,
-    infinite_lights: Vec<&'a LightEnum<'a>>,
+    lights: Vec<&'a LightEnum>,
+    infinite_lights: Vec<&'a LightEnum>,
 }
 
 impl<'a> Integrator<'a> {
@@ -40,13 +40,13 @@ impl<'a> Integrator<'a> {
 
 pub struct ImageTileIntegrator<'a> {
     integrator: Integrator<'a>,
-    camera: Camera<'a>,
+    camera: Camera,
     sampler: SamplerEnum,
 }
 
 impl<'a> ImageTileIntegrator<'a> {
     pub fn new(
-        camera: Camera<'a>,
+        camera: Camera,
         sampler: SamplerEnum,
         aggregate: PrimitiveEnum,
         lights: Vec<&'a LightEnum>,

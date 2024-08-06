@@ -58,7 +58,7 @@ impl PixelSensor {
 struct PixelSensorParams<'a> {
     #[builder(default)]
     rgb_matching: Option<[&'a SpectrumEnum<'a>; 3]>,
-    output_color_space: &'a RGBColorSpace<'a>,
+    output_color_space: &'a RGBColorSpace,
     #[builder(default)]
     sensor_illum: Option<&'a SpectrumEnum<'a>>,
     imaging_ratio: Float,

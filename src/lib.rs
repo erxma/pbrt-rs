@@ -4,6 +4,7 @@ pub mod geometry;
 pub mod image;
 pub mod integrate;
 pub mod lights;
+pub mod materials;
 pub mod math;
 pub mod medium;
 pub mod memory;

@@ -1,6 +1,6 @@
 use super::float_utility::exponent;
 use crate::{Float, MACHINE_EPSILON, PI};
-use num_traits::AsPrimitive;
+use num_traits::{AsPrimitive, Pow};
 
 #[inline]
 pub fn lerp(v1: Float, v2: Float, t: Float) -> Float {
@@ -60,9 +60,11 @@ pub fn fast_exp(x: f32) -> f32 {
 
 #[inline]
 pub fn gaussian(x: Float, mu: Float, sigma: Float) -> Float {
-    1.0 / (2.0 * PI * sigma * sigma)
-        * num_traits::cast::<_, Float>(fast_exp((-(x - mu).sqrt() / (2.0 * sigma * sigma)).as_()))
-            .unwrap()
+    1.0 / (2.0 * PI * sigma * sigma).sqrt()
+        * num_traits::cast::<_, Float>(fast_exp(
+            (-(x - mu).pow(2i32) / (2.0 * sigma * sigma)).as_(),
+        ))
+        .unwrap()
 }
 
 #[inline]
@@ -159,7 +161,46 @@ mod test {
     use crate::Float;
 
     #[test]
-    fn evaluate_polynomial_test() {
+    fn test_fast_exp() {
+        assert_relative_eq!(2.71828, fast_exp(1.0), max_relative = 1e-4);
+        assert_relative_eq!(1.0, fast_exp(0.0));
+        assert_relative_eq!(15.02927, fast_exp(2.71), max_relative = 1e-4);
+        assert_relative_eq!(1.70067e-12, fast_exp(-27.1));
+        assert_relative_eq!(2.14644e14, fast_exp(33.0), max_relative = 1e-4);
+    }
+
+    #[test]
+    fn test_gaussian() {
+        assert_relative_eq!(0.39894228, gaussian(0.0, 0.0, 1.0), max_relative = 1e-8);
+        assert_relative_eq!(0.19418605, gaussian(-1.2, 0.0, 1.0), max_relative = 1e-6);
+        assert_relative_eq!(
+            0.00827709,
+            gaussian(460.6, 444.4, 45.2),
+            max_relative = 1e-4
+        );
+    }
+
+    #[test]
+    fn test_erf_inv() {
+        assert_relative_eq!(0.47693628, erf_inv(0.5), max_relative = 1e-5);
+        assert_relative_eq!(0.0, erf_inv(0.0));
+        assert_relative_eq!(-2.3267537655, erf_inv(-0.999), max_relative = 1e-5);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_erf_inv_panic_on_inf() {
+        erf_inv(1.0);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_erf_inv_panic_on_nan() {
+        erf_inv(Float::NAN);
+    }
+
+    #[test]
+    fn test_evaluate_polynomial() {
         let t: Float = 7.5;
         let coefficients = [0.4, 1.1, -0.22, 0.033];
         let expected = 0.033 * t.powi(3) - 0.22 * t.powi(2) + 1.1 * t + 0.4;

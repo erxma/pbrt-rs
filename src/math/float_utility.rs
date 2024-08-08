@@ -51,10 +51,16 @@ pub fn next_float_down(mut v: Float) -> Float {
     Float::from_bits(next_bits)
 }
 
+/// Extract the **unbiased binary** exponent of an `f32`.
+/// `NaN` and +/-inf are acceptable, even though they have special exponent values.
 #[inline]
 pub fn exponent(value: f32) -> i16 {
     const EXPONENT_MASK: u32 = 0x7F800000;
-    ((value.to_bits() & EXPONENT_MASK) - 127) as i16
+    // Mask the exponent bits, then rshift away the lower bits.
+    let biased_exponent: u32 = (value.to_bits() & EXPONENT_MASK) >> (f32::MANTISSA_DIGITS - 1);
+    // Convert to signed for subtraction, while still fitting the biased number.
+    // Only after can it fit in i16
+    (biased_exponent as i32 - 127) as i16
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -103,5 +109,22 @@ impl AddAssign<Float> for CompensatedFloat {
         let sum = self.val + delta;
         self.err = sum - self.val - delta;
         self.val = sum;
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_exponent() {
+        assert_eq!(10, exponent(1234.45678));
+        assert_eq!(-4, exponent(-0.069));
+        assert_eq!(99, exponent(1e30));
+
+        assert_eq!(-127, exponent(0.0));
+        assert_eq!(128, exponent(f32::INFINITY));
+        assert_eq!(128, exponent(f32::NEG_INFINITY));
+        assert_eq!(128, exponent(f32::NAN));
     }
 }

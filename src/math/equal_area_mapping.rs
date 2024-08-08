@@ -1,4 +1,4 @@
-use crate::{Float, PI};
+use crate::{float::PI, Float};
 
 use super::{evaluate_polynomial, safe_sqrt, Point2f, Vec3f};
 

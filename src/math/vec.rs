@@ -5,9 +5,9 @@ use delegate::delegate;
 use derive_more::{From, Index, IndexMut, Neg};
 use num_traits::{NumCast, Signed, ToPrimitive};
 
-use crate::{self as pbrt, impl_tuple_math_ops};
+use crate::{self as pbrt};
 
-use super::{tuple::TupleElement, Interval, Normal3f, Tuple};
+use super::{impl_tuple_math_ops, Interval, Normal3f, Tuple, TupleElement};
 
 // To facilitate choosing between the implementation from scratch
 // ("custom_impl") and glam's, a wrapper is added around the concrete type,
@@ -515,11 +515,9 @@ pub(crate) mod custom_impl {
     use num_traits::{NumCast, Signed, ToPrimitive};
 
     use crate::{
-        self as pbrt, impl_tuple_math_ops_generic,
-        math::{
-            routines::safe_asin,
-            tuple::{Tuple, TupleElement},
-        },
+        self as pbrt,
+        float::PI,
+        math::{impl_tuple_math_ops_generic, safe_asin, Tuple, TupleElement},
     };
 
     use super::Vec2 as Vec2Trait;
@@ -595,7 +593,7 @@ pub(crate) mod custom_impl {
         {
             let dot: pbrt::Float = NumCast::from(self.dot(other)).unwrap();
             if dot < 0.0 {
-                pbrt::PI - 2.0 * safe_asin((self + other).length() / 2.0)
+                PI - 2.0 * safe_asin((self + other).length() / 2.0)
             } else {
                 2.0 * safe_asin((other - self).length() / 2.0)
             }

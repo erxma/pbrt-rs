@@ -1,4 +1,5 @@
 use crate::{
+    float::PI,
     geometry::{
         Bounds3f, Interaction, MediumInterfaceInteraction, Ray, SurfaceInteraction, Transform,
     },
@@ -8,7 +9,7 @@ use crate::{
     sampling::spectrum::{
         DenselySampledSpectrum, SampledSpectrum, SampledWavelengths, Spectrum, SpectrumEnum,
     },
-    Float, PI,
+    Float,
 };
 use delegate::delegate;
 use derive_builder::Builder;

@@ -151,7 +151,6 @@ pub trait TupleElement: Num + NumAssign + PartialOrd + Copy + Debug {}
 
 impl<T> TupleElement for T where T: Num + NumAssign + PartialOrd + Copy + Debug {}
 
-#[macro_export]
 macro_rules! impl_tuple_math_ops {
     ($name:ty; $n:expr; $t:ty) => {
         impl std::ops::Mul<$t> for $name {
@@ -227,8 +226,8 @@ macro_rules! impl_tuple_math_ops {
         }
     };
 }
+pub(crate) use impl_tuple_math_ops;
 
-#[macro_export]
 macro_rules! impl_tuple_math_ops_generic {
     ($name:ident; $n:expr) => {
         impl<T> $name<T> {
@@ -353,3 +352,4 @@ macro_rules! impl_tuple_math_ops_generic {
         }
     };
 }
+pub(crate) use impl_tuple_math_ops_generic;

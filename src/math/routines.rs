@@ -1,5 +1,8 @@
 use super::float_utility::exponent;
-use crate::{Float, MACHINE_EPSILON, PI};
+use crate::{
+    float::{MACHINE_EPSILON, PI},
+    Float,
+};
 use num_traits::{AsPrimitive, Pow};
 
 #[inline]

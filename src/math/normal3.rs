@@ -3,9 +3,9 @@ use std::ops::{Index, IndexMut};
 use delegate::delegate;
 use derive_more::{Add, Neg, Sub};
 
-use crate::{self as pbrt, impl_tuple_math_ops};
+use crate::{self as pbrt};
 
-use super::{Tuple, Vec3f};
+use super::{impl_tuple_math_ops, Tuple, Vec3f};
 
 /// A 3-element normal of `f32`, or `f64` if feature `use-f64` is enabled.
 // Wrapper around the vector equivalent.

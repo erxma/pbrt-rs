@@ -1,6 +1,7 @@
 use crate::{
+    float::{PI, SQRT_2},
     math::{self, gaussian, lerp, next_float_down, safe_sqrt, Point2f, Vec3f, ONE_MINUS_EPSILON},
-    Float, PI, SQRT_2,
+    Float,
 };
 
 #[inline]

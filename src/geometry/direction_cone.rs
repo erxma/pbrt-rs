@@ -1,7 +1,8 @@
 use crate::{
+    float::PI,
     geometry::{bounds::Bounds3f, transform::Transform},
     math::{safe_acos, safe_sqrt, Point3f, Vec3f},
-    Float, PI,
+    Float,
 };
 
 #[derive(Clone, Copy, Debug)]

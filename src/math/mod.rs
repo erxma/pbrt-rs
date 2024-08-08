@@ -9,7 +9,7 @@ mod routines;
 mod square_matrix;
 mod tuple;
 mod vec;
-pub mod vec_math;
+mod vec_math;
 
 pub use array2d::Array2D;
 pub use equal_area_mapping::{
@@ -26,4 +26,6 @@ pub use routines::{
 };
 pub use square_matrix::SquareMatrix;
 pub use tuple::Tuple;
+pub(crate) use tuple::{impl_tuple_math_ops, impl_tuple_math_ops_generic, TupleElement};
 pub use vec::{Vec2f, Vec2i, Vec3B, Vec3Usize, Vec3f, Vec3fi, Vec3i};
+pub use vec_math::{spherical_direction, spherical_quad_area, spherical_triangle_area};

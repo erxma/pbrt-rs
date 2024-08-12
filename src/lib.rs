@@ -11,6 +11,7 @@ pub mod memory;
 pub mod parallel;
 pub mod primitives;
 pub mod sampling;
+pub mod scenes;
 pub mod shapes;
 pub mod util;
 

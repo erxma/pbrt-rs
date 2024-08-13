@@ -8,9 +8,12 @@ use enum_as_inner::EnumAsInner;
 use itertools::Itertools;
 use strum::{EnumDiscriminants, EnumString};
 use winnow::{
-    ascii::{alpha1, alphanumeric0, alphanumeric1, float, multispace0, multispace1, space1},
+    ascii::{
+        alpha1, alphanumeric0, alphanumeric1, float, multispace0, multispace1, space0, space1,
+    },
     combinator::{
-        alt, cut_err, delimited, fail, opt, preceded, separated, separated_pair, terminated, trace,
+        alt, cut_err, delimited, eof, fail, opt, peek, preceded, separated, separated_pair,
+        terminated, trace,
     },
     dispatch,
     error::{AddContext, ErrMode, ErrorKind, ParserError, StrContext, StrContextValue},
@@ -20,14 +23,22 @@ use winnow::{
 
 use crate::Float;
 
+#[derive(Debug)]
 pub struct Scene {
-    global_options: GlobalOptions,
+    options: Options,
+    world: World,
 }
 
 #[derive(Debug, Builder)]
-pub struct GlobalOptions {
+pub struct Options {
     #[builder(private)]
     camera: Camera,
+}
+
+#[derive(Debug, Builder)]
+pub struct World {
+    #[builder(private, default)]
+    shapes: Vec<Shape>,
 }
 
 pub enum Directive {
@@ -38,6 +49,12 @@ pub enum Directive {
 #[strum_discriminants(derive(Hash))]
 pub enum GlobalDirective {
     Camera(Camera),
+}
+
+#[derive(Clone, Debug, PartialEq, EnumDiscriminants)]
+#[strum_discriminants(derive(Hash))]
+pub enum WorldDirective {
+    Shape(Shape),
 }
 
 #[derive(Clone, Debug, PartialEq, EnumAsInner, EnumDiscriminants)]
@@ -103,9 +120,59 @@ impl Default for OrthographicCamera {
     }
 }
 
-pub fn global_options(
+#[derive(Clone, Debug, PartialEq)]
+pub enum Shape {
+    Sphere(Sphere),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Sphere {
+    alpha: Alpha,
+    radius: Float,
+    z_min: Option<Float>,
+    z_max: Option<Float>,
+    phi_max: Float,
+}
+
+impl Default for Sphere {
+    fn default() -> Self {
+        Self {
+            alpha: Alpha::Constant(1.0),
+            radius: 1.0,
+            z_min: None,
+            z_max: None,
+            phi_max: 360.0,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Alpha {
+    Constant(Float),
+    Texture(()),
+}
+
+pub fn scene(ignore_unrecognized_directives: bool) -> impl FnMut(&mut &str) -> PResult<Scene> {
+    move |input| {
+        separated_pair(
+            trace(
+                "global_options",
+                global_options(ignore_unrecognized_directives),
+            ),
+            ("WorldBegin", multispace0),
+            world(ignore_unrecognized_directives),
+        )
+        .map(|(global_options, world)| Scene {
+            options: global_options,
+            world,
+        })
+        .parse_next(input)
+    }
+}
+
+fn global_options(
     ignore_unrecognized_directives: bool,
-) -> impl FnMut(&mut &str) -> PResult<GlobalOptions> {
+) -> impl FnMut(&mut &str) -> PResult<Options> {
     move |input| {
         let mut seen_directives: HashSet<GlobalDirectiveDiscriminants> = HashSet::new();
         let unseen_directive = move |input: &mut &str| {
@@ -127,10 +194,10 @@ pub fn global_options(
             }
         };
 
-        let dirs: Vec<_> = terminated(separated(0.., unseen_directive, multispace1), "WorldBegin")
+        let dirs: Vec<_> = terminated(separated(0.., unseen_directive, multispace1), multispace0)
             .parse_next(input)?;
 
-        let mut options = GlobalOptionsBuilder::create_empty();
+        let mut options = OptionsBuilder::create_empty();
         for dir in dirs {
             options.add_option(dir);
         }
@@ -148,7 +215,36 @@ pub fn global_options(
     }
 }
 
-impl GlobalOptionsBuilder {
+fn world(ignore_unrecognized_directives: bool) -> impl FnMut(&mut &str) -> PResult<World> {
+    move |input| {
+        terminated(
+            separated(
+                0..,
+                world_directive(ignore_unrecognized_directives),
+                multispace1,
+            ),
+            (multispace0, peek(eof)),
+        )
+        .map(|dirs: Vec<_>| {
+            let mut options = WorldBuilder::create_empty();
+            for d in dirs {
+                options.add_option(d);
+            }
+            options.build().unwrap()
+        })
+        .parse_next(input)
+    }
+}
+
+impl WorldBuilder {
+    pub fn add_option(&mut self, directive: WorldDirective) {
+        match directive {
+            WorldDirective::Shape(s) => self.shapes.get_or_insert(Vec::new()).push(s),
+        };
+    }
+}
+
+impl OptionsBuilder {
     pub fn add_option(&mut self, directive: GlobalDirective) {
         match directive {
             GlobalDirective::Camera(cam) => self.camera(cam),
@@ -162,9 +258,9 @@ fn global_directive(
     move |input| {
         trace(
             "global_directive",
-            dispatch! { cut_err(terminated(alpha1, opt(space1)));
+            dispatch! { cut_err(terminated(alpha1, space0));
                 "Camera" => camera_directive.map(GlobalDirective::Camera),
-                "BeginWorld" => fail,
+                "WorldBegin" => fail,
                 _ if ignore_unrecognized => fail,
                 _ => cut_err(fail)
             }
@@ -174,11 +270,26 @@ fn global_directive(
     }
 }
 
+fn world_directive(ignore_unrecognized: bool) -> impl FnMut(&mut &str) -> PResult<WorldDirective> {
+    move |input| {
+        trace(
+            "world_directive",
+            dispatch! { cut_err(terminated(alpha1, space0));
+                "Shape" => shape_directive.map(WorldDirective::Shape),
+                _ if ignore_unrecognized => fail,
+                _ => cut_err(fail)
+            }
+            .context(StrContext::Label("world directive")),
+        )
+        .parse_next(input)
+    }
+}
+
 fn camera_directive(input: &mut &str) -> PResult<Camera> {
     trace(
         "camera_directive",
         dispatch! { cut_err(terminated(delimited('"', alpha1, '"'), space1));
-            "orthographic" => trace("orthographic_camera_params", orthographic_camera_params),
+            "orthographic" => orthographic_camera_params,
             _=> fail.context(StrContext::Label("camera type"))
         },
     )
@@ -225,6 +336,58 @@ fn orthographic_camera_params(input: &mut &str) -> PResult<Camera> {
     };
 
     trace("orthographic_camera_params", params).parse_next(input)
+}
+
+fn shape_directive(input: &mut &str) -> PResult<Shape> {
+    trace(
+        "shape_directive",
+        dispatch! { cut_err(terminated(delimited('"', alpha1, '"'), space1));
+            "sphere" => sphere_params,
+            _=> fail.context(StrContext::Label("shape type"))
+        },
+    )
+    .parse_next(input)
+}
+
+fn sphere_params(input: &mut &str) -> PResult<Shape> {
+    let params = |input: &mut &str| {
+        let items = expected_params_map(vec![
+            "float alpha",
+            //"texture alpha",
+            "float radius",
+            "float zmin",
+            "float zmax",
+            "float phimax",
+        ]);
+        let found_params = param_list(items).parse_next(input)?;
+        let mut sphere = Sphere::default();
+        for (k, v) in found_params {
+            match k.as_str() {
+                "alpha" => {
+                    sphere.alpha = Alpha::Constant(*v.as_single().unwrap().as_float().unwrap());
+                }
+                "radius" => {
+                    sphere.radius = *v.as_single().unwrap().as_float().unwrap();
+                    sphere.z_min.get_or_insert(-sphere.radius);
+                    sphere.z_max.get_or_insert(sphere.radius);
+                }
+                "zmin" => {
+                    sphere.z_min = Some(*v.as_single().unwrap().as_float().unwrap());
+                }
+                "zmax" => {
+                    sphere.z_max = Some(*v.as_single().unwrap().as_float().unwrap());
+                }
+                "phimax" => {
+                    sphere.phi_max = *v.as_single().unwrap().as_float().unwrap();
+                }
+                _ => unreachable!(),
+            }
+        }
+
+        Ok(Shape::Sphere(sphere))
+    };
+
+    trace("sphere_params", params).parse_next(input)
 }
 
 /// Helper for listing the possible parameters for a directive with strings
@@ -399,6 +562,42 @@ fn atomic_literal(input: &mut &str) -> PResult<AtomicLiteral> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::fmt::{Debug, Display};
+    use winnow::stream::{AsBStr, StreamIsPartial};
+
+    fn assert_parses_to<I, O, E>(parser: impl Parser<I, O, E>, input: I, expected_output: &O)
+    where
+        I: Stream + StreamIsPartial + AsBStr,
+        O: PartialEq + Debug,
+        E: ParserError<I> + Debug + Display,
+    {
+        let output = must_parse_ok(parser, input, false);
+        assert_eq!(output, *expected_output, "Parsed result does not match");
+    }
+
+    fn must_parse_ok<I, O, E>(
+        mut parser: impl Parser<I, O, E>,
+        input: I,
+        print_ok_result: bool,
+    ) -> O
+    where
+        I: Stream + StreamIsPartial + AsBStr,
+        O: Debug,
+        E: ParserError<I> + Debug + Display,
+    {
+        let result = parser.parse(input);
+        assert!(
+            result.is_ok(),
+            "Parsing returned an error:\n{}",
+            result.unwrap_err(),
+        );
+
+        let output = result.unwrap();
+        if print_ok_result {
+            println!("Successful parse:\n{:#?}", output);
+        }
+        output
+    }
 
     #[test]
     fn test_atomic_literal() {
@@ -494,12 +693,11 @@ mod test {
 
     #[test]
     fn test_global_options() {
-        assert!(global_options(false)
-            .parse(
-                r#"Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4
-                    WorldBegin"#,
-            )
-            .is_ok());
+        must_parse_ok(
+            global_options(false),
+            r#"Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4"#,
+            true,
+        );
     }
 
     #[test]
@@ -511,5 +709,16 @@ mod test {
                    WorldBegin"#,
             )
             .is_err());
+    }
+
+    #[test]
+    fn test_scene() {
+        must_parse_ok(
+            scene(false),
+            r#"Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4
+                    WorldBegin
+                    Shape "sphere" "float radius" 0.25"#,
+            true,
+        );
     }
 }

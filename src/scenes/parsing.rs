@@ -1,5 +1,6 @@
 use std::{collections::HashMap, str::FromStr};
 
+use derive_builder::Builder;
 use enum_as_inner::EnumAsInner;
 use itertools::Itertools;
 use strum::{EnumDiscriminants, EnumString};
@@ -16,7 +17,15 @@ use winnow::{
 
 use crate::Float;
 
-pub struct Scene {}
+pub struct Scene {
+    global_options: GlobalOptions,
+}
+
+#[derive(Debug, Builder)]
+pub struct GlobalOptions {
+    #[builder(private)]
+    camera: Camera,
+}
 
 pub enum Directive {
     Global(GlobalDirective),
@@ -24,7 +33,7 @@ pub enum Directive {
 
 #[derive(Debug, PartialEq)]
 pub enum GlobalDirective {
-    Camera(CameraDirective),
+    Camera(Camera),
 }
 
 #[derive(Clone, Debug, PartialEq, EnumAsInner, EnumDiscriminants)]
@@ -62,13 +71,13 @@ enum AtomicLiteral {
     Str(String),
 }
 
-#[derive(Debug, PartialEq)]
-pub enum CameraDirective {
-    Orthographic(OrthographicCameraParams),
+#[derive(Clone, Debug, PartialEq)]
+pub enum Camera {
+    Orthographic(OrthographicCamera),
 }
 
-#[derive(Debug, PartialEq)]
-pub struct OrthographicCameraParams {
+#[derive(Clone, Debug, PartialEq)]
+pub struct OrthographicCamera {
     shutter_open: Float,
     shutter_close: Float,
     frame_aspect_ratio: Option<Float>,
@@ -77,7 +86,7 @@ pub struct OrthographicCameraParams {
     focal_distance: Float,
 }
 
-impl Default for OrthographicCameraParams {
+impl Default for OrthographicCamera {
     fn default() -> Self {
         Self {
             shutter_open: 0.0,
@@ -90,16 +99,56 @@ impl Default for OrthographicCameraParams {
     }
 }
 
-fn global_directive(input: &mut &str) -> PResult<GlobalDirective> {
-    dispatch! { cut_err(terminated(alpha1, space1));
-        "Camera" => camera_directive.map(GlobalDirective::Camera),
-        _ => fail
+pub fn global_options(
+    ignore_unrecognized_directives: bool,
+) -> impl FnMut(&mut &str) -> PResult<GlobalOptions> {
+    move |input| {
+        terminated(
+            separated(
+                0..,
+                global_directive(ignore_unrecognized_directives),
+                multispace1,
+            ),
+            "WorldBegin",
+        )
+        .verify_map(|directives: Vec<_>| {
+            let mut options = GlobalOptionsBuilder::create_empty();
+            for dir in directives {
+                options.add_option(dir);
+            }
+            options.build().ok()
+        })
+        .parse_next(input)
     }
-    .context(StrContext::Label("directive"))
-    .parse_next(input)
 }
 
-fn camera_directive(input: &mut &str) -> PResult<CameraDirective> {
+impl GlobalOptionsBuilder {
+    pub fn add_option(&mut self, directive: GlobalDirective) {
+        match directive {
+            GlobalDirective::Camera(cam) => self.camera(cam),
+        };
+    }
+}
+
+fn global_directive(
+    ignore_unrecognized: bool,
+) -> impl FnMut(&mut &str) -> PResult<GlobalDirective> {
+    move |input| {
+        terminated(
+            dispatch! { cut_err(terminated(alpha1, opt(space1)));
+                "Camera" => camera_directive.map(GlobalDirective::Camera),
+                "BeginWorld" => fail,
+                _ if ignore_unrecognized => fail,
+                _ => cut_err(fail)
+            },
+            opt(multispace1),
+        )
+        .context(StrContext::Label("global directive"))
+        .parse_next(input)
+    }
+}
+
+fn camera_directive(input: &mut &str) -> PResult<Camera> {
     dispatch! { cut_err(terminated(delimited('"', alpha1, '"'), space1));
         "orthographic" => orthographic_camera_params,
         _=> fail.context(StrContext::Label("camera type"))
@@ -107,7 +156,7 @@ fn camera_directive(input: &mut &str) -> PResult<CameraDirective> {
     .parse_next(input)
 }
 
-fn orthographic_camera_params(input: &mut &str) -> PResult<CameraDirective> {
+fn orthographic_camera_params(input: &mut &str) -> PResult<Camera> {
     let items = expected_params_map(vec![
         "float shutteropen",
         "float shutterclose",
@@ -117,7 +166,7 @@ fn orthographic_camera_params(input: &mut &str) -> PResult<CameraDirective> {
         "float focaldistance",
     ]);
     let found_params = param_list(items).parse_next(input)?;
-    let mut ortho = OrthographicCameraParams::default();
+    let mut ortho = OrthographicCamera::default();
     for (k, v) in found_params {
         match k.as_str() {
             "shutteropen" => {
@@ -142,7 +191,7 @@ fn orthographic_camera_params(input: &mut &str) -> PResult<CameraDirective> {
         }
     }
 
-    Ok(CameraDirective::Orthographic(ortho))
+    Ok(Camera::Orthographic(ortho))
 }
 
 /// Helper for listing the possible parameters for a directive with strings
@@ -227,7 +276,7 @@ fn param_list(
 
         // Parse an entire parameter list (i.e. up until something that doesn't match the param format)
         // And convert it to a map.
-        let expected_param_list = cut_err(separated(0.., cut_err(possible_param), multispace1))
+        let expected_param_list = cut_err(separated(0.., possible_param, multispace1))
             .map(|list: Vec<_>| HashMap::from_iter(list));
 
         let mut traced = trace("expected_param_list", expected_param_list);
@@ -388,14 +437,14 @@ mod test {
     #[test]
     fn test_orthographic() {
         assert_eq!(
-            Ok(GlobalDirective::Camera(CameraDirective::Orthographic(
-                OrthographicCameraParams {
+            Ok(GlobalDirective::Camera(Camera::Orthographic(
+                OrthographicCamera {
                     shutter_open: 1.2,
                     shutter_close: 2.4,
                     ..Default::default()
                 }
             ))),
-            global_directive.parse(
+            global_directive(false).parse(
                 &mut r#"Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4"#
             )
         );
@@ -404,9 +453,19 @@ mod test {
     #[test]
     fn test_directive_invalid_name() {
         assert!(
-            global_directive.parse(
+            global_directive(false).parse(
                 &mut r#"ThisIsNotARealDirective "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4"#
             ).is_err()
         );
+    }
+
+    #[test]
+    fn test_global_options() {
+        assert!(global_options(false)
+            .parse(
+                r#"Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4
+                    WorldBegin"#,
+            )
+            .is_ok());
     }
 }

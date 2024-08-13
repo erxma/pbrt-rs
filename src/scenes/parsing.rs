@@ -1,11 +1,14 @@
-use std::{collections::HashMap, str::FromStr};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
 use derive_builder::Builder;
 use enum_as_inner::EnumAsInner;
 use itertools::Itertools;
 use strum::{EnumDiscriminants, EnumString};
 use winnow::{
-    ascii::{alpha1, alphanumeric0, alphanumeric1, float, multispace1, space1},
+    ascii::{alpha1, alphanumeric0, alphanumeric1, float, multispace0, multispace1, space1},
     combinator::{
         alt, cut_err, delimited, fail, opt, preceded, separated, separated_pair, terminated, trace,
     },
@@ -31,7 +34,8 @@ pub enum Directive {
     Global(GlobalDirective),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, EnumDiscriminants)]
+#[strum_discriminants(derive(Hash))]
 pub enum GlobalDirective {
     Camera(Camera),
 }
@@ -103,22 +107,44 @@ pub fn global_options(
     ignore_unrecognized_directives: bool,
 ) -> impl FnMut(&mut &str) -> PResult<GlobalOptions> {
     move |input| {
-        terminated(
-            separated(
-                0..,
-                global_directive(ignore_unrecognized_directives),
-                multispace1,
-            ),
-            "WorldBegin",
-        )
-        .verify_map(|directives: Vec<_>| {
-            let mut options = GlobalOptionsBuilder::create_empty();
-            for dir in directives {
-                options.add_option(dir);
+        let mut seen_directives: HashSet<GlobalDirectiveDiscriminants> = HashSet::new();
+        let unseen_directive = move |input: &mut &str| {
+            let start = input.checkpoint();
+            let dir = global_directive(ignore_unrecognized_directives).parse_next(input)?;
+            if seen_directives.insert(dir.clone().into()) {
+                Ok(dir)
+            } else {
+                input.reset(&start);
+                Err(ErrMode::from_error_kind(input, ErrorKind::Verify)
+                    .add_context(
+                        input,
+                        &start,
+                        StrContext::Expected(StrContextValue::Description(
+                            "directive to appear at most once",
+                        )),
+                    )
+                    .cut())
             }
-            options.build().ok()
+        };
+
+        let dirs: Vec<_> = terminated(separated(0.., unseen_directive, multispace1), "WorldBegin")
+            .parse_next(input)?;
+
+        let mut options = GlobalOptionsBuilder::create_empty();
+        for dir in dirs {
+            options.add_option(dir);
+        }
+        options.build().map_err(|_| {
+            ErrMode::from_error_kind(input, ErrorKind::Verify)
+                .add_context(
+                    input,
+                    &input.checkpoint(),
+                    StrContext::Expected(StrContextValue::Description(
+                        "all required global options",
+                    )),
+                )
+                .cut()
         })
-        .parse_next(input)
     }
 }
 
@@ -134,64 +160,71 @@ fn global_directive(
     ignore_unrecognized: bool,
 ) -> impl FnMut(&mut &str) -> PResult<GlobalDirective> {
     move |input| {
-        terminated(
+        trace(
+            "global_directive",
             dispatch! { cut_err(terminated(alpha1, opt(space1)));
                 "Camera" => camera_directive.map(GlobalDirective::Camera),
                 "BeginWorld" => fail,
                 _ if ignore_unrecognized => fail,
                 _ => cut_err(fail)
-            },
-            opt(multispace1),
+            }
+            .context(StrContext::Label("global directive")),
         )
-        .context(StrContext::Label("global directive"))
         .parse_next(input)
     }
 }
 
 fn camera_directive(input: &mut &str) -> PResult<Camera> {
-    dispatch! { cut_err(terminated(delimited('"', alpha1, '"'), space1));
-        "orthographic" => orthographic_camera_params,
-        _=> fail.context(StrContext::Label("camera type"))
-    }
+    trace(
+        "camera_directive",
+        dispatch! { cut_err(terminated(delimited('"', alpha1, '"'), space1));
+            "orthographic" => trace("orthographic_camera_params", orthographic_camera_params),
+            _=> fail.context(StrContext::Label("camera type"))
+        },
+    )
     .parse_next(input)
 }
 
 fn orthographic_camera_params(input: &mut &str) -> PResult<Camera> {
-    let items = expected_params_map(vec![
-        "float shutteropen",
-        "float shutterclose",
-        "float frameaspectratio",
-        "float screenwindow",
-        "float lensradius",
-        "float focaldistance",
-    ]);
-    let found_params = param_list(items).parse_next(input)?;
-    let mut ortho = OrthographicCamera::default();
-    for (k, v) in found_params {
-        match k.as_str() {
-            "shutteropen" => {
-                ortho.shutter_open = *v.as_single().unwrap().as_float().unwrap();
+    let params = |input: &mut &str| {
+        let items = expected_params_map(vec![
+            "float shutteropen",
+            "float shutterclose",
+            "float frameaspectratio",
+            "float screenwindow",
+            "float lensradius",
+            "float focaldistance",
+        ]);
+        let found_params = param_list(items).parse_next(input)?;
+        let mut ortho = OrthographicCamera::default();
+        for (k, v) in found_params {
+            match k.as_str() {
+                "shutteropen" => {
+                    ortho.shutter_open = *v.as_single().unwrap().as_float().unwrap();
+                }
+                "shutterclose" => {
+                    ortho.shutter_close = *v.as_single().unwrap().as_float().unwrap();
+                }
+                "frameaspectratio" => {
+                    ortho.frame_aspect_ratio = Some(*v.as_single().unwrap().as_float().unwrap());
+                }
+                "screenwindow" => {
+                    ortho.screen_window = Some(*v.as_single().unwrap().as_float().unwrap());
+                }
+                "lensradius" => {
+                    ortho.lens_radius = *v.as_single().unwrap().as_float().unwrap();
+                }
+                "focaldistance" => {
+                    ortho.focal_distance = *v.as_single().unwrap().as_float().unwrap();
+                }
+                _ => unreachable!(),
             }
-            "shutterclose" => {
-                ortho.shutter_close = *v.as_single().unwrap().as_float().unwrap();
-            }
-            "frameaspectratio" => {
-                ortho.frame_aspect_ratio = Some(*v.as_single().unwrap().as_float().unwrap());
-            }
-            "screenwindow" => {
-                ortho.screen_window = Some(*v.as_single().unwrap().as_float().unwrap());
-            }
-            "lensradius" => {
-                ortho.lens_radius = *v.as_single().unwrap().as_float().unwrap();
-            }
-            "focaldistance" => {
-                ortho.focal_distance = *v.as_single().unwrap().as_float().unwrap();
-            }
-            _ => unreachable!(),
         }
-    }
 
-    Ok(Camera::Orthographic(ortho))
+        Ok(Camera::Orthographic(ortho))
+    };
+
+    trace("orthographic_camera_params", params).parse_next(input)
 }
 
 /// Helper for listing the possible parameters for a directive with strings
@@ -467,5 +500,16 @@ mod test {
                     WorldBegin"#,
             )
             .is_ok());
+    }
+
+    #[test]
+    fn test_global_options_fail_on_repeat_directive() {
+        assert!(global_options(false)
+            .parse(
+                r#"Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4
+                   Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4
+                   WorldBegin"#,
+            )
+            .is_err());
     }
 }

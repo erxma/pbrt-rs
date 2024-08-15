@@ -10,23 +10,15 @@ pub struct Ray<'a> {
     pub o: Point3f,
     /// Direction of the ray. Is multiplied for each step.
     pub dir: Vec3f,
-    pub t_max: Float,
     pub time: Float,
     pub medium: Option<&'a Medium>,
 }
 
 impl<'a> Ray<'a> {
-    pub fn new(
-        o: Point3f,
-        dir: Vec3f,
-        t_max: Float,
-        time: Float,
-        medium: Option<&'a Medium>,
-    ) -> Self {
+    pub fn new(o: Point3f, dir: Vec3f, time: Float, medium: Option<&'a Medium>) -> Self {
         Self {
             o,
             dir,
-            t_max,
             time,
             medium,
         }
@@ -54,9 +46,17 @@ pub struct Differentials {
 }
 
 impl<'a> RayDifferential<'a> {
+    /// Construct a new ray differential with the given ray and differentials
+    pub fn new(ray: Ray<'a>, differentials: Differentials) -> Self {
+        Self {
+            ray,
+            differentials: Some(differentials),
+        }
+    }
+
     /// Construct a new ray differential with the given ray,
     /// and no differentials set.
-    pub fn new(ray: Ray<'a>) -> Self {
+    pub fn new_without_diff(ray: Ray<'a>) -> Self {
         Self {
             ray,
             differentials: None,

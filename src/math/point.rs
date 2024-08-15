@@ -588,12 +588,8 @@ impl Point3fi {
         }
     }
 
-    pub fn error(&self) -> Point3f {
-        Point3f::new(
-            self.x().width() / 2.0,
-            self.y().width() / 2.0,
-            self.z().width() / 2.0,
-        )
+    pub fn error(&self) -> Vec3f {
+        self.0.error()
     }
 
     pub fn is_exact(&self) -> bool {

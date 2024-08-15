@@ -217,7 +217,7 @@ impl Vec3f {
     /// Construct a local coordinate system given a vector.
     ///
     /// Returns the set of three orthogonal float vectors representing
-    /// the system.
+    /// the system. The first vector will always be the one passed in.
     pub fn coordinate_system(self) -> (Self, Self, Self) {
         let (v1, v2, v3) = self.0.coordinate_system();
         (Self(v1), Self(v2), Self(v3))

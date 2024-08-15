@@ -388,7 +388,6 @@ impl<'a> Mul<Ray<'a>> for Transform {
         Self::Output {
             o,
             dir,
-            t_max: r.t_max,
             time: r.time,
             medium: r.medium,
         }
@@ -408,7 +407,6 @@ impl<'a> Mul<Ray<'a>> for &Transform {
         Self::Output {
             o,
             dir,
-            t_max: r.t_max,
             time: r.time,
             medium: r.medium,
         }

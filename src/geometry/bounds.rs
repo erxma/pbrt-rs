@@ -8,6 +8,7 @@ use crate::{
         gamma, lerp, Point2f, Point2i, Point3f, Point3i, Vec2f, Vec2i, Vec3B, Vec3Usize, Vec3f,
         Vec3i,
     },
+    Float,
 };
 
 use super::ray::Ray;
@@ -60,11 +61,11 @@ impl Bounds3i {
     /// Checks for a ray-box intersection and returns the the two parametric `t`
     /// values of the intersection, if any, as `(lower, higher)`.
     #[inline]
-    pub fn intersect_p(&self, ray: Ray) -> Option<(pbrt::Float, pbrt::Float)> {
+    pub fn intersect_p(&self, ray: Ray, t_max: Float) -> Option<(pbrt::Float, pbrt::Float)> {
         // Convert to Float
         let bounds: Bounds3f = self.to_owned().into();
 
-        let (mut t0, mut t1) = (0.0, ray.t_max);
+        let (mut t0, mut t1) = (0.0, t_max);
         for i in 0..3 {
             // Update interval for ith bounding box slab:
             let inv_ray_dir = 1.0 / ray.dir[i];
@@ -122,7 +123,7 @@ impl Bounds3i {
         t_min = t_min.max(tz_min);
         t_max = t_max.min(tz_max);
 
-        t_min < ray.t_max && t_max > 0.0
+        t_min < t_max && t_max > 0.0
     }
 
     /// Obtain the vector from the min to the max point of `self`
@@ -331,8 +332,8 @@ impl Bounds3f {
     /// Checks for a ray-box intersection and returns the the two parametric `t`
     /// values of the intersection, if any, as `(lower, higher)`.
     #[inline]
-    pub fn intersect_p(&self, ray: Ray) -> Option<(pbrt::Float, pbrt::Float)> {
-        let (mut t0, mut t1) = (0.0, ray.t_max);
+    pub fn intersect_p(&self, ray: Ray, t_max: Float) -> Option<(pbrt::Float, pbrt::Float)> {
+        let (mut t0, mut t1) = (0.0, t_max);
         for i in 0..3 {
             // Update interval for ith bounding box slab:
             let inv_ray_dir = 1.0 / ray.dir[i];
@@ -388,7 +389,7 @@ impl Bounds3f {
         t_min = t_min.max(tz_min);
         t_max = t_max.min(tz_max);
 
-        t_min < ray.t_max && t_max > 0.0
+        t_min < t_max && t_max > 0.0
     }
 
     /// Obtain the vector from the min to the max point of `self`

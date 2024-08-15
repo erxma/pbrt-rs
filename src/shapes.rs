@@ -1,12 +1,12 @@
 use crate::{
     float::PI,
     geometry::{
-        Bounds3f, DirectionCone, Interaction, InteractionCommon, Ray, SampleInteraction,
-        SurfaceInteraction, Transform,
+        Bounds3f, DirectionCone, Frame, Interaction, Ray, SampleInteraction, SurfaceInteraction,
+        Transform,
     },
     math::{
-        difference_of_products, gamma, safe_acos, safe_sqrt, Interval, Normal3f, Point2f, Point3f,
-        Point3fi, Tuple, Vec3f, Vec3fi,
+        difference_of_products, gamma, next_float_down, next_float_up, safe_acos, safe_sqrt,
+        spherical_direction, Interval, Normal3f, Point2f, Point3f, Point3fi, Tuple, Vec3f, Vec3fi,
     },
     util::sampling::sample_uniform_sphere,
     Float,
@@ -22,8 +22,10 @@ pub enum ShapeEnum {
 
 #[enum_dispatch(ShapeEnum)]
 pub trait Shape {
+    /// Axis-aligned bounding box (AABB) of this shape in rendering space.
     fn bounds(&self) -> Bounds3f;
 
+    /// The range of this shape's surface normals.
     fn normal_bounds(&self) -> DirectionCone;
 
     /// Perform a ray-shape intersection test, returning the parametric distance
@@ -37,18 +39,28 @@ pub trait Shape {
         self.intersect(ray, t_max).is_some()
     }
 
+    /// Surface area of this shape in rendering space.
     fn area(&self) -> Float;
 
+    /// Sample a point on `self`'s surface using a distribution with respect to surface area.
+    ///
+    /// Returns the local geometric info about the point.
     fn sample(&self, u: Point2f) -> Option<ShapeSample>;
 
+    /// Sample a point on `self`'s surface using a distribution
+    /// with respect to solid angle from a reference `ctx` point.
     fn sample_with_context(&self, ctx: &ShapeSampleContext, u: Point2f) -> Option<ShapeSample>;
 
     /// Returns the probability density for sampling the specified point on the shape
     /// corresponding to the given `Intersection`.
     ///
-    /// The provided point is assumed to be on the surface.
+    /// The provided point is assumed to actually be on the surface.
     fn pdf(&self, interaction: &Interaction) -> Float;
 
+    /// Returns the probability density for sampling the specified point on the shape
+    /// such that the incident direction at a reference `ctx` point is `wi`.
+    ///
+    /// The provided point is assumed to actually be on the surface.
     fn pdf_with_context(&self, ctx: &ShapeSampleContext, wi: Vec3f) -> Float;
 }
 
@@ -84,6 +96,32 @@ impl ShapeSampleContext {
             ns: Some(si.shading.n),
             time: si.common.time,
         }
+    }
+
+    pub fn offset_ray_origin(&self, w: Vec3f) -> Point3f {
+        let n_as_v = Vec3f::from(self.n.unwrap());
+        // Find vector offset to corner of error bounds, compute initial po
+        let d = n_as_v.abs().dot(self.pi.error());
+        let mut offset = d * n_as_v;
+        if w.dot(n_as_v) < 0.0 {
+            offset *= -1.0;
+        }
+        let mut po = self.pi.midpoints_only() + offset;
+
+        // Round offset point po away from p
+        for i in 0..3 {
+            if offset[i] > 0.0 {
+                po[i] = next_float_up(po[i]);
+            } else if offset[i] < 0.0 {
+                po[i] = next_float_down(po[i]);
+            }
+        }
+
+        po
+    }
+
+    pub fn spawn_ray(&self, w: Vec3f) -> Ray {
+        Ray::new(self.offset_ray_origin(w), w, self.time, None)
     }
 }
 
@@ -173,13 +211,94 @@ impl Shape for Sphere {
         );
 
         let pi = &self.render_from_object * Point3fi::new_fi(p_obj, p_obj_err);
-        let intr = Interaction::Sample(SampleInteraction::new(pi, n, uv));
+        let intr = Interaction::Sample(SampleInteraction::new(pi, None, n, uv));
         let pdf = self.pdf(&intr);
         Some(ShapeSample { intr, pdf })
     }
 
     fn sample_with_context(&self, ctx: &ShapeSampleContext, u: Point2f) -> Option<ShapeSample> {
-        todo!()
+        let p_center = &self.render_from_object * Point3f::ZERO;
+        let p_origin = ctx.offset_ray_origin(p_center.into());
+        let ctx_p = ctx.pi.midpoints_only();
+        // If p is inside sphere, sample uniformly
+        if p_origin.distance_squared(p_center) <= self.radius * self.radius {
+            // Sample shape by area, compute incident dir wi
+            let mut ss = self.sample(u).unwrap();
+            let intr = ss.intr.as_sample_mut().unwrap();
+            intr.common.time = ctx.time;
+            let mut wi = intr.common.pi.midpoints_only() - ctx_p;
+            if wi.length_squared() == 0.0 {
+                return None;
+            }
+            wi = wi.normalized();
+            // Compute area sampling PDF is ss to solid angle measure
+            ss.pdf /= Vec3f::from(intr.n).absdot(-wi)
+                / ctx_p.distance_squared(intr.common.pi.midpoints_only());
+            if ss.pdf.is_infinite() {
+                return None;
+            }
+
+            Some(ss)
+        } else {
+            // Point outside of sphere, sample uniformly within the subtended cone.
+
+            // Compute quantities related to cone theta_max
+            let sin_theta_max = self.radius / ctx_p.distance(p_center);
+            let sin2_theta_max = sin_theta_max * sin_theta_max;
+            let cos_theta_max = safe_sqrt(1.0 - sin2_theta_max);
+            let mut one_minus_cos_theta_max = 1.0 - cos_theta_max;
+
+            // Compute theta, phi for sample in cone
+            let mut cos_theta = (cos_theta_max - 1.0) * u.x() + 1.0;
+            let mut sin2_theta = 1.0 - cos_theta * cos_theta;
+            // For small angles, compute cone sample via Taylor series expansion
+            if sin2_theta_max < 0.00068523
+            /* < sin^2(1.5deg) */
+            {
+                sin2_theta = sin2_theta_max * u.x();
+                cos_theta = (1.0 - sin2_theta).sqrt();
+                one_minus_cos_theta_max = sin2_theta_max / 2.0;
+            }
+
+            // Compute angle alpha from center of sphere to sample point on surface
+            let cos_alpha = sin2_theta / sin_theta_max
+                + cos_theta * safe_sqrt(1.0 - sin2_theta / sin_theta_max * sin2_theta_max);
+            let sin_alpha = safe_sqrt(1.0 - cos_alpha * cos_alpha);
+
+            // Compute surface normal and sample point on sphere
+            let phi = u.y() * 2.0 * PI;
+            let w = spherical_direction(sin_alpha, cos_alpha, phi);
+            let sampling_frame = Frame::from_z((p_center - ctx_p).normalized());
+            let mut n = Normal3f::from(sampling_frame.from_local(-w));
+            let p = p_center + self.radius * Vec3f::from(n);
+            if self.reverse_orientation {
+                n *= -1.0;
+            }
+
+            // Compute error bounds for sample point
+            let p_err = gamma(5) * Vec3f::from(p).abs();
+            // Compute uv coords for sample point on sphere
+            let theta = safe_acos(p.z() / self.radius);
+            let mut sphere_phi = p.y().atan2(p.x());
+            if sphere_phi < 0.0 {
+                sphere_phi += 2.0 * PI;
+            }
+            let uv = Point2f::new(
+                sphere_phi / self.phi_max,
+                (theta - self.theta_z_min) / (self.theta_z_max - self.theta_z_min),
+            );
+
+            // Return sample info
+            let intr = Interaction::Sample(SampleInteraction::new(
+                Point3fi::new_fi(p, p_err),
+                Some(ctx.time),
+                n,
+                uv,
+            ));
+            let pdf = 1.0 / (2.0 * PI * one_minus_cos_theta_max);
+
+            Some(ShapeSample { intr, pdf })
+        }
     }
 
     fn pdf(&self, _interaction: &Interaction) -> Float {
@@ -187,7 +306,46 @@ impl Shape for Sphere {
     }
 
     fn pdf_with_context(&self, ctx: &ShapeSampleContext, wi: Vec3f) -> Float {
-        todo!()
+        let p_center = &self.render_from_object * Point3f::ZERO;
+        let p_origin = ctx.offset_ray_origin(p_center.into());
+        let ctx_p = ctx.pi.midpoints_only();
+        // Similarly to sample_with_context...if p is inside sphere, sample uniformly
+        if p_origin.distance_squared(p_center) <= self.radius * self.radius {
+            // Return solid angle PDF for point inside sphere:
+
+            // Intersect sample ray with shape geometry
+            let ray = ctx.spawn_ray(wi);
+            let isect = self.intersect(&ray, None);
+            match isect {
+                Some(isect) => {
+                    // Compute PDF in solid angle measure from intersection point
+                    let pdf = (1.0 / self.area())
+                        / (isect.intr.n.absdot_v(-wi)
+                            / ctx_p.distance_squared(isect.intr.common.pi.midpoints_only()));
+
+                    if pdf.is_finite() {
+                        pdf
+                    } else {
+                        0.0
+                    }
+                }
+                None => 0.0,
+            }
+        } else {
+            // Outside of sphere.
+            // Compute general solid angle sphere PDF
+            let sin2_theta_max = self.radius * self.radius / ctx_p.distance_squared(p_center);
+            let cos_theta_max = safe_sqrt(1.0 - sin2_theta_max);
+            let mut one_minus_cos_theta_max = 1.0 - cos_theta_max;
+            // For small angles, compute more accurate 1-cos via Taylor series expansion
+            if sin2_theta_max < 0.00068523
+            /* < sin^2(1.5deg) */
+            {
+                one_minus_cos_theta_max = sin2_theta_max / 2.0;
+            }
+
+            1.0 / (2.0 * PI * one_minus_cos_theta_max)
+        }
     }
 }
 

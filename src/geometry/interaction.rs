@@ -1,6 +1,6 @@
 use crate::{
     math::{next_float_down, next_float_up, Normal3f, Point2f, Point3f, Point3fi, Tuple, Vec3f},
-    medium::{Medium, MediumInterface, PhaseFunction},
+    media::{Medium, MediumInterface, PhaseFunction},
     Float,
 };
 use derive_builder::Builder;

@@ -6,7 +6,7 @@ pub mod integrate;
 pub mod lights;
 pub mod materials;
 pub mod math;
-pub mod medium;
+pub mod media;
 pub mod memory;
 pub mod parallel;
 pub mod primitives;

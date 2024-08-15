@@ -4,7 +4,7 @@ use super::film::Film;
 use crate::{
     geometry::{Bounds2f, Ray, RayDifferential, Transform},
     math::{lerp, Point2f, Vec3f},
-    medium::Medium,
+    media::Medium,
     sampling::spectrum::{SampledSpectrum, SampledWavelengths},
     Float,
 };

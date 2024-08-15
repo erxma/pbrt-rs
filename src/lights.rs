@@ -4,7 +4,7 @@ use crate::{
         Bounds3f, Interaction, MediumInterfaceInteraction, Ray, SurfaceInteraction, Transform,
     },
     math::{Normal3f, Point2f, Point3f, Point3fi, Vec3f},
-    medium::MediumInterface,
+    media::MediumInterface,
     memory::cache::{ArcIntern, ArcInternCache},
     sampling::spectrum::{
         DenselySampledSpectrum, SampledSpectrum, SampledWavelengths, Spectrum, SpectrumEnum,

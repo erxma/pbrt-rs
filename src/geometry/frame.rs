@@ -1,5 +1,3 @@
-use std::sync::LazyLock;
-
 use crate::{
     math::{Normal3f, Tuple, Vec3f},
     Float,
@@ -17,13 +15,8 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub const IDENTITY: LazyLock<Self> = LazyLock::new(|| {
-        Self::new(
-            Vec3f::new(1.0, 0.0, 0.0),
-            Vec3f::new(0.0, 1.0, 0.0),
-            Vec3f::new(0.0, 0.0, 1.0),
-        )
-    });
+    /// Frame representing an identity transformation.
+    pub const IDENTITY: Self = Self::identity();
 
     /// Construct a new frame from the three basis vectors.
     /// The vectors must be orthonormal.
@@ -36,6 +29,14 @@ impl Frame {
         debug_assert!(y.dot(z).abs() < 1e-4);
         debug_assert!(z.dot(x).abs() < 1e-4);
         Self { x, y, z }
+    }
+
+    const fn identity() -> Self {
+        Self {
+            x: Vec3f::new(1.0, 0.0, 0.0),
+            y: Vec3f::new(0.0, 1.0, 0.0),
+            z: Vec3f::new(0.0, 0.0, 1.0),
+        }
     }
 
     /// Construct a frame with given x, y vectors, and z from their cross product.
@@ -73,7 +74,7 @@ impl Frame {
 
 impl Default for Frame {
     fn default() -> Self {
-        Self::IDENTITY.clone()
+        Self::identity()
     }
 }
 

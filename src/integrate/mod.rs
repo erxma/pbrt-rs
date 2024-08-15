@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{
     camera::Camera,
     geometry::Ray,
@@ -14,20 +16,20 @@ pub trait Integrate {
     fn intersect_p(&self, ray: &Ray, t_max: Float) -> bool;
 }
 
-struct Integrator<'a> {
+struct Integrator {
     aggregate: PrimitiveEnum,
-    lights: Vec<&'a LightEnum>,
-    infinite_lights: Vec<&'a LightEnum>,
+    lights: Vec<Arc<LightEnum>>,
+    infinite_lights: Vec<Arc<LightEnum>>,
 }
 
-impl<'a> Integrator<'a> {
-    fn new(aggregate: PrimitiveEnum, lights: Vec<&'a LightEnum>) -> Self {
+impl Integrator {
+    fn new(aggregate: PrimitiveEnum, lights: Vec<Arc<LightEnum>>) -> Self {
         let scene_bounds = aggregate.bounds();
 
         let mut infinite_lights = Vec::new();
-        for &light in &lights {
+        for light in &lights {
             light.preprocess(scene_bounds);
-            infinite_lights.push(light);
+            infinite_lights.push(light.clone());
         }
 
         Self {
@@ -38,18 +40,18 @@ impl<'a> Integrator<'a> {
     }
 }
 
-pub struct ImageTileIntegrator<'a> {
-    integrator: Integrator<'a>,
+pub struct ImageTileIntegrator {
+    integrator: Integrator,
     camera: Camera,
     sampler: SamplerEnum,
 }
 
-impl<'a> ImageTileIntegrator<'a> {
+impl ImageTileIntegrator {
     pub fn new(
         camera: Camera,
         sampler: SamplerEnum,
         aggregate: PrimitiveEnum,
-        lights: Vec<&'a LightEnum>,
+        lights: Vec<Arc<LightEnum>>,
     ) -> Self {
         Self {
             integrator: Integrator::new(aggregate, lights),
@@ -59,7 +61,7 @@ impl<'a> ImageTileIntegrator<'a> {
     }
 }
 
-impl<'a> Integrate for ImageTileIntegrator<'a> {
+impl Integrate for ImageTileIntegrator {
     fn render(&mut self) {
         todo!()
     }

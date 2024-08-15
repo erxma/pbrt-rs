@@ -1,6 +1,7 @@
-use std::ops::Mul;
+use std::{borrow::Borrow, ops, ops::Mul};
 
 use approx::abs_diff_ne;
+use overload::overload;
 
 use crate::{
     math::{Normal3f, Point3f, SquareMatrix, Vec3f},
@@ -249,57 +250,61 @@ impl Mul for Transform {
     }
 }
 
-impl Mul<Point3f> for &Transform {
-    type Output = Point3f;
+// Apply transform to a point.
+overload!((t: ?Transform) * (p: Point3f) -> Point3f {
+    let m = &t.m;
 
-    /// Apply `self` to a point.
-    #[inline]
-    fn mul(self, p: Point3f) -> Self::Output {
-        let m = &self.m;
+    let mut x = p.x() * m[0][0] + p.y() * m[0][1] + p.z() * m[0][2] + m[0][3];
+    let mut y = p.x() * m[1][0] + p.y() * m[1][1] + p.z() * m[1][2] + m[1][3];
+    let mut z = p.x() * m[2][0] + p.y() * m[2][1] + p.z() * m[2][2] + m[2][3];
+    let w = p.x() * m[3][0] + p.y() * m[3][1] + p.z() * m[3][2] + m[3][3];
 
-        let mut x = p.x() * m[0][0] + p.y() * m[0][1] + p.z() * m[0][2] + m[0][3];
-        let mut y = p.x() * m[1][0] + p.y() * m[1][1] + p.z() * m[1][2] + m[1][3];
-        let mut z = p.x() * m[2][0] + p.y() * m[2][1] + p.z() * m[2][2] + m[2][3];
-        let w = p.x() * m[3][0] + p.y() * m[3][1] + p.z() * m[3][2] + m[3][3];
+    if w == 0.0 {
+        x /= w;
+        y /= w;
+        z /= w;
+    }
 
-        if w == 0.0 {
-            x /= w;
-            y /= w;
-            z /= w;
+    Point3f::new(x, y, z)
+});
+
+// Apply transform to a vector.
+overload!((t: ?Transform) * (v: Vec3f) -> Vec3f {
+    let m = &t.m;
+
+    Vec3f::new(
+        v.x() * m[0][0] + v.y() * m[0][1] + v.z() * m[0][2],
+        v.x() * m[1][0] + v.y() * m[1][1] + v.z() * m[1][2],
+        v.x() * m[2][0] + v.y() * m[2][1] + v.z() * m[2][2],
+    )
+});
+
+// Apply transform to a normal.
+overload!((t: ?Transform) * (n: Normal3f) -> Normal3f {
+    let m_inv = &t.m_inv;
+    Normal3f::new(
+        n.x() * m_inv[0][0] + n.y() * m_inv[1][0] + n.z() * m_inv[2][0],
+        n.x() * m_inv[0][1] + n.y() * m_inv[1][1] + n.z() * m_inv[2][1],
+        n.x() * m_inv[0][2] + n.y() * m_inv[1][2] + n.z() * m_inv[2][2],
+    )
+});
+
+impl<'a> Mul<Ray<'a>> for Transform {
+    type Output = Ray<'a>;
+
+    /// Apply `self` to a ray.
+    fn mul(self, r: Ray<'a>) -> Self::Output {
+        // TODO: Deal with round-off error
+        let o = &self * r.o;
+        let dir = self * r.dir;
+
+        Self::Output {
+            o,
+            dir,
+            t_max: r.t_max,
+            time: r.time,
+            medium: r.medium,
         }
-
-        Point3f::new(x, y, z)
-    }
-}
-
-impl Mul<Vec3f> for &Transform {
-    type Output = Vec3f;
-
-    /// Apply `self` to a vector.
-    #[inline]
-    fn mul(self, v: Vec3f) -> Self::Output {
-        let m = &self.m;
-
-        Vec3f::new(
-            v.x() * m[0][0] + v.y() * m[0][1] + v.z() * m[0][2],
-            v.x() * m[1][0] + v.y() * m[1][1] + v.z() * m[1][2],
-            v.x() * m[2][0] + v.y() * m[2][1] + v.z() * m[2][2],
-        )
-    }
-}
-
-impl Mul<Normal3f> for &Transform {
-    type Output = Normal3f;
-
-    /// Apply `self` to a normal.
-    fn mul(self, n: Normal3f) -> Self::Output {
-        let m_inv = &self.m_inv;
-
-        Normal3f::new(
-            n.x() * m_inv[0][0] + n.y() * m_inv[1][0] + n.z() * m_inv[2][0],
-            n.x() * m_inv[0][1] + n.y() * m_inv[1][1] + n.z() * m_inv[2][1],
-            n.x() * m_inv[0][2] + n.y() * m_inv[1][2] + n.z() * m_inv[2][2],
-        )
     }
 }
 
@@ -309,6 +314,7 @@ impl<'a> Mul<Ray<'a>> for &Transform {
     /// Apply `self` to a ray.
     fn mul(self, r: Ray<'a>) -> Self::Output {
         // TODO: Deal with round-off error
+        // TODO: overload! doesn't support generics (lifetimes). Consider alternative?
         let o = self * r.o;
         let dir = self * r.dir;
 
@@ -322,48 +328,42 @@ impl<'a> Mul<Ray<'a>> for &Transform {
     }
 }
 
-impl Mul<Bounds3f> for &Transform {
-    type Output = Bounds3f;
+// Apply transform to a bounding box.
+overload!((t: ?Transform) * (b: Bounds3f) -> Bounds3f {
+    let m = &t.m;
 
-    /// Apply `self` to a bounding box.
-    fn mul(self, b: Bounds3f) -> Self::Output {
-        #![allow(clippy::needless_range_loop)]
+    // Each transformation can be split into a translation and rotation--
 
-        let m = &self.m;
+    // Extract translation from matrix (3rd column),
+    // which is the center of the new box - it was originally 0, 0, 0.
+    let translation = Point3f::new(m[0][3], m[1][3], m[2][3]);
+    let mut res = Bounds3f::new_with_point(translation);
 
-        // Each transformation can be split into a translation and rotation--
+    // The 3x3 rotation portion of the matrix remains.
+    // Now find the extremes of the transformed points.
 
-        // Extract translation from matrix (3rd column),
-        // which is the center of the new box - it was originally 0, 0, 0.
-        let translation = Point3f::new(m[0][3], m[1][3], m[2][3]);
-        let mut res = Bounds3f::new_with_point(translation);
+    // Consider that all the other 6 points are some combination of
+    // the x, y, z values from the min & max points.
 
-        // The 3x3 rotation portion of the matrix remains.
-        // Now find the extremes of the transformed points.
+    // Now consider the usual multiplication (cross) of a point.
+    // Each axis in the new point is a linear combination of the original x, y, z.
+    // Specifically, the factors are the corresponding row in the matrix.
 
-        // Consider that all the other 6 points are some combination of
-        // the x, y, z values from the min & max points.
-
-        // Now consider the usual multiplication (cross) of a point.
-        // Each axis in the new point is a linear combination of the original x, y, z.
-        // Specifically, the factors are the corresponding row in the matrix.
-
-        // So, for each axis, find the choices of x, y, z from the original
-        // min, max that leads to the (new) min/max linear combinations.
-        for i in 0..=2 {
-            for j in 0..=2 {
-                let a = m[i][j] * b.p_min[j];
-                let b = m[i][j] * b.p_max[j];
-                // Can directly add, since, again, the starting point is
-                // the translated origin/center.
-                res.p_min[i] += a.min(b);
-                res.p_max[i] += a.max(b);
-            }
+    // So, for each axis, find the choices of x, y, z from the original
+    // min, max that leads to the (new) min/max linear combinations.
+    for i in 0..=2 {
+        for j in 0..=2 {
+            let a = m[i][j] * b.p_min[j];
+            let b = m[i][j] * b.p_max[j];
+            // Can directly add, since, again, the starting point is
+            // the translated origin/center.
+            res.p_min[i] += a.min(b);
+            res.p_max[i] += a.max(b);
         }
-
-        res
     }
-}
+
+    res
+});
 
 #[cfg(test)]
 mod test {

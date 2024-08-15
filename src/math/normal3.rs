@@ -5,7 +5,7 @@ use derive_more::{Add, Neg, Sub};
 
 use crate::{self as pbrt};
 
-use super::{impl_tuple_math_ops, Tuple, Vec3f};
+use super::{impl_tuple_math_ops, Point3f, Tuple, Vec3f};
 
 /// A 3-element normal of `f32`, or `f64` if feature `use-f64` is enabled.
 // Wrapper around the vector equivalent.
@@ -103,5 +103,12 @@ impl From<Vec3f> for Normal3f {
     #[inline]
     fn from(value: Vec3f) -> Self {
         Self(value)
+    }
+}
+
+impl From<Point3f> for Normal3f {
+    #[inline]
+    fn from(value: Point3f) -> Self {
+        Self(Vec3f::from(value))
     }
 }

@@ -1017,6 +1017,14 @@ impl Vec3fi {
             self.z().midpoint(),
         )
     }
+
+    pub fn length_squared(&self) -> Interval {
+        self.x().squared() + self.y().squared() + self.z().squared()
+    }
+
+    pub fn length(&self) -> Interval {
+        self.length_squared().sqrt()
+    }
 }
 
 impl From<Vec3f> for Vec3fi {

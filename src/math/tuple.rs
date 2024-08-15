@@ -254,11 +254,15 @@ macro_rules! impl_tuple_math_ops_generic {
             }
         }
 
-        impl<T: std::ops::Mul<Output = T> + Copy> std::ops::Mul<T> for $name<T> {
+        impl<Rhs, T> std::ops::Mul<Rhs> for $name<T>
+        where
+            T: std::ops::Mul<Rhs, Output = T> + Copy,
+            Rhs: Copy,
+        {
             type Output = Self;
 
             #[inline]
-            fn mul(mut self, rhs: T) -> Self {
+            fn mul(mut self, rhs: Rhs) -> Self {
                 for i in 0..$n {
                     self[i] = self[i] * rhs;
                 }
@@ -284,11 +288,24 @@ macro_rules! impl_tuple_math_ops_generic {
             }
         }
 
-        impl<T: std::ops::Div<Output = T> + Copy> std::ops::Div<T> for $name<T> {
+        impl std::ops::Mul<$name<$crate::math::Interval>> for $crate::math::Interval {
+            type Output = $name<$crate::math::Interval>;
+
+            #[inline]
+            fn mul(self, rhs: $name<$crate::math::Interval>) -> $name<$crate::math::Interval> {
+                rhs * self
+            }
+        }
+
+        impl<Rhs, T> std::ops::Div<Rhs> for $name<T>
+        where
+            T: std::ops::Div<Rhs, Output = T> + Copy,
+            Rhs: Copy,
+        {
             type Output = Self;
 
             #[inline]
-            fn div(mut self, rhs: T) -> Self {
+            fn div(mut self, rhs: Rhs) -> Self {
                 for i in 0..$n {
                     self[i] = self[i] / rhs;
                 }

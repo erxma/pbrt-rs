@@ -1,13 +1,15 @@
-use std::ops::{Add, Sub};
+use std::ops::{Add, Mul, Sub};
 
 use bytemuck::NoUninit;
 use delegate::delegate;
-use derive_more::{From, Index, IndexMut, Neg};
+use derive_more::{
+    Add, AddAssign, Div, DivAssign, From, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign,
+};
 use num_traits::{NumCast, Signed, ToPrimitive};
 
 use crate::{self as pbrt};
 
-use super::{impl_tuple_math_ops, Interval, Normal3f, Tuple, TupleElement};
+use super::{impl_tuple_math_ops, Interval, Normal3f, Point3fi, Tuple, TupleElement};
 
 // To facilitate choosing between the implementation from scratch
 // ("custom_impl") and glam's, a wrapper is added around the concrete type,
@@ -936,7 +938,9 @@ mod glam_impl {
 
 // ==================== VEC3FI - NO GLAM EQUIVALENT ====================
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, DivAssign,
+)]
 pub struct Vec3fi(custom_impl::Vec3<Interval>);
 
 impl Vec3fi {
@@ -953,7 +957,11 @@ impl Vec3fi {
     }
 
     pub fn new_fi_exact(x: pbrt::Float, y: pbrt::Float, z: pbrt::Float) -> Self {
-        Self::new(Interval::new(x), Interval::new(y), Interval::new(z))
+        Self::new(
+            Interval::new_exact(x),
+            Interval::new_exact(y),
+            Interval::new_exact(z),
+        )
     }
 
     pub fn with_intervals(x: Interval, y: Interval, z: Interval) -> Self {
@@ -1014,6 +1022,21 @@ impl Vec3fi {
 impl From<Vec3f> for Vec3fi {
     fn from(v: Vec3f) -> Self {
         Self::new_fi_exact(v.x(), v.y(), v.z())
+    }
+}
+
+impl From<Point3fi> for Vec3fi {
+    fn from(p: Point3fi) -> Self {
+        Self::new(p.x(), p.y(), p.z())
+    }
+}
+
+// The reverse is already implemented via derive above
+impl Mul<Vec3fi> for Interval {
+    type Output = Vec3fi;
+
+    fn mul(self, rhs: Vec3fi) -> Self::Output {
+        rhs * self
     }
 }
 

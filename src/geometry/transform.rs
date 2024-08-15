@@ -1,10 +1,10 @@
-use std::{borrow::Borrow, ops, ops::Mul};
+use std::{ops, ops::Mul};
 
 use approx::abs_diff_ne;
 use overload::overload;
 
 use crate::{
-    math::{Normal3f, Point3f, SquareMatrix, Vec3f},
+    math::{gamma, Normal3f, Point3f, Point3fi, SquareMatrix, Vec3f, Vec3fi},
     Float,
 };
 
@@ -268,11 +268,98 @@ overload!((t: ?Transform) * (p: Point3f) -> Point3f {
     Point3f::new(x, y, z)
 });
 
+// Apply transform to a point with intervals.
+overload!((t: ?Transform) * (p: Point3fi) -> Point3fi {
+    let m = &t.m;
+
+    let x = p.x().midpoint();
+    let y = p.y().midpoint();
+    let z = p.z().midpoint();
+
+    // Compute transformed coordinates from point (x, y, z)_
+    let xp = (m[0][0] * x + m[0][1] * y) + (m[0][2] * z + m[0][3]);
+    let yp = (m[1][0] * x + m[1][1] * y) + (m[1][2] * z + m[1][3]);
+    let zp = (m[2][0] * x + m[2][1] * y) + (m[2][2] * z + m[2][3]);
+    let wp = (m[3][0] * x + m[3][1] * y) + (m[3][2] * z + m[3][3]);
+
+    // Compute absolute error for transformed point,_p_error_
+    let p_error = if p.is_exact() {
+        // Compute error for transformed exact p
+        Vec3f::new(
+            gamma(3)
+                * ((m[0][0] * x).abs()
+                    + (m[0][1] * y).abs()
+                    + (m[0][2] * z).abs()
+                    + m[0][3].abs()),
+            gamma(3)
+                * ((m[1][0] * x).abs()
+                    + (m[1][1] * y).abs()
+                    + (m[1][2] * z).abs()
+                    + m[1][3].abs()),
+            gamma(3)
+                * ((m[2][0] * x).abs()
+                    + (m[2][1] * y).abs()
+                    + (m[2][2] * z).abs()
+                    + m[2][3].abs()),
+        )
+    } else {
+        // Compute error for transformed approximate _p_
+        let p_in_error = p.error();
+
+        Vec3f::new(
+            (gamma(3) + 1.0)
+                * (m[0][0].abs() * p_in_error.x()
+                    + m[0][1].abs() * p_in_error.y()
+                    + m[0][2].abs() * p_in_error.z())
+                + gamma(3)
+                    * ((m[0][0] * x).abs()
+                        + (m[0][1] * y).abs()
+                        + (m[0][2] * z).abs()
+                        + m[0][3].abs()),
+            (gamma(3) + 1.0)
+                * (m[1][0].abs() * p_in_error.x()
+                    + m[1][1].abs() * p_in_error.y()
+                    + m[1][2].abs() * p_in_error.z())
+                + gamma(3)
+                    * ((m[1][0] * x).abs()
+                        + (m[1][1] * y).abs()
+                        + (m[1][2] * z).abs()
+                        + m[1][3].abs()),
+            (gamma(3) + 1.0)
+                * (m[2][0].abs() * p_in_error.x()
+                    + m[2][1].abs() * p_in_error.y()
+                    + m[2][2].abs() * p_in_error.z())
+                + gamma(3)
+                    * ((m[2][0] * x).abs()
+                        + (m[2][1] * y).abs()
+                        + (m[2][2] * z).abs()
+                        + (m[2][3]).abs()),
+        )
+    };
+
+    if wp == 1.0 {
+        Point3fi::new_fi(Point3f::new(xp, yp, zp), p_error)
+    } else {
+        Point3fi::new_fi(Point3f::new(xp, yp, zp), p_error) / wp
+    }
+});
+
 // Apply transform to a vector.
 overload!((t: ?Transform) * (v: Vec3f) -> Vec3f {
     let m = &t.m;
 
     Vec3f::new(
+        v.x() * m[0][0] + v.y() * m[0][1] + v.z() * m[0][2],
+        v.x() * m[1][0] + v.y() * m[1][1] + v.z() * m[1][2],
+        v.x() * m[2][0] + v.y() * m[2][1] + v.z() * m[2][2],
+    )
+});
+
+// Apply transform to a vector of intervals.
+overload!((t: ?Transform) * (v: Vec3fi) -> Vec3fi {
+    let m = &t.m;
+
+    Vec3fi::new(
         v.x() * m[0][0] + v.y() * m[0][1] + v.z() * m[0][2],
         v.x() * m[1][0] + v.y() * m[1][1] + v.z() * m[1][2],
         v.x() * m[2][0] + v.y() * m[2][1] + v.z() * m[2][2],

@@ -11,21 +11,19 @@ pub struct Interval {
 }
 
 impl Interval {
-    pub fn new(val: Float) -> Self {
-        Self {
-            low: val,
-            high: val,
-        }
+    pub const fn new(low: Float, high: Float) -> Self {
+        Self { low, high }
+    }
+
+    pub const fn new_exact(val: Float) -> Self {
+        Self::new(val, val)
     }
 
     pub fn new_with_err(val: Float, err: Float) -> Self {
         if err == 0.0 {
-            Self::new(val)
+            Self::new_exact(val)
         } else {
-            Self {
-                low: next_float_down(val - err),
-                high: next_float_up(val + err),
-            }
+            Self::new(next_float_down(val - err), next_float_up(val + err))
         }
     }
 
@@ -159,6 +157,46 @@ impl Mul for Interval {
     }
 }
 
+impl Mul<Float> for Interval {
+    type Output = Self;
+
+    fn mul(self, f: Float) -> Self {
+        if f > 0.0 {
+            Self::new(next_float_down(self.low * f), next_float_up(self.high * f))
+        } else {
+            Self::new(next_float_down(self.high * f), next_float_up(self.low * f))
+        }
+    }
+}
+
+impl Mul<Interval> for Float {
+    type Output = Interval;
+
+    fn mul(self, i: Interval) -> Self::Output {
+        if self > 0.0 {
+            Interval::new(next_float_down(self * i.low), next_float_up(self * i.high))
+        } else {
+            Interval::new(next_float_down(self * i.high), next_float_up(self * i.low))
+        }
+    }
+}
+
+impl Add<Float> for Interval {
+    type Output = Interval;
+
+    fn add(self, f: Float) -> Self::Output {
+        self + Interval::new_exact(f)
+    }
+}
+
+impl Add<Interval> for Float {
+    type Output = Interval;
+
+    fn add(self, i: Interval) -> Self::Output {
+        Interval::new_exact(self) + i
+    }
+}
+
 impl Div for Interval {
     type Output = Self;
 
@@ -181,6 +219,31 @@ impl Div for Interval {
         }
 
         Self { low, high }
+    }
+}
+
+impl Div<Float> for Interval {
+    type Output = Self;
+
+    fn div(self, f: Float) -> Self::Output {
+        match f {
+            // Divisor is negative
+            ..0.0 => Self::new(next_float_down(self.high / f), next_float_up(self.low / f)),
+            // Divisor is zero...
+            0.0 => {
+                // If both ends are same sign, they will divide to the same infinity.
+                // Otherwise, it's -inf to (or) inf.
+                if self.low.signum() == self.high.signum() {
+                    Self::new_exact(self.low / f)
+                } else {
+                    Self::new(Float::NEG_INFINITY, Float::INFINITY)
+                }
+            }
+            // Divisor is NaN, propagate
+            _ if f.is_nan() => Self::new(Float::NAN, Float::NAN),
+            // Divisor is positive
+            _ => Self::new(next_float_down(self.low / f), next_float_up(self.high / f)),
+        }
     }
 }
 

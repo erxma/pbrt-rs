@@ -2,7 +2,7 @@ use std::ops::{Add, AddAssign, Index, IndexMut, Mul, Sub, SubAssign};
 
 use bytemuck::NoUninit;
 use delegate::delegate;
-use derive_more::{Add, From, Neg};
+use derive_more::{Add, Div, DivAssign, From, Mul, MulAssign, Neg, Sub};
 
 use crate::{
     self as pbrt,
@@ -134,7 +134,7 @@ impl Sub<Vec3i> for Point3i {
 
     /// Subtract a vector from `self` to get a new point.
     fn sub(self, rhs: Vec3i) -> Self {
-        Self::new(self.x() - rhs.x(), self.y() - rhs.y(), self.z() - rhs.z())
+        Self(self.0 - rhs)
     }
 }
 
@@ -279,7 +279,7 @@ impl Sub<Vec3f> for Point3f {
 
     /// Subtract a vector from `self` to get a new point.
     fn sub(self, rhs: Vec3f) -> Self {
-        Self::new(self.x() - rhs.x(), self.y() - rhs.y(), self.z() - rhs.z())
+        Self(self.0 - rhs)
     }
 }
 
@@ -405,7 +405,7 @@ impl Sub<Vec2i> for Point2i {
 
     /// Subtract a vector from `self` to get a new point.
     fn sub(self, rhs: Vec2i) -> Self {
-        Self::new(self.x() - rhs.x(), self.y() - rhs.y())
+        Self(self.0 - rhs)
     }
 }
 
@@ -542,7 +542,7 @@ impl Sub<Vec2f> for Point2f {
 
     /// Subtract a vector from `self` to get a new point.
     fn sub(self, rhs: Vec2f) -> Self {
-        Self::new(self.x() - rhs.x(), self.y() - rhs.y())
+        Self(self.0 - rhs)
     }
 }
 
@@ -553,7 +553,7 @@ impl SubAssign<Vec2f> for Point2f {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Sub, Mul, Div, MulAssign, DivAssign)]
 pub struct Point3fi(Vec3fi);
 
 impl Point3fi {
@@ -561,7 +561,7 @@ impl Point3fi {
         Self(Vec3fi::new(x, y, z))
     }
 
-    pub fn new_fi(values: Point3f, errors: Point3f) -> Self {
+    pub fn new_fi(values: Point3f, errors: Vec3f) -> Self {
         Self::new(
             Interval::new_with_err(values.x(), errors.x()),
             Interval::new_with_err(values.y(), errors.y()),
@@ -570,7 +570,11 @@ impl Point3fi {
     }
 
     pub fn new_fi_exact(x: pbrt::Float, y: pbrt::Float, z: pbrt::Float) -> Self {
-        Self::new(Interval::new(x), Interval::new(y), Interval::new(z))
+        Self::new(
+            Interval::new_exact(x),
+            Interval::new_exact(y),
+            Interval::new_exact(z),
+        )
     }
 
     delegate! {
@@ -608,5 +612,38 @@ impl Point3fi {
 impl From<Point3f> for Point3fi {
     fn from(p: Point3f) -> Self {
         Self::new_fi_exact(p.x(), p.y(), p.z())
+    }
+}
+
+impl Add<Vec3fi> for Point3fi {
+    type Output = Self;
+
+    /// Add a vector to `self` to get a new point of same type.
+    fn add(mut self, rhs: Vec3fi) -> Self {
+        self += rhs;
+        self
+    }
+}
+
+impl AddAssign<Vec3fi> for Point3fi {
+    /// Add assign a vector to `self`.
+    fn add_assign(&mut self, rhs: Vec3fi) {
+        self.0 += rhs;
+    }
+}
+
+impl Sub<Vec3fi> for Point3fi {
+    type Output = Self;
+
+    /// Subtract a vector from `self` to get a new point.
+    fn sub(self, rhs: Vec3fi) -> Self {
+        Self(self.0 - rhs)
+    }
+}
+
+impl SubAssign<Vec3fi> for Point3fi {
+    /// Subtract assign a vector from `self`.
+    fn sub_assign(&mut self, rhs: Vec3fi) {
+        *self = *self - rhs
     }
 }

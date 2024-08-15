@@ -7,6 +7,7 @@ use derive_builder::Builder;
 
 #[derive(Clone, Debug)]
 pub enum Interaction<'a> {
+    Sample(SampleInteraction),
     Surface(Box<SurfaceInteraction>),
     MediumInterface(MediumInterfaceInteraction),
     IntraMedium(IntraMediumInteraction<'a>),
@@ -27,6 +28,7 @@ impl<'a> Interaction<'a> {
 
     fn common(&self) -> &InteractionCommon {
         match self {
+            Interaction::Sample(i) => &i.common,
             Interaction::Surface(i) => &i.common,
             Interaction::MediumInterface(i) => &i.common,
             Interaction::IntraMedium(i) => &i.common,
@@ -39,6 +41,27 @@ pub struct InteractionCommon {
     pub pi: Point3fi,
     pub time: Float,
     pub wo: Option<Vec3f>,
+}
+
+#[derive(Clone, Debug)]
+pub struct SampleInteraction {
+    pub common: InteractionCommon,
+    pub n: Normal3f,
+    pub uv: Point2f,
+}
+
+impl SampleInteraction {
+    pub const fn new(pi: Point3fi, n: Normal3f, uv: Point2f) -> Self {
+        Self {
+            common: InteractionCommon {
+                pi,
+                time: 0.0,
+                wo: None,
+            },
+            n,
+            uv,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

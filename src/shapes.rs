@@ -1,10 +1,14 @@
 use crate::{
     float::PI,
-    geometry::{Bounds3f, DirectionCone, Interaction, Ray, SurfaceInteraction, Transform},
+    geometry::{
+        Bounds3f, DirectionCone, Interaction, InteractionCommon, Ray, SampleInteraction,
+        SurfaceInteraction, Transform,
+    },
     math::{
         difference_of_products, gamma, safe_acos, safe_sqrt, Interval, Normal3f, Point2f, Point3f,
         Point3fi, Tuple, Vec3f, Vec3fi,
     },
+    util::sampling::sample_uniform_sphere,
     Float,
 };
 use enum_dispatch::enum_dispatch;
@@ -144,15 +148,42 @@ impl Shape for Sphere {
     }
 
     fn sample(&self, u: Point2f) -> Option<ShapeSample> {
-        todo!()
+        // Sample from uniform sphere, then scale by self's radius
+        let mut p_obj = Point3f::ZERO + self.radius * sample_uniform_sphere(u);
+
+        // Reproject p_obj to sphere surface and compute error
+        p_obj *= self.radius / p_obj.distance(Point3f::ZERO);
+        let p_obj_err = gamma(5) * Vec3f::from(p_obj).abs();
+
+        // Compute surface normal for sample and return ShapeSample
+        let n_obj = Normal3f::from(p_obj);
+        let mut n = (&self.render_from_object * n_obj).normalized();
+        if self.reverse_orientation {
+            n *= -1.0;
+        }
+        // Compute uv coords for sphere sample
+        let theta = safe_acos(p_obj.z() / self.radius);
+        let mut phi = p_obj.y().atan2(p_obj.x());
+        if phi < 0.0 {
+            phi += 2.0 * PI;
+        }
+        let uv = Point2f::new(
+            phi / self.phi_max,
+            (theta - self.theta_z_min) / (self.theta_z_max - self.theta_z_min),
+        );
+
+        let pi = &self.render_from_object * Point3fi::new_fi(p_obj, p_obj_err);
+        let intr = Interaction::Sample(SampleInteraction::new(pi, n, uv));
+        let pdf = self.pdf(&intr);
+        Some(ShapeSample { intr, pdf })
     }
 
     fn sample_with_context(&self, ctx: &ShapeSampleContext, u: Point2f) -> Option<ShapeSample> {
         todo!()
     }
 
-    fn pdf(&self, interaction: &Interaction) -> Float {
-        todo!()
+    fn pdf(&self, _interaction: &Interaction) -> Float {
+        1.0 / self.area()
     }
 
     fn pdf_with_context(&self, ctx: &ShapeSampleContext, wi: Vec3f) -> Float {
@@ -285,7 +316,7 @@ impl Sphere {
         let v = (theta - self.theta_z_min) / (self.theta_z_max - self.theta_z_min);
 
         // Compute error bounds for sphere intersection
-        let p_error = gamma(5) * Vec3f::from(p_hit.abs());
+        let p_error = gamma(5) * Vec3f::from(p_hit).abs();
 
         // Compute sphere dp/du and dp/dv
         let z_radius = (p_hit.x().powi(2) + p_hit.y().powi(2)).sqrt();

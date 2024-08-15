@@ -9,7 +9,10 @@ use num_traits::{NumCast, Signed, ToPrimitive};
 
 use crate::{self as pbrt};
 
-use super::{impl_tuple_math_ops, Interval, Normal3f, Point3fi, Tuple, TupleElement};
+use super::{
+    impl_tuple_math_ops, Interval, Normal3f, Point2f, Point2i, Point3f, Point3fi, Point3i, Tuple,
+    TupleElement,
+};
 
 // To facilitate choosing between the implementation from scratch
 // ("custom_impl") and glam's, a wrapper is added around the concrete type,
@@ -114,6 +117,12 @@ impl From<[i32; 3]> for Vec3i {
     fn from(arr: [i32; 3]) -> Self {
         let [x, y, z] = arr;
         Self::new(x, y, z)
+    }
+}
+
+impl From<Point3i> for Vec3i {
+    fn from(p: Point3i) -> Self {
+        Self::new(p.x(), p.y(), p.z())
     }
 }
 
@@ -229,6 +238,12 @@ impl From<[pbrt::Float; 3]> for Vec3f {
 impl From<Normal3f> for Vec3f {
     fn from(n: Normal3f) -> Self {
         Self::new(n.x(), n.y(), n.z())
+    }
+}
+
+impl From<Point3f> for Vec3f {
+    fn from(p: Point3f) -> Self {
+        Self::new(p.x(), p.y(), p.z())
     }
 }
 
@@ -362,6 +377,12 @@ impl From<[i32; 2]> for Vec2i {
     }
 }
 
+impl From<Point2i> for Vec2i {
+    fn from(p: Point2i) -> Self {
+        Self::new(p.x(), p.y())
+    }
+}
+
 impl Add for Vec2i {
     type Output = Self;
 
@@ -439,18 +460,15 @@ impl From<[pbrt::Float; 2]> for Vec2f {
     }
 }
 
-/*
-// Convert from normal to vec
-impl From<Normal2f> for Vec2f {
-    fn from(n: Normal2f) -> Self {
-        Self::new(n.x(), n.y())
-    }
-}
-*/
-
 impl From<Vec2i> for Vec2f {
     fn from(value: Vec2i) -> Self {
         Self::new(value.x() as pbrt::Float, value.y() as pbrt::Float)
+    }
+}
+
+impl From<Point2f> for Vec2f {
+    fn from(p: Point2f) -> Self {
+        Self::new(p.x(), p.y())
     }
 }
 

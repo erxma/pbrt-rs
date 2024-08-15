@@ -34,3 +34,9 @@ impl ScratchBuffer {
         self.bump.reset()
     }
 }
+
+impl Default for ScratchBuffer {
+    fn default() -> Self {
+        Self::new()
+    }
+}

@@ -71,6 +71,7 @@ pub struct SurfaceInteraction {
 struct SurfaceInteractionParams {
     pi: Point3fi,
     uv: Point2f,
+    #[builder(setter(strip_option))]
     wo: Option<Vec3f>,
     dpdu: Vec3f,
     dpdv: Vec3f,

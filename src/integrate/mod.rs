@@ -1,7 +1,7 @@
 use std::{cell::RefCell, sync::Arc};
 
 use crate::{
-    camera::Camera,
+    camera::CameraEnum,
     geometry::Ray,
     lights::LightEnum,
     math::Point2i,
@@ -44,7 +44,7 @@ impl Integrator {
 }
 
 fn image_tile_render(
-    camera: &Camera,
+    camera: &CameraEnum,
     sampler: &SamplerEnum,
     eval_pixel_sample: impl Fn(Point2i, usize, &SamplerEnum, &ScratchBuffer) + Send + Sync,
 ) {

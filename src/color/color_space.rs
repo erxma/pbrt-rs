@@ -177,7 +177,7 @@ const RESOLUTION: usize = RGBToSpectrumTable::RESOLUTION;
 
 #[derive(Clone, Debug)]
 struct CoefficientTable {
-    vals: [[[[[Float; 3]; RESOLUTION]; RESOLUTION]; RESOLUTION]; 3],
+    vals: Box<[[[[[Float; 3]; RESOLUTION]; RESOLUTION]; RESOLUTION]; 3]>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

@@ -1,14 +1,14 @@
 use std::{cell::RefCell, sync::Arc};
 
 use crate::{
-    camera::CameraEnum,
+    camera::Camera,
     geometry::Ray,
     lights::LightEnum,
     math::Point2i,
     memory::ScratchBuffer,
     parallel::parallel_for_2d_with,
     primitives::{Primitive, PrimitiveEnum},
-    sampling::{Sampler, SamplerEnum},
+    sampling::Sampler,
     shapes::ShapeIntersection,
     Float,
 };
@@ -43,10 +43,10 @@ impl Integrator {
     }
 }
 
-fn image_tile_render(
-    camera: &CameraEnum,
-    sampler: &SamplerEnum,
-    eval_pixel_sample: impl Fn(Point2i, usize, &SamplerEnum, &ScratchBuffer) + Send + Sync,
+fn image_tile_render<S: Sampler + Send + Sync + Clone>(
+    camera: &impl Camera,
+    sampler: &S,
+    eval_pixel_sample: impl Fn(Point2i, usize, &S, &ScratchBuffer) + Send + Sync,
 ) {
     // Declare common vars for rendering iamge in tiles
 

@@ -13,13 +13,13 @@ use derive_builder::Builder;
 use enum_dispatch::enum_dispatch;
 
 #[enum_dispatch]
-pub enum Camera {
+pub enum CameraEnum {
     Orthographic(OrthographicCamera),
 }
 
-impl Camera {
+impl CameraEnum {
     delegate! {
-       #[through(CameraTrait)]
+       #[through(Camera)]
        to self {
            /// Compute the ray corresponding to a given image `sample`, if one exists.
            /// `self` might model dispersion in its lens, in which case `wavelengths` may
@@ -59,8 +59,8 @@ impl Camera {
     }
 }
 
-#[enum_dispatch(Camera)]
-trait CameraTrait {
+#[enum_dispatch(CameraEnum)]
+pub trait Camera {
     fn generate_ray(
         &self,
         sample: CameraSample,
@@ -231,7 +231,7 @@ impl OrthographicCameraBuilder {
     }
 }
 
-impl CameraTrait for OrthographicCamera {
+impl Camera for OrthographicCamera {
     fn generate_ray(
         &self,
         _sample: CameraSample,

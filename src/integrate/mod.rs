@@ -1,11 +1,14 @@
-use std::sync::Arc;
+use std::{cell::RefCell, sync::Arc};
 
 use crate::{
     camera::Camera,
     geometry::Ray,
     lights::LightEnum,
+    math::Point2i,
+    memory::ScratchBuffer,
+    parallel::parallel_for_2d_with,
     primitives::{Primitive, PrimitiveEnum},
-    sampling::SamplerEnum,
+    sampling::{Sampler, SamplerEnum},
     shapes::ShapeIntersection,
     Float,
 };
@@ -40,37 +43,43 @@ impl Integrator {
     }
 }
 
-pub struct ImageTileIntegrator {
-    integrator: Integrator,
-    camera: Camera,
-    sampler: SamplerEnum,
-}
+fn image_tile_render(
+    camera: &Camera,
+    sampler: &SamplerEnum,
+    eval_pixel_sample: impl Fn(Point2i, usize, &SamplerEnum, &ScratchBuffer) + Send + Sync,
+) {
+    // Declare common vars for rendering iamge in tiles
 
-impl ImageTileIntegrator {
-    pub fn new(
-        camera: Camera,
-        sampler: SamplerEnum,
-        aggregate: PrimitiveEnum,
-        lights: Vec<Arc<LightEnum>>,
-    ) -> Self {
-        Self {
-            integrator: Integrator::new(aggregate, lights),
-            camera,
-            sampler,
-        }
-    }
-}
+    let pixel_bounds = camera.film().pixel_bounds();
 
-impl Integrate for ImageTileIntegrator {
-    fn render(&mut self) {
-        todo!()
-    }
+    // TODO: Progress reporter
 
-    fn intersect(&self, ray: &Ray, t_max: Float) -> Option<ShapeIntersection> {
-        todo!()
-    }
+    // Render image in waves
+    let mut wave_start = 0;
+    let mut wave_end = 1;
+    let mut next_wave_size = 1;
 
-    fn intersect_p(&self, ray: &Ray, t_max: Float) -> bool {
-        todo!()
+    while wave_start < sampler.samples_per_pixel() {
+        // Render current wave's image tiles in parallel
+        parallel_for_2d_with(pixel_bounds, sampler.clone(), |sampler, tile_bounds| {
+            thread_local! {
+                static SCRATCH_BUFFER: RefCell<ScratchBuffer> = RefCell::new(ScratchBuffer::new());
+            }
+
+            for p_pixel in tile_bounds {
+                // Render samples in pixel p_pixel
+                for sample_idx in wave_start..wave_end {
+                    sampler.start_pixel_sample(p_pixel, sample_idx, 0).unwrap();
+                    SCRATCH_BUFFER.with_borrow_mut(|scratch_buffer| {
+                        eval_pixel_sample(p_pixel, sample_idx, &sampler, scratch_buffer);
+                        scratch_buffer.reset();
+                    });
+                }
+            }
+        });
+
+        wave_start = wave_end;
+        wave_end = sampler.samples_per_pixel().min(wave_end + next_wave_size);
+        next_wave_size = (2 * next_wave_size).min(64);
     }
 }

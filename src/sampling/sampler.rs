@@ -16,7 +16,7 @@ pub enum SamplerEnum {
 }
 
 #[enum_dispatch(SamplerEnum)]
-pub trait Sampler {
+pub trait Sampler: Send + Sync {
     /// The number of samples to be taken per pixel, for this sampler.
     fn samples_per_pixel(&self) -> usize;
 

@@ -1,5 +1,7 @@
 use std::{cell::RefCell, sync::Arc};
 
+use indicatif::ProgressBar;
+
 use crate::{
     camera::Camera,
     geometry::Ray,
@@ -59,24 +61,34 @@ fn image_tile_render<S: Sampler + Send + Sync + Clone>(
     let mut wave_end = 1;
     let mut next_wave_size = 1;
 
+    // Progress bar with units of work = num samples = num pixels * samples per pixel
+    let progress_bar =
+        ProgressBar::new((pixel_bounds.area() as usize * sampler.samples_per_pixel()) as u64);
+
     while wave_start < sampler.samples_per_pixel() {
         // Render current wave's image tiles in parallel
-        parallel_for_2d_with(pixel_bounds, sampler.clone(), |sampler, tile_bounds| {
-            thread_local! {
-                static SCRATCH_BUFFER: RefCell<ScratchBuffer> = RefCell::new(ScratchBuffer::new());
-            }
-
-            for p_pixel in tile_bounds {
-                // Render samples in pixel p_pixel
-                for sample_idx in wave_start..wave_end {
-                    sampler.start_pixel_sample(p_pixel, sample_idx, 0).unwrap();
-                    SCRATCH_BUFFER.with_borrow_mut(|scratch_buffer| {
-                        eval_pixel_sample(p_pixel, sample_idx, &sampler, scratch_buffer);
-                        scratch_buffer.reset();
-                    });
+        parallel_for_2d_with(
+            pixel_bounds,
+            (sampler.clone(), progress_bar.clone()),
+            |(sampler, progress_bar), tile_bounds| {
+                thread_local! {
+                    static SCRATCH_BUFFER: RefCell<ScratchBuffer> = RefCell::new(ScratchBuffer::new());
                 }
-            }
-        });
+
+                for p_pixel in tile_bounds {
+                    // Render samples in pixel p_pixel
+                    for sample_idx in wave_start..wave_end {
+                        sampler.start_pixel_sample(p_pixel, sample_idx, 0).unwrap();
+                        SCRATCH_BUFFER.with_borrow_mut(|scratch_buffer| {
+                            eval_pixel_sample(p_pixel, sample_idx, &sampler, scratch_buffer);
+                            scratch_buffer.reset();
+                        });
+                    }
+                }
+                // Advance progress bar by num samples completed = num waves completed * num pixels in bounds
+                progress_bar.inc(((wave_end - wave_start) * tile_bounds.area() as usize) as u64);
+            },
+        );
 
         wave_start = wave_end;
         wave_end = sampler.samples_per_pixel().min(wave_end + next_wave_size);

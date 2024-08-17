@@ -1,5 +1,7 @@
 use crate::{
-    math::{Point2f, Point2i},
+    camera::CameraSample,
+    image::Filter,
+    math::{Point2f, Point2i, Vec2f},
     util::rng::{self, Rng},
     Float,
 };
@@ -33,6 +35,23 @@ pub trait Sampler {
         sample_index: usize,
         dimension: usize,
     ) -> Result<(), SamplerError>;
+
+    fn get_camera_sample(&mut self, p_pixel: Point2i, filter: &impl Filter) -> CameraSample {
+        let fs = filter.sample(self.get_pixel_2d());
+
+        // Map pixel coord (discrete) to image sample pos (continuous) by shifting 0.5,
+        // which is the coordinate mapping being used.
+        let p_film = p_pixel.as_point2f() + fs.p + Vec2f::new(0.5, 0.5);
+        let time = self.get_1d();
+        let p_lens = self.get_2d();
+        let filter_weight = fs.weight;
+        CameraSample {
+            p_film,
+            p_lens,
+            time,
+            filter_weight,
+        }
+    }
 }
 
 #[derive(Error, Debug)]

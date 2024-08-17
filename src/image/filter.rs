@@ -8,32 +8,39 @@ use crate::{
 
 #[enum_dispatch]
 #[derive(Clone, Debug)]
-pub enum Filter {
+pub enum FilterEnum {
     BoxFilter(BoxFilter),
 }
 
-impl Filter {
+impl FilterEnum {
     delegate! {
-        #[through(FilterTrait)]
+        #[through(Filter)]
         to self {
             pub fn radius(&self) -> Vec2f;
             pub fn integral(&self) -> Float;
             pub fn eval(&self, p: Point2f) -> Float;
+            pub fn sample(&self, u: Point2f) -> FilterSample;
         }
     }
 }
 
-#[enum_dispatch(Filter)]
-trait FilterTrait {
+#[enum_dispatch(FilterEnum)]
+pub trait Filter {
     fn radius(&self) -> Vec2f;
     fn eval(&self, p: Point2f) -> Float;
     fn integral(&self) -> Float;
+    fn sample(&self, u: Point2f) -> FilterSample;
+}
+
+pub struct FilterSample {
+    pub p: Point2f,
+    pub weight: Float,
 }
 
 #[derive(Clone, Debug)]
 pub struct BoxFilter {}
 
-impl FilterTrait for BoxFilter {
+impl Filter for BoxFilter {
     fn radius(&self) -> Vec2f {
         todo!()
     }
@@ -43,6 +50,10 @@ impl FilterTrait for BoxFilter {
     }
 
     fn eval(&self, p: Point2f) -> Float {
+        todo!()
+    }
+
+    fn sample(&self, u: Point2f) -> FilterSample {
         todo!()
     }
 }

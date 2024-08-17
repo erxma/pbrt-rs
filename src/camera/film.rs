@@ -11,7 +11,7 @@ use num_traits::{AsPrimitive, NumCast};
 use crate::{
     color::{RGBColorSpace, RGB},
     geometry::Bounds2i,
-    image::Filter,
+    image::FilterEnum,
     math::{Array2D, Point2f, Point2i, SquareMatrix, Tuple, Vec2f, Vec2i},
     parallel::AtomicF64,
     sampling::spectrum::{SampledSpectrum, SampledWavelengths},
@@ -46,7 +46,7 @@ impl Film {
             pub fn full_resolution(&self) -> Point2i;
             pub fn pixel_bounds(&self) -> Bounds2i;
             pub fn diagonal(&self) -> Float;
-            pub fn filter(&self) -> &Filter;
+            pub fn filter(&self) -> &FilterEnum;
             pub fn sensor(&self) -> &PixelSensor;
         }
     }
@@ -74,7 +74,7 @@ trait FilmTrait {
     fn full_resolution(&self) -> Point2i;
     fn pixel_bounds(&self) -> Bounds2i;
     fn diagonal(&self) -> Float;
-    fn filter(&self) -> &Filter;
+    fn filter(&self) -> &FilterEnum;
     fn sensor(&self) -> &PixelSensor;
 }
 
@@ -82,7 +82,7 @@ trait FilmTrait {
 pub struct RGBFilm {
     full_resolution: Point2i,
     pixel_bounds: Bounds2i,
-    filter: Arc<Filter>,
+    filter: Arc<FilterEnum>,
     diagonal: Float,
     sensor: Arc<PixelSensor>,
 
@@ -107,7 +107,7 @@ impl RGBFilm {
 struct RGBFilmParams<'a> {
     full_resolution: Point2i,
     pixel_bounds: Bounds2i,
-    filter: Arc<Filter>,
+    filter: Arc<FilterEnum>,
     diagonal: Float,
     sensor: Arc<PixelSensor>,
 
@@ -240,7 +240,7 @@ impl FilmTrait for RGBFilm {
         self.diagonal
     }
 
-    fn filter(&self) -> &Filter {
+    fn filter(&self) -> &FilterEnum {
         &self.filter
     }
 

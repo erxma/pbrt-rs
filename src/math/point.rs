@@ -7,6 +7,7 @@ use derive_more::{Add, Div, DivAssign, From, Mul, MulAssign, Neg, Sub};
 use crate::{
     self as pbrt,
     geometry::{Bounds2f, Bounds2i, Bounds3f, Bounds3i},
+    Float,
 };
 
 use super::{impl_tuple_math_ops, Interval, Tuple, Vec2f, Vec2i, Vec3f, Vec3fi, Vec3i};
@@ -351,6 +352,10 @@ impl Point2i {
         let y_inside = self.y() >= b.p_min.y() && self.y() < b.p_max.y();
 
         x_inside && y_inside
+    }
+
+    pub fn as_point2f(self) -> Point2f {
+        Point2f::new(self.x() as Float, self.y() as Float)
     }
 }
 

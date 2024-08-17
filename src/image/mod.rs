@@ -1,3 +1,3 @@
 mod filter;
 
-pub use filter::Filter;
+pub use filter::{BoxFilter, Filter, FilterEnum};

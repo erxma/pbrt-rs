@@ -231,6 +231,12 @@ impl OrthographicCameraBuilder {
     }
 }
 
+impl OrthographicCamera {
+    pub fn builder() -> OrthographicCameraBuilder {
+        OrthographicCameraBuilder::create_empty()
+    }
+}
+
 impl Camera for OrthographicCamera {
     fn generate_ray(
         &self,

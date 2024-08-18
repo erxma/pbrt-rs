@@ -1,16 +1,19 @@
-use std::{cell::RefCell, sync::Arc};
+use std::{borrow::Borrow, cell::RefCell, sync::Arc};
 
 use indicatif::ProgressBar;
 
 use crate::{
-    camera::{Camera, CameraEnum},
-    geometry::Ray,
+    camera::{Camera, CameraEnum, VisibleSurface},
+    geometry::{Ray, RayDifferential},
     lights::LightEnum,
     math::Point2i,
     memory::ScratchBuffer,
     parallel::parallel_for_2d_with,
     primitives::{Primitive, PrimitiveEnum},
-    sampling::{Sampler, SamplerEnum},
+    sampling::{
+        spectrum::{SampledSpectrum, SampledWavelengths},
+        Sampler, SamplerEnum,
+    },
     shapes::ShapeIntersection,
     Float,
 };
@@ -45,7 +48,7 @@ impl Integrator {
     }
 }
 
-trait ImageTileIntegrate: Integrate + Send + Sync {
+trait ImageTileIntegrate: Send + Sync {
     fn eval_pixel_sample(
         &self,
         p_pixel: Point2i,
@@ -73,6 +76,8 @@ trait ImageTileIntegrate: Integrate + Send + Sync {
 
         while wave_start < self.sampler().samples_per_pixel() {
             // Render current wave's image tiles in parallel
+            // For the sake of simple safety, operation will not directly write.
+            // Instead, collect all the results and do all adding after
             parallel_for_2d_with(
                 pixel_bounds,
                 (self.sampler().to_owned(), progress_bar.clone()),
@@ -112,5 +117,80 @@ trait ImageTileIntegrate: Integrate + Send + Sync {
     }
 
     fn camera(&self) -> &CameraEnum;
+    fn camera_mut(&mut self) -> &mut CameraEnum;
     fn sampler(&self) -> &SamplerEnum;
+    fn sampler_mut(&mut self) -> &mut SamplerEnum;
+}
+
+trait RayIntegrate: ImageTileIntegrate {
+    fn li(
+        &self,
+        ray: RayDifferential,
+        lambda: &SampledWavelengths,
+        sampler: &mut impl Sampler,
+        scratch_buffer: &mut ScratchBuffer,
+        initialize_visible_surface: bool,
+    ) -> (SampledSpectrum, Option<VisibleSurface>);
+
+    fn eval_pixel_sample(
+        &mut self,
+        p_pixel: Point2i,
+        _sample_idx: usize,
+        sampler: &mut impl Sampler,
+        scratch_buffer: &mut ScratchBuffer,
+    ) {
+        let film = self.camera().film();
+
+        // Sample wavelengths for the ray
+        let lu = sampler.get_1d();
+        let lambda = film.sample_wavelengths(lu);
+
+        // Initialize CameraSample for current sampple
+        let filter = film.filter();
+        let camera_sample = sampler.get_camera_sample(p_pixel, filter);
+
+        // Generate camera ray for current sample
+        let camera_ray = self
+            .camera()
+            .generate_ray_differential(camera_sample, &lambda);
+
+        let l;
+        let visible_surface;
+        match camera_ray {
+            // Trace camera ray if valid
+            Some(mut camera_ray) => {
+                // Scale camera ray differentials based on image sampling rate
+                let ray_diff_scale = (1.0 / (sampler.samples_per_pixel() as Float))
+                    .sqrt()
+                    .max(0.125);
+                camera_ray.ray.scale_differentials(ray_diff_scale);
+                // Evaluate radiance along camera ray
+                let initialize_visible_surface = film.uses_visible_surface();
+                (l, visible_surface) = self.li(
+                    camera_ray.ray,
+                    &lambda,
+                    sampler,
+                    scratch_buffer,
+                    initialize_visible_surface,
+                );
+            }
+            None => {
+                l = SampledSpectrum::with_single_value(0.0);
+                visible_surface = None;
+            }
+        }
+
+        // TODO: Issue warning if unexpected radiance value is returned
+
+        // Add camera ray's contribution to image
+        unsafe {
+            film.add_sample_unchecked(
+                p_pixel,
+                &l,
+                &lambda,
+                visible_surface.as_ref(),
+                camera_sample.filter_weight,
+            );
+        }
+    }
 }

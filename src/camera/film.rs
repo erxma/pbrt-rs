@@ -21,7 +21,7 @@ use crate::{
 use super::sensor::PixelSensor;
 
 #[enum_dispatch]
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Film {
     RGBFilm(RGBFilm),
 }
@@ -30,15 +30,24 @@ impl Film {
     delegate! {
         #[through(FilmTrait)]
         to self {
+            /// Add a sample to a point on the film. This can be used concurrently on different points of the film,
+            /// as it requires only an immutable receiver `&self`.
+            ///
+            /// # Safety
+            /// Exclusivity on each sample point is not guaranteed to be enforced,
+            /// except for splats, so data races may occur if adding to the same point concurrently.
+            /// Therefore, the user is responsible for ensuring each point is written to by at most one thread at a time.
+            /// Concurrent writes to splats are safe.
             #[allow(non_snake_case)]
-            pub fn add_sample(
-                &mut self,
+            pub unsafe fn add_sample_unchecked(
+                &self,
                 p_film: Point2i,
                 L: &SampledSpectrum,
                 lambda: &SampledWavelengths,
-                visible_surface: &VisibleSurface,
+                visible_surface: Option<&VisibleSurface>,
                 weight: Float,
             );
+            pub fn uses_visible_surface(&self) -> bool;
             #[allow(non_snake_case)]
             pub fn add_splat(&mut self, p: Point2f, L: &SampledSpectrum, lambda: &SampledWavelengths);
             pub fn sample_wavelengths(&self, u: Float) -> SampledWavelengths;
@@ -54,15 +63,25 @@ impl Film {
 
 #[enum_dispatch(Film)]
 trait FilmTrait {
+    /// Add a sample to a point on the film. This can be used concurrently on different points of the film,
+    /// as it requires only an immutable receiver `&self`.
+    ///
+    /// # Safety
+    /// Exclusivity on each sample point is not guaranteed to be enforced,
+    /// except for splats, so data races may occur if adding to the same point concurrently.
+    /// Therefore, the user is responsible for ensuring each point is written to by at most one thread at a time.
+    /// Concurrent writes to splats are safe.
     #[allow(non_snake_case)]
-    fn add_sample(
-        &mut self,
+    unsafe fn add_sample_unchecked(
+        &self,
         p_film: Point2i,
         L: &SampledSpectrum,
         lambda: &SampledWavelengths,
-        visible_surface: &VisibleSurface,
+        visible_surface: Option<&VisibleSurface>,
         weight: Float,
     );
+
+    fn uses_visible_surface(&self) -> bool;
 
     #[allow(non_snake_case)]
     fn add_splat(&mut self, p: Point2f, L: &SampledSpectrum, lambda: &SampledWavelengths);
@@ -78,7 +97,7 @@ trait FilmTrait {
     fn sensor(&self) -> &PixelSensor;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct RGBFilm {
     full_resolution: Point2i,
     pixel_bounds: Bounds2i,
@@ -141,12 +160,12 @@ impl<'a> RGBFilmBuilder<'a> {
 
 impl FilmTrait for RGBFilm {
     #[allow(non_snake_case)]
-    fn add_sample(
-        &mut self,
+    unsafe fn add_sample_unchecked(
+        &self,
         p_film: Point2i,
         L: &SampledSpectrum,
         lambda: &SampledWavelengths,
-        _visible_surface: &VisibleSurface,
+        _visible_surface: Option<&VisibleSurface>,
         weight: Float,
     ) {
         let weight: f64 = weight.as_();
@@ -161,12 +180,19 @@ impl FilmTrait for RGBFilm {
         }
 
         // Update pixel values with filtered sample contribution
-        let pixel = &mut self.pixels[p_film];
-        for i in 0..3 {
-            let rgb_val: f64 = rgb[i].as_();
-            pixel.rgb_sum[i] += weight * rgb_val;
+        unsafe {
+            self.pixels.mutate_unchecked(p_film, |pixel| {
+                for i in 0..3 {
+                    let rgb_val: f64 = rgb[i].as_();
+                    pixel.rgb_sum[i] += weight * rgb_val;
+                }
+                pixel.weight_sum += weight;
+            });
         }
-        pixel.weight_sum += weight;
+    }
+
+    fn uses_visible_surface(&self) -> bool {
+        false
     }
 
     #[allow(non_snake_case)]

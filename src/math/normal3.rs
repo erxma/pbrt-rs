@@ -1,7 +1,6 @@
 use std::ops::{Index, IndexMut};
 
 use delegate::delegate;
-use derive_more::{Add, Neg, Sub};
 
 use crate::{self as pbrt};
 
@@ -9,7 +8,9 @@ use super::{impl_tuple_math_ops, Point3f, Tuple, Vec3f};
 
 /// A 3-element normal of `f32`, or `f64` if feature `use-f64` is enabled.
 // Wrapper around the vector equivalent.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Neg, Add, Sub)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, derive_more::Neg, derive_more::Add, derive_more::Sub,
+)]
 #[repr(transparent)]
 pub struct Normal3f(Vec3f);
 

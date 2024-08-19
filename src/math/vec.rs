@@ -2,9 +2,6 @@ use std::ops::{Add, Mul, Sub};
 
 use bytemuck::NoUninit;
 use delegate::delegate;
-use derive_more::{
-    Add, AddAssign, Div, DivAssign, From, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign,
-};
 use num_traits::{NumCast, Signed, ToPrimitive};
 
 use crate::{self as pbrt};
@@ -32,7 +29,17 @@ use super::{
 
 /// A 3-element vector of `i32`.
 // Wrapper around the concrete implementation.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Index, IndexMut, Neg, From)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    derive_more::Index,
+    derive_more::IndexMut,
+    derive_more::Neg,
+    derive_more::From,
+)]
 #[repr(transparent)]
 pub struct Vec3i(inner::Vec3i);
 
@@ -148,7 +155,17 @@ impl Sub for Vec3i {
 
 /// A 3-element vector of `f32`, or `f64` if feature `use-f64` is enabled.
 // Wrapper around the concrete implementation.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Index, IndexMut, Neg, From)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    derive_more::Index,
+    derive_more::IndexMut,
+    derive_more::Neg,
+    derive_more::From,
+)]
 #[repr(transparent)]
 pub struct Vec3f(inner::Vec3f);
 
@@ -320,7 +337,18 @@ pub(in crate::math) trait Vec3<T: TupleElement>: Tuple<3, T> {
 
 /// A 2-element vector of `i32`.
 // Wrapper around the concrete implementation.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Index, IndexMut, Neg, From, NoUninit)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    derive_more::Index,
+    derive_more::IndexMut,
+    derive_more::Neg,
+    derive_more::From,
+    NoUninit,
+)]
 #[repr(transparent)]
 pub struct Vec2i(inner::Vec2i);
 
@@ -405,7 +433,17 @@ impl Sub for Vec2i {
 
 /// A 2-element vector of `f32`, or `f64` if feature `use-f64` is enabled.
 // Wrapper around the concrete implementation.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Index, IndexMut, Neg, From)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    derive_more::Index,
+    derive_more::IndexMut,
+    derive_more::Neg,
+    derive_more::From,
+)]
 #[repr(transparent)]
 pub struct Vec2f(inner::Vec2f);
 
@@ -957,7 +995,18 @@ mod glam_impl {
 // ==================== VEC3FI - NO GLAM EQUIVALENT ====================
 
 #[derive(
-    Clone, Copy, Debug, PartialEq, Add, Sub, Mul, Div, AddAssign, SubAssign, MulAssign, DivAssign,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    derive_more::Add,
+    derive_more::Sub,
+    derive_more::Mul,
+    derive_more::Div,
+    derive_more::AddAssign,
+    derive_more::SubAssign,
+    derive_more::MulAssign,
+    derive_more::DivAssign,
 )]
 pub struct Vec3fi(custom_impl::Vec3<Interval>);
 

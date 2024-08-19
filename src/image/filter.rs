@@ -2,7 +2,7 @@ use delegate::delegate;
 use enum_dispatch::enum_dispatch;
 
 use crate::{
-    math::{Point2f, Vec2f},
+    math::{lerp, Point2f, Vec2f},
     Float,
 };
 
@@ -38,22 +38,46 @@ pub struct FilterSample {
 }
 
 #[derive(Clone, Debug)]
-pub struct BoxFilter {}
+pub struct BoxFilter {
+    radius: Vec2f,
+}
+
+impl BoxFilter {
+    pub fn new(radius: Vec2f) -> Self {
+        Self { radius }
+    }
+}
+
+impl Default for BoxFilter {
+    fn default() -> Self {
+        Self {
+            radius: Vec2f::new(0.5, 0.5),
+        }
+    }
+}
 
 impl Filter for BoxFilter {
     fn radius(&self) -> Vec2f {
-        todo!()
+        self.radius
     }
 
     fn integral(&self) -> Float {
-        todo!()
+        2.0 * self.radius.x() * 2.0 * self.radius.y()
     }
 
     fn eval(&self, p: Point2f) -> Float {
-        todo!()
+        if p.x().abs() <= self.radius.x() && p.y().abs() <= self.radius.y() {
+            1.0
+        } else {
+            0.0
+        }
     }
 
     fn sample(&self, u: Point2f) -> FilterSample {
-        todo!()
+        let p = Point2f::new(
+            lerp(-self.radius.x(), self.radius.x(), u[0]),
+            lerp(-self.radius.y(), self.radius.y(), u[1]),
+        );
+        FilterSample { p, weight: 1.0 }
     }
 }

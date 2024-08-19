@@ -1,13 +1,13 @@
 use std::ops::{Div, DivAssign, Index, IndexMut, Mul, MulAssign};
 
-use derive_more::{Add, Neg, Sub};
-
 use crate::{
     math::{impl_tuple_math_ops, Point2f, Tuple},
     Float,
 };
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Add, Sub, Neg)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, derive_more::Add, derive_more::Sub, derive_more::Neg,
+)]
 pub struct XYZ {
     pub x: Float,
     pub y: Float,
@@ -115,7 +115,7 @@ impl IndexMut<usize> for XYZ {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Add, Sub)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, derive_more::Add, derive_more::Sub)]
 pub struct RGB {
     pub r: Float,
     pub g: Float,

@@ -2,7 +2,6 @@ use std::ops::{Add, AddAssign, Index, IndexMut, Mul, Sub, SubAssign};
 
 use bytemuck::NoUninit;
 use delegate::delegate;
-use derive_more::{Add, Div, DivAssign, From, Mul, MulAssign, Neg, Sub};
 
 use crate::{
     self as pbrt,
@@ -14,7 +13,9 @@ use super::{impl_tuple_math_ops, Interval, Tuple, Vec2f, Vec2i, Vec3f, Vec3fi, V
 
 /// A 3D point of i32.
 // Wrapper around the vector equivalent.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Neg, Add, From)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, derive_more::Neg, derive_more::Add, derive_more::From,
+)]
 #[repr(transparent)]
 pub struct Point3i(Vec3i);
 
@@ -148,7 +149,9 @@ impl SubAssign<Vec3i> for Point3i {
 
 /// A 3D point of `f32`, or `f64` if feature `use-f64` is enabled.
 // Wrapper around the vector equivalent.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Neg, Add, From)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, derive_more::Neg, derive_more::Add, derive_more::From,
+)]
 #[repr(transparent)]
 pub struct Point3f(Vec3f);
 
@@ -293,7 +296,17 @@ impl SubAssign<Vec3f> for Point3f {
 
 /// A 2D point of i32.
 // Wrapper around the vector equivalent.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Neg, Add, From, NoUninit)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    derive_more::Neg,
+    derive_more::Add,
+    derive_more::From,
+    NoUninit,
+)]
 #[repr(transparent)]
 pub struct Point2i(Vec2i);
 
@@ -423,7 +436,9 @@ impl SubAssign<Vec2i> for Point2i {
 
 /// A 3D point of `f32`, or `f64` if feature `use-f64` is enabled.
 // Wrapper around the vector equivalent.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Neg, Add, From)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, derive_more::Neg, derive_more::Add, derive_more::From,
+)]
 #[repr(transparent)]
 pub struct Point2f(Vec2f);
 
@@ -558,7 +573,17 @@ impl SubAssign<Vec2f> for Point2f {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Sub, Mul, Div, MulAssign, DivAssign)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    derive_more::Sub,
+    derive_more::Mul,
+    derive_more::Div,
+    derive_more::MulAssign,
+    derive_more::DivAssign,
+)]
 pub struct Point3fi(Vec3fi);
 
 impl Point3fi {

@@ -20,7 +20,8 @@ use crate::{
 
 pub trait Integrate {
     fn render(&mut self);
-    fn intersect(&self, ray: &Ray, t_max: Option<Float>) -> Option<ShapeIntersection>;
+    fn intersect<'a>(&'a self, ray: &'a Ray, t_max: Option<Float>)
+        -> Option<ShapeIntersection<'a>>;
     fn intersect_p(&self, ray: &Ray, t_max: Option<Float>) -> bool;
 }
 

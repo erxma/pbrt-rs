@@ -1,8 +1,11 @@
+use std::sync::Arc;
+
 use enum_dispatch::enum_dispatch;
 
 use crate::{
     geometry::{Bounds3f, Ray},
-    shapes::ShapeIntersection,
+    materials::Material,
+    shapes::{Shape, ShapeEnum, ShapeIntersection},
     Float,
 };
 
@@ -14,22 +17,45 @@ pub enum PrimitiveEnum {
 #[enum_dispatch(PrimitiveEnum)]
 pub trait Primitive {
     fn bounds(&self) -> Bounds3f;
-    fn intersect(&self, ray: &Ray, t_max: Option<Float>) -> Option<ShapeIntersection>;
+    fn intersect<'a>(&'a self, ray: &'a Ray, t_max: Option<Float>)
+        -> Option<ShapeIntersection<'a>>;
     fn intersect_p(&self, ray: &Ray, t_max: Option<Float>) -> bool;
 }
 
-pub struct SimplePrimitive {}
+pub struct SimplePrimitive {
+    // TODO: Cost of Arcs acceptable?
+    shape: Arc<ShapeEnum>,
+    material: Arc<Material>,
+}
+
+impl SimplePrimitive {
+    pub fn new(shape: Arc<ShapeEnum>, material: Arc<Material>) -> Self {
+        Self { shape, material }
+    }
+}
 
 impl Primitive for SimplePrimitive {
     fn bounds(&self) -> Bounds3f {
-        todo!()
+        self.shape.bounds()
     }
 
-    fn intersect(&self, ray: &Ray, t_max: Option<Float>) -> Option<ShapeIntersection> {
-        todo!()
+    fn intersect<'a>(
+        &'a self,
+        ray: &'a Ray,
+        t_max: Option<Float>,
+    ) -> Option<ShapeIntersection<'a>> {
+        // Intersect with shape
+        let mut shape_intersection = self.shape.intersect(ray, t_max)?;
+
+        // Initialize SurfaceInteraction
+        shape_intersection
+            .intr
+            .set_properties(Some(&self.material), None, None, ray.medium);
+
+        Some(shape_intersection)
     }
 
     fn intersect_p(&self, ray: &Ray, t_max: Option<Float>) -> bool {
-        todo!()
+        self.shape.intersect_p(ray, t_max)
     }
 }

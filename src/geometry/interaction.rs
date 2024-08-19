@@ -1,6 +1,8 @@
 use crate::{
     bxdf::BSDF,
     camera::Camera,
+    lights::LightEnum,
+    materials::Material,
     math::{next_float_down, next_float_up, Normal3f, Point2f, Point3f, Point3fi, Tuple, Vec3f},
     media::{Medium, MediumInterface, PhaseFunction},
     memory::ScratchBuffer,
@@ -61,8 +63,8 @@ impl SampleInteraction {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct SurfaceInteraction {
+#[derive(Clone)]
+pub struct SurfaceInteraction<'a> {
     pub pi: Point3fi,
     pub time: Float,
     pub wo: Option<Vec3f>,
@@ -74,6 +76,11 @@ pub struct SurfaceInteraction {
     pub dndu: Normal3f,
     pub dndv: Normal3f,
     pub shading: Shading,
+    // TODO: Restructure these?
+    pub material: Option<&'a Material>,
+    pub area_light: Option<&'a LightEnum>,
+    pub medium_interface: Option<&'a MediumInterface>,
+    pub medium: Option<&'a Medium>,
 }
 
 #[derive(Clone, Debug)]
@@ -104,7 +111,7 @@ struct SurfaceInteractionParams {
     flip_normal: bool,
 }
 
-impl SurfaceInteraction {
+impl<'a> SurfaceInteraction<'a> {
     pub fn builder() -> SurfaceInteractionBuilder {
         SurfaceInteractionBuilder::default()
     }
@@ -136,6 +143,25 @@ impl SurfaceInteraction {
         };
     }
 
+    pub fn set_properties(
+        &mut self,
+        material: Option<&'a Material>,
+        area_light: Option<&'a LightEnum>,
+        prim_medium_interface: Option<&'a MediumInterface>,
+        ray_medium: Option<&'a Medium>,
+    ) {
+        self.material = material;
+        self.area_light = area_light;
+        // FIXME
+        if let Some(mi) = prim_medium_interface {
+            if mi.is_transition() {
+                self.medium_interface = prim_medium_interface;
+            }
+        } else {
+            self.medium = ray_medium;
+        }
+    }
+
     pub fn emitted_radiance(&self, _w: Vec3f, _lambda: &SampledWavelengths) -> SampledSpectrum {
         todo!()
     }
@@ -157,7 +183,7 @@ impl SurfaceInteraction {
 }
 
 impl SurfaceInteractionBuilder {
-    pub fn build(&self) -> Result<SurfaceInteraction, SurfaceInteractionBuilderError> {
+    pub fn build<'a>(&self) -> Result<SurfaceInteraction<'a>, SurfaceInteractionBuilderError> {
         let params = self.build_params()?;
 
         let mut n = params.dpdu.cross(params.dpdv).normalized().into();
@@ -183,6 +209,10 @@ impl SurfaceInteractionBuilder {
                 dndu: params.dndu,
                 dndv: params.dndv,
             },
+            material: None,
+            area_light: None,
+            medium_interface: None,
+            medium: None,
         })
     }
 }

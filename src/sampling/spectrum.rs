@@ -10,6 +10,7 @@ use enum_dispatch::enum_dispatch;
 use ordered_float::NotNan;
 use std::{
     array,
+    iter::Sum,
     ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Sub, SubAssign},
     sync::LazyLock,
 };
@@ -594,6 +595,12 @@ impl AddAssign<&Self> for SampledSpectrum {
         for i in 0..N_SPECTRUM_SAMPLES {
             self[i] += rhs[i];
         }
+    }
+}
+
+impl Sum for SampledSpectrum {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.reduce(|sum, item| sum + item).unwrap()
     }
 }
 

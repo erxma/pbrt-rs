@@ -1,3 +1,4 @@
+pub mod bxdf;
 pub mod camera;
 pub mod color;
 pub mod geometry;

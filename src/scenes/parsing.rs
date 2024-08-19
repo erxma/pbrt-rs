@@ -565,14 +565,14 @@ mod test {
     use std::fmt::{Debug, Display};
     use winnow::stream::{AsBStr, StreamIsPartial};
 
-    fn assert_parses_to<I, O, E>(parser: impl Parser<I, O, E>, input: I, expected_output: &O)
+    fn assert_parses_to<I, O, E>(parser: impl Parser<I, O, E>, input: I, expected_output: O)
     where
         I: Stream + StreamIsPartial + AsBStr,
         O: PartialEq + Debug,
         E: ParserError<I> + Debug + Display,
     {
         let output = must_parse_ok(parser, input, false);
-        assert_eq!(output, *expected_output, "Parsed result does not match");
+        assert_eq!(output, expected_output, "Parsed result does not match");
     }
 
     fn must_parse_ok<I, O, E>(
@@ -660,9 +660,10 @@ mod test {
 
     #[test]
     fn test_param() {
-        assert_eq!(
-            Ok(("foo".to_string(), Value::Single(SingleValue::Float(1.0)))),
-            param.parse(&mut r#""float foo" 1.0"#)
+        assert_parses_to(
+            param,
+            &mut r#""float foo" 1.0"#,
+            ("foo".to_string(), Value::Single(SingleValue::Float(1.0))),
         );
     }
 

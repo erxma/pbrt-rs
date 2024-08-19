@@ -3,7 +3,7 @@ pub mod camera;
 pub mod color;
 pub mod geometry;
 pub mod image;
-pub mod integrate;
+pub mod integrators;
 pub mod lights;
 pub mod materials;
 pub mod math;

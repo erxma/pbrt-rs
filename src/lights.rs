@@ -1,7 +1,7 @@
 use crate::{
     float::PI,
     geometry::{
-        Bounds3f, Interaction, MediumInterfaceInteraction, Ray, SurfaceInteraction, Transform,
+        Bounds3f, MediumInteraction, MediumInterfaceInteraction, Ray, SurfaceInteraction, Transform,
     },
     math::{Normal3f, Point2f, Point3f, Point3fi, Vec3f},
     media::MediumInterface,
@@ -140,15 +140,13 @@ pub struct LightSampleContext {
 impl LightSampleContext {
     pub fn with_surface_interaction(si: &SurfaceInteraction) -> Self {
         Self {
-            pi: si.common.pi,
+            pi: si.pi,
             n: Some(si.n),
             n_shading: Some(si.shading.n),
         }
     }
 
-    pub fn with_medium_interaction(intr: &Interaction) -> Self {
-        assert!(!matches!(intr, Interaction::Surface(_)), "For SurfaceInteractions, with_surface_interaction should be used instead. This one loses the normals info.");
-
+    pub fn with_medium_interaction(intr: &MediumInteraction) -> Self {
         Self {
             pi: intr.pi(),
             n: None,
@@ -171,7 +169,7 @@ pub struct LightLiSample<'a> {
     /// the solid angle at the receiving point.
     pub pdf: Float,
     /// The point from which light is being emitted.
-    pub p_light: Interaction<'a>,
+    pub p_light: MediumInteraction<'a>,
 }
 
 struct SpectrumCache;
@@ -254,7 +252,7 @@ impl Light for PointLight {
             l: li,
             wi,
             pdf: 1.0,
-            p_light: Interaction::MediumInterface(
+            p_light: MediumInteraction::Interface(
                 MediumInterfaceInteraction::with_point_and_interface(
                     p,
                     self.medium_interface.clone(),

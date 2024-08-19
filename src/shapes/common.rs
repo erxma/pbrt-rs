@@ -1,6 +1,6 @@
 use super::Sphere;
 use crate::{
-    geometry::{Bounds3f, DirectionCone, Interaction, Ray, SurfaceInteraction},
+    geometry::{Bounds3f, DirectionCone, Ray, SampleInteraction, SurfaceInteraction},
     math::{next_float_down, next_float_up, Normal3f, Point2f, Point3f, Point3fi, Tuple, Vec3f},
     Float,
 };
@@ -44,10 +44,10 @@ pub trait Shape {
     fn sample_with_context(&self, ctx: &ShapeSampleContext, u: Point2f) -> Option<ShapeSample>;
 
     /// Returns the probability density for sampling the specified point on the shape
-    /// corresponding to the given `Intersection`.
+    /// corresponding to the given `Interaction`.
     ///
     /// The provided point is assumed to actually be on the surface.
-    fn pdf(&self, interaction: &Interaction) -> Float;
+    fn pdf(&self, interaction: &SampleInteraction) -> Float;
 
     /// Returns the probability density for sampling the specified point on the shape
     /// such that the incident direction at a reference `ctx` point is `wi`.
@@ -63,8 +63,8 @@ pub struct ShapeIntersection {
 }
 
 #[derive(Debug)]
-pub struct ShapeSample<'a> {
-    pub intr: Interaction<'a>,
+pub struct ShapeSample {
+    pub intr: SampleInteraction,
     pub pdf: Float,
 }
 
@@ -83,10 +83,10 @@ impl ShapeSampleContext {
 
     pub fn from_surface_interaction(si: &SurfaceInteraction) -> Self {
         Self {
-            pi: si.common.pi,
+            pi: si.pi,
             n: Some(si.n),
             ns: Some(si.shading.n),
-            time: si.common.time,
+            time: si.time,
         }
     }
 

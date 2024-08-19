@@ -11,50 +11,42 @@ use crate::{
     Float,
 };
 use derive_builder::Builder;
-use enum_as_inner::EnumAsInner;
 
 use super::{Ray, RayDifferential};
 
-// TODO: This is getting messy with the fields, should refactor
-#[derive(Clone, Debug, EnumAsInner)]
-pub enum Interaction<'a> {
-    Sample(SampleInteraction),
-    Surface(Box<SurfaceInteraction>),
-    MediumInterface(MediumInterfaceInteraction),
-    IntraMedium(IntraMediumInteraction<'a>),
+#[derive(Clone, Debug)]
+pub struct SampleInteraction {
+    pub pi: Point3fi,
+    pub time: Float,
+
+    pub n: Normal3f,
+    pub uv: Point2f,
 }
 
-impl<'a> Interaction<'a> {
-    pub fn pi(&self) -> Point3fi {
-        self.common().pi
+impl SampleInteraction {
+    pub fn new(pi: Point3fi, time: Option<Float>, n: Normal3f, uv: Point2f) -> Self {
+        let time = time.unwrap_or(0.0);
+        Self { pi, time, n, uv }
     }
 
-    pub fn time(&self) -> Float {
-        self.common().time
+    pub fn spawn_ray(&self, dir: Vec3f) -> RayDifferential {
+        RayDifferential::new_without_diff(Ray::new(
+            self.offset_ray_origin(dir),
+            dir,
+            self.time,
+            None,
+        ))
     }
 
-    pub fn wo(&self) -> Option<Vec3f> {
-        self.common().wo
-    }
-
-    fn common(&self) -> &InteractionCommon {
-        match self {
-            Interaction::Sample(i) => &i.common,
-            Interaction::Surface(i) => &i.common,
-            Interaction::MediumInterface(i) => &i.common,
-            Interaction::IntraMedium(i) => &i.common,
-        }
-    }
-
-    pub fn offset_ray_origin(&self, w: Vec3f) -> Point3f {
-        let n_as_v = Vec3f::from(self.as_sample().unwrap().n);
+    fn offset_ray_origin(&self, w: Vec3f) -> Point3f {
+        let n_as_v = Vec3f::from(self.n);
         // Find vector offset to corner of error bounds, compute initial po
-        let d = n_as_v.abs().dot(self.pi().error());
+        let d = n_as_v.abs().dot(self.pi.error());
         let mut offset = d * n_as_v;
         if w.dot(n_as_v) < 0.0 {
             offset *= -1.0;
         }
-        let mut po = self.pi().midpoints_only() + offset;
+        let mut po = self.pi.midpoints_only() + offset;
 
         // Round offset point po away from p
         for i in 0..3 {
@@ -67,54 +59,21 @@ impl<'a> Interaction<'a> {
 
         po
     }
-
-    pub fn spawn_ray(&self, dir: Vec3f) -> RayDifferential {
-        RayDifferential::new_without_diff(Ray::new(
-            self.offset_ray_origin(dir),
-            dir,
-            self.time(),
-            self.medium_at(dir),
-        ))
-    }
-
-    pub fn medium_at(&self, w: Vec3f) -> Option<&Medium> {
-        match self {
-            Interaction::MediumInterface(inter) => {
-                if w.dot(inter.n.into()) > 0.0 {
-                    Some(&inter.medium_interface.outside)
-                } else {
-                    Some(&inter.medium_interface.inside)
-                }
-            }
-            Interaction::IntraMedium(inter) => Some(inter.medium),
-            _ => None,
-        }
-    }
 }
 
 #[derive(Clone, Debug)]
-pub struct InteractionCommon {
+pub struct SurfaceInteraction {
     pub pi: Point3fi,
     pub time: Float,
     pub wo: Option<Vec3f>,
-}
 
-#[derive(Clone, Debug)]
-pub struct SampleInteraction {
-    pub common: InteractionCommon,
     pub n: Normal3f,
     pub uv: Point2f,
-}
-
-impl SampleInteraction {
-    pub fn new(pi: Point3fi, time: Option<Float>, n: Normal3f, uv: Point2f) -> Self {
-        let time = time.unwrap_or(0.0);
-        Self {
-            common: InteractionCommon { pi, time, wo: None },
-            n,
-            uv,
-        }
-    }
+    pub dpdu: Vec3f,
+    pub dpdv: Vec3f,
+    pub dndu: Normal3f,
+    pub dndv: Normal3f,
+    pub shading: Shading,
 }
 
 #[derive(Clone, Debug)]
@@ -124,18 +83,6 @@ pub struct Shading {
     pub dpdv: Vec3f,
     pub dndu: Normal3f,
     pub dndv: Normal3f,
-}
-
-#[derive(Clone, Debug)]
-pub struct SurfaceInteraction {
-    pub common: InteractionCommon,
-    pub n: Normal3f,
-    pub uv: Point2f,
-    pub dpdu: Vec3f,
-    pub dpdv: Vec3f,
-    pub dndu: Normal3f,
-    pub dndv: Normal3f,
-    pub shading: Shading,
 }
 
 #[derive(Builder)]
@@ -148,7 +95,6 @@ pub struct SurfaceInteraction {
 struct SurfaceInteractionParams {
     pi: Point3fi,
     uv: Point2f,
-    #[builder(setter(strip_option))]
     wo: Option<Vec3f>,
     dpdu: Vec3f,
     dpdv: Vec3f,
@@ -187,7 +133,7 @@ impl SurfaceInteraction {
             dpdv: dpdv_s,
             dndu: dndu_s,
             dndv: dndv_s,
-        }
+        };
     }
 
     pub fn emitted_radiance(&self, _w: Vec3f, _lambda: &SampledWavelengths) -> SampledSpectrum {
@@ -220,11 +166,10 @@ impl SurfaceInteractionBuilder {
             n *= -1.0;
         }
         Ok(SurfaceInteraction {
-            common: InteractionCommon {
-                pi: params.pi,
-                time: params.time,
-                wo: params.wo,
-            },
+            pi: params.pi,
+            time: params.time,
+            wo: params.wo,
+
             n,
             uv: params.uv,
             dpdu: params.dpdu,
@@ -242,9 +187,26 @@ impl SurfaceInteractionBuilder {
     }
 }
 
+pub enum MediumInteraction<'a> {
+    Interface(MediumInterfaceInteraction),
+    IntraMedium(IntraMediumInteraction<'a>),
+}
+
+impl<'a> MediumInteraction<'a> {
+    pub fn pi(&self) -> Point3fi {
+        match self {
+            MediumInteraction::Interface(intr) => intr.pi,
+            MediumInteraction::IntraMedium(intr) => intr.pi,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct MediumInterfaceInteraction {
-    pub common: InteractionCommon,
+    pub pi: Point3fi,
+    pub time: Float,
+    pub wo: Vec3f,
+
     pub n: Normal3f,
     pub medium_interface: MediumInterface,
     pub phase: PhaseFunction,
@@ -253,18 +215,17 @@ pub struct MediumInterfaceInteraction {
 impl MediumInterfaceInteraction {
     pub fn new(
         p: Point3f,
-        wo: Option<Vec3f>,
+        wo: Vec3f,
         time: Float,
         n: Normal3f,
         medium_interface: MediumInterface,
         phase: PhaseFunction,
     ) -> Self {
         Self {
-            common: InteractionCommon {
-                pi: Point3fi::from(p),
-                time,
-                wo,
-            },
+            pi: Point3fi::from(p),
+            time,
+            wo,
+
             n,
             medium_interface,
             phase,
@@ -278,7 +239,10 @@ impl MediumInterfaceInteraction {
 
 #[derive(Clone, Debug)]
 pub struct IntraMediumInteraction<'a> {
-    pub common: InteractionCommon,
+    pub pi: Point3fi,
+    pub time: Float,
+    pub wo: Vec3f,
+
     pub medium: &'a Medium,
     pub phase: PhaseFunction,
 }
@@ -286,17 +250,16 @@ pub struct IntraMediumInteraction<'a> {
 impl<'a> IntraMediumInteraction<'a> {
     pub fn new(
         p: Point3f,
-        wo: Option<Vec3f>,
+        wo: Vec3f,
         time: Float,
         medium: &'a Medium,
         phase: PhaseFunction,
     ) -> Self {
         Self {
-            common: InteractionCommon {
-                pi: Point3fi::from(p),
-                time,
-                wo,
-            },
+            pi: Point3fi::from(p),
+            time,
+            wo,
+
             medium,
             phase,
         }

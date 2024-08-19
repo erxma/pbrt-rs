@@ -1,8 +1,6 @@
 use crate::{
     float::PI,
-    geometry::{
-        Bounds3f, MediumInteraction, MediumInterfaceInteraction, Ray, SurfaceInteraction, Transform,
-    },
+    geometry::{Bounds3f, MediumInteraction, Ray, SurfaceInteraction, Transform},
     math::{Normal3f, Point2f, Point3f, Point3fi, Vec3f},
     media::MediumInterface,
     memory::cache::{ArcIntern, ArcInternCache},
@@ -169,7 +167,9 @@ pub struct LightLiSample<'a> {
     /// the solid angle at the receiving point.
     pub pdf: Float,
     /// The point from which light is being emitted.
-    pub p_light: MediumInteraction<'a>,
+    pub p_light: Point3f,
+    /// The participating medium on the inside and outside of the light source.
+    pub medium_interface: &'a MediumInterface,
 }
 
 struct SpectrumCache;
@@ -252,12 +252,8 @@ impl Light for PointLight {
             l: li,
             wi,
             pdf: 1.0,
-            p_light: MediumInteraction::Interface(
-                MediumInterfaceInteraction::with_point_and_interface(
-                    p,
-                    self.medium_interface.clone(),
-                ),
-            ),
+            p_light: p,
+            medium_interface: &self.medium_interface,
         })
     }
 

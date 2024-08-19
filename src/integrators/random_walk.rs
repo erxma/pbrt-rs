@@ -4,7 +4,7 @@ use crate::{
     bxdf::TransportMode,
     camera::{CameraEnum, VisibleSurface},
     float::PI,
-    geometry::RayDifferential,
+    geometry::{Ray, RayDifferential},
     math::Point2i,
     memory::ScratchBuffer,
     primitives::Primitive,
@@ -12,6 +12,7 @@ use crate::{
         spectrum::{SampledSpectrum, SampledWavelengths},
         Sampler, SamplerEnum,
     },
+    shapes::ShapeIntersection,
     util::sampling::sample_uniform_sphere,
     Float,
 };
@@ -56,11 +57,11 @@ impl Integrate for RandomWalkIntegrator {
         self.image_tile_render();
     }
 
-    fn intersect(
-        &self,
-        ray: &crate::geometry::Ray,
+    fn intersect<'a>(
+        &'a self,
+        ray: &'a Ray,
         t_max: Option<Float>,
-    ) -> Option<crate::shapes::ShapeIntersection> {
+    ) -> Option<ShapeIntersection<'a>> {
         self.scene_data.aggregate.intersect(ray, t_max)
     }
 

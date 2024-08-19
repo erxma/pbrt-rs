@@ -56,9 +56,8 @@ pub trait Shape {
     fn pdf_with_context(&self, ctx: &ShapeSampleContext, wi: Vec3f) -> Float;
 }
 
-#[derive(Debug)]
-pub struct ShapeIntersection {
-    pub intr: SurfaceInteraction,
+pub struct ShapeIntersection<'a> {
+    pub intr: SurfaceInteraction<'a>,
     pub t_hit: Float,
 }
 

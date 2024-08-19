@@ -1,6 +1,13 @@
 use crate::{
+    bxdf::BSDF,
+    camera::Camera,
     math::{next_float_down, next_float_up, Normal3f, Point2f, Point3f, Point3fi, Tuple, Vec3f},
     media::{Medium, MediumInterface, PhaseFunction},
+    memory::ScratchBuffer,
+    sampling::{
+        spectrum::{SampledSpectrum, SampledWavelengths},
+        Sampler,
+    },
     Float,
 };
 use derive_builder::Builder;
@@ -135,6 +142,7 @@ pub struct SurfaceInteraction {
 #[builder(
     name = "SurfaceInteractionBuilder",
     public,
+    setter(strip_option),
     build_fn(private, name = "build_params")
 )]
 struct SurfaceInteractionParams {
@@ -180,6 +188,25 @@ impl SurfaceInteraction {
             dndu: dndu_s,
             dndv: dndv_s,
         }
+    }
+
+    pub fn emitted_radiance(&self, _w: Vec3f, _lambda: &SampledWavelengths) -> SampledSpectrum {
+        todo!()
+    }
+
+    pub fn get_bsdf(
+        &mut self,
+        _ray: &RayDifferential,
+        _wavelengths: &SampledWavelengths,
+        _camera: &impl Camera,
+        _scratch_buffer: &mut ScratchBuffer,
+        _sampler: &mut impl Sampler,
+    ) -> Option<&BSDF> {
+        todo!()
+    }
+
+    pub fn spawn_ray(&self, _dir: Vec3f) -> RayDifferential {
+        todo!()
     }
 }
 

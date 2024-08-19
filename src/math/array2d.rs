@@ -15,6 +15,8 @@ pub struct Array2D<T> {
     values: UnsafeCell<Vec<T>>,
 }
 
+unsafe impl<T: Sync> Sync for Array2D<T> {}
+
 impl<T> Array2D<T> {
     pub fn fill_default(extent: Bounds2i) -> Self
     where

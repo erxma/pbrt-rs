@@ -4,14 +4,14 @@ use crate::{
     bxdf::TransportMode,
     camera::{CameraEnum, VisibleSurface},
     float::PI,
-    geometry::{Ray, RayDifferential},
+    geometry::RayDifferential,
     math::Point2i,
     memory::ScratchBuffer,
+    primitives::Primitive,
     sampling::{
         spectrum::{SampledSpectrum, SampledWavelengths},
         Sampler, SamplerEnum,
     },
-    shapes::ShapeIntersection,
     util::sampling::sample_uniform_sphere,
     Float,
 };
@@ -56,12 +56,16 @@ impl Integrate for RandomWalkIntegrator {
         self.image_tile_render();
     }
 
-    fn intersect(&self, ray: &Ray, t_max: Option<Float>) -> Option<ShapeIntersection> {
-        todo!()
+    fn intersect(
+        &self,
+        ray: &crate::geometry::Ray,
+        t_max: Option<Float>,
+    ) -> Option<crate::shapes::ShapeIntersection> {
+        self.scene_data.aggregate.intersect(ray, t_max)
     }
 
-    fn intersect_p(&self, ray: &Ray, t_max: Option<Float>) -> bool {
-        todo!()
+    fn intersect_p(&self, ray: &crate::geometry::Ray, t_max: Option<Float>) -> bool {
+        self.scene_data.aggregate.intersect_p(ray, t_max)
     }
 }
 

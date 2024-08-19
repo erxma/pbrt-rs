@@ -5,7 +5,7 @@ use indicatif::ProgressBar;
 use crate::{
     camera::{CameraEnum, VisibleSurface},
     geometry::{Ray, RayDifferential},
-    lights::LightEnum,
+    lights::{LightEnum, LightType},
     math::Point2i,
     memory::ScratchBuffer,
     parallel::parallel_for_2d_with,
@@ -37,7 +37,9 @@ impl SceneData {
         let mut infinite_lights = Vec::new();
         for light in &lights {
             light.preprocess(scene_bounds);
-            infinite_lights.push(light.clone());
+            if light.light_type() == LightType::Infinite {
+                infinite_lights.push(light.clone());
+            }
         }
 
         Self {

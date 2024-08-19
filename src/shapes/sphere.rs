@@ -3,8 +3,7 @@ use std::mem;
 use crate::{
     float::PI,
     geometry::{
-        Bounds3f, DirectionCone, Frame, Interaction, Ray, SampleInteraction, SurfaceInteraction,
-        Transform,
+        Bounds3f, DirectionCone, Frame, Ray, SampleInteraction, SurfaceInteraction, Transform,
     },
     math::{
         difference_of_products, gamma, safe_acos, safe_sqrt, spherical_direction, Interval,
@@ -92,7 +91,7 @@ impl Shape for Sphere {
         );
 
         let pi = &self.render_from_object * Point3fi::new_fi(p_obj, p_obj_err);
-        let intr = Interaction::Sample(SampleInteraction::new(pi, None, n, uv));
+        let intr = SampleInteraction::new(pi, None, n, uv);
         let pdf = self.pdf(&intr);
         Some(ShapeSample { intr, pdf })
     }
@@ -104,22 +103,22 @@ impl Shape for Sphere {
         // If p is inside sphere, sample uniformly
         if p_origin.distance_squared(p_center) <= self.radius * self.radius {
             // Sample shape by area, compute incident dir wi
-            let mut ss = self.sample(u).unwrap();
-            let intr = ss.intr.as_sample_mut().unwrap();
-            intr.common.time = ctx.time;
-            let mut wi = intr.common.pi.midpoints_only() - ctx_p;
+            let mut shape_sample = self.sample(u).unwrap();
+            let sample_intr = &mut shape_sample.intr;
+            sample_intr.time = ctx.time;
+            let mut wi = sample_intr.pi.midpoints_only() - ctx_p;
             if wi.length_squared() == 0.0 {
                 return None;
             }
             wi = wi.normalized();
             // Compute area sampling PDF is ss to solid angle measure
-            ss.pdf /= Vec3f::from(intr.n).absdot(-wi)
-                / ctx_p.distance_squared(intr.common.pi.midpoints_only());
-            if ss.pdf.is_infinite() {
+            shape_sample.pdf /= Vec3f::from(sample_intr.n).absdot(-wi)
+                / ctx_p.distance_squared(sample_intr.pi.midpoints_only());
+            if shape_sample.pdf.is_infinite() {
                 return None;
             }
 
-            Some(ss)
+            Some(shape_sample)
         } else {
             // Point outside of sphere, sample uniformly within the subtended cone.
 
@@ -170,19 +169,14 @@ impl Shape for Sphere {
             );
 
             // Return sample info
-            let intr = Interaction::Sample(SampleInteraction::new(
-                Point3fi::new_fi(p, p_err),
-                Some(ctx.time),
-                n,
-                uv,
-            ));
+            let intr = SampleInteraction::new(Point3fi::new_fi(p, p_err), Some(ctx.time), n, uv);
             let pdf = 1.0 / (2.0 * PI * one_minus_cos_theta_max);
 
             Some(ShapeSample { intr, pdf })
         }
     }
 
-    fn pdf(&self, _interaction: &Interaction) -> Float {
+    fn pdf(&self, _interaction: &SampleInteraction) -> Float {
         1.0 / self.area()
     }
 
@@ -202,7 +196,7 @@ impl Shape for Sphere {
                     // Compute PDF in solid angle measure from intersection point
                     let pdf = (1.0 / self.area())
                         / (isect.intr.n.absdot_v(-wi)
-                            / ctx_p.distance_squared(isect.intr.common.pi.midpoints_only()));
+                            / ctx_p.distance_squared(isect.intr.pi.midpoints_only()));
 
                     if pdf.is_finite() {
                         pdf

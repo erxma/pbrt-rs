@@ -330,7 +330,7 @@ impl Primitive for BVHAggregate {
             let node = &self.nodes[idx];
             // Check against BVH node
             // TODO: This expects moving ray but trait takes borrow
-            if node.bounds().intersect_p(ray.clone(), t_max).is_some() {
+            if node.bounds().intersect_p(ray, t_max).is_some() {
                 match node {
                     LinearBVHNode::Leaf {
                         prims_offset,
@@ -387,7 +387,7 @@ impl Primitive for BVHAggregate {
             let node = &self.nodes[idx];
             // Check against BVH node
             // TODO: This expects moving ray but trait takes borrow
-            if node.bounds().intersect_p(ray.clone(), t_max).is_some() {
+            if node.bounds().intersect_p(ray, t_max).is_some() {
                 match node {
                     LinearBVHNode::Leaf {
                         prims_offset,

@@ -6,8 +6,10 @@ use crate::{
     Float,
 };
 
+mod aggregates;
 mod single;
 
+pub use aggregates::{BVHAggregate, BVHSplitMethod};
 pub use single::SimplePrimitive;
 
 #[enum_dispatch]

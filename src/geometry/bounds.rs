@@ -74,7 +74,7 @@ impl Bounds3i {
     /// Checks for a ray-box intersection and returns the the two parametric `t`
     /// values of the intersection, if any, as `(lower, higher)`.
     #[inline]
-    pub fn intersect_p(&self, ray: Ray, t_max: Float) -> Option<(pbrt::Float, pbrt::Float)> {
+    pub fn intersect_p(&self, ray: &Ray, t_max: Float) -> Option<(pbrt::Float, pbrt::Float)> {
         // Convert to Float
         let bounds: Bounds3f = self.to_owned().into();
 
@@ -103,7 +103,7 @@ impl Bounds3i {
     }
 
     #[inline]
-    pub fn intersect_p_with_inv_dir(&self, ray: Ray, inv_dir: Vec3i, dir_is_neg: Vec3B) -> bool {
+    pub fn intersect_p_with_inv_dir(&self, ray: &Ray, inv_dir: Vec3i, dir_is_neg: Vec3B) -> bool {
         // Convert to float
         let bounds: Bounds3f = self.to_owned().into();
         let inv_dir: Vec3f = inv_dir.into();
@@ -383,7 +383,7 @@ impl Bounds3f {
     /// Checks for a ray-box intersection and returns the the two parametric `t`
     /// values of the intersection, if any, as `(lower, higher)`.
     #[inline]
-    pub fn intersect_p(&self, ray: Ray, t_max: Float) -> Option<(pbrt::Float, pbrt::Float)> {
+    pub fn intersect_p(&self, ray: &Ray, t_max: Float) -> Option<(pbrt::Float, pbrt::Float)> {
         let (mut t0, mut t1) = (0.0, t_max);
         for i in 0..3 {
             // Update interval for ith bounding box slab:
@@ -409,7 +409,7 @@ impl Bounds3f {
     }
 
     #[inline]
-    pub fn intersect_p_with_inv_dir(&self, ray: Ray, inv_dir: Vec3f, dir_is_neg: Vec3B) -> bool {
+    pub fn intersect_p_with_inv_dir(&self, ray: &Ray, inv_dir: Vec3f, dir_is_neg: Vec3B) -> bool {
         let bounds: Bounds3f = self.to_owned();
         // Convert to
         let dir_is_neg: Vec3Usize = dir_is_neg.into_();

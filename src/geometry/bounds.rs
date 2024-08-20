@@ -14,7 +14,7 @@ use crate::{
 use super::ray::Ray;
 
 /// A 3D axis-aligned bounding box (AABB) of `i32`.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Bounds3i {
     pub p_min: Point3i,
     pub p_max: Point3i,
@@ -285,13 +285,26 @@ impl IndexMut<usize> for Bounds3i {
 
 /// A 3D axis-aligned bounding box (AABB) of `f32`,
 /// or `f64` if feature `use-f64` is enabled.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Bounds3f {
     pub p_min: Point3f,
     pub p_max: Point3f,
 }
 
 impl Bounds3f {
+    /// Represents an empty box.
+    ///
+    /// This is done by setting the extents to an invalid config,
+    /// such that any operations with it would yield the expected result.
+    pub const EMPTY: Self = {
+        let min_val = pbrt::Float::MIN;
+        let max_val = pbrt::Float::MAX;
+        let p_min = Point3f::new(max_val, max_val, max_val);
+        let p_max = Point3f::new(min_val, min_val, min_val);
+
+        Self { p_min, p_max }
+    };
+
     /// Construct a new bounding box with two corner points.
     ///
     /// The min and max points are determined by the component-wise mins and maxes
@@ -508,19 +521,6 @@ impl Bounds3f {
         Self { p_min, p_max }
     }
 
-    /// Construct an empty box.
-    ///
-    /// This is done by setting the extents to an invalid config,
-    /// such that any operations with it would yield the expected result.
-    pub fn empty() -> Self {
-        let min_val = pbrt::Float::MIN;
-        let max_val = pbrt::Float::MAX;
-        let p_min = Point3f::new(max_val, max_val, max_val);
-        let p_max = Point3f::new(min_val, min_val, min_val);
-
-        Self { p_min, p_max }
-    }
-
     // TODO: Does this have to for 3f only?
     /// Return the boudning sphere of `self`, as the (center, radius) of the sphere.
     pub fn bounding_sphere(&self) -> (Point3f, pbrt::Float) {
@@ -532,6 +532,17 @@ impl Bounds3f {
         };
 
         (center, radius)
+    }
+
+    /// The centroid, or geometric center of this bounding box.
+    pub fn centroid(&self) -> Point3f {
+        0.5 * self.p_min + 0.5 * self.p_max
+    }
+}
+
+impl Default for Bounds3f {
+    fn default() -> Self {
+        Self::EMPTY
     }
 }
 

@@ -1,5 +1,5 @@
 use itertools::iproduct;
-use rayon::iter::{ParallelBridge, ParallelIterator};
+use rayon::prelude::*;
 
 use crate::{geometry::Bounds2i, math::Point2i, Float};
 
@@ -31,4 +31,14 @@ pub fn parallel_for_2d_with<T>(
 
     // TODO: Confirm that par_bridge is sufficient; could collect into Vec first?
     tiles.par_bridge().for_each_with(init, op);
+}
+
+pub fn join<A, B, ReturnA, ReturnB>(oper_a: A, oper_b: B) -> (ReturnA, ReturnB)
+where
+    A: FnOnce() -> ReturnA + Send,
+    B: FnOnce() -> ReturnB + Send,
+    ReturnA: Send,
+    ReturnB: Send,
+{
+    rayon::join(oper_a, oper_b)
 }

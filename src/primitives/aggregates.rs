@@ -1,4 +1,4 @@
-use crate::{geometry::Bounds3f, parallel, primitives::Primitive};
+use crate::{geometry::Bounds3f, parallel, primitives::Primitive, Float};
 
 use super::PrimitiveEnum;
 
@@ -16,6 +16,8 @@ impl BVHAggregate {
     ) -> Self {
         // Cap prims per node to 255
         let max_prims_in_node = max_prims_in_node.min(255);
+
+        // TODO: Consider if it'd be worth it to precompute vec of centroids
 
         // Build BVH using given method
         let root_result = match split_method {
@@ -81,7 +83,8 @@ impl BVHAggregate {
         let mid = match split_method {
             BVHSplitMethod::SAH => {
                 // SAH may give a mid or decide to just create a leaf
-                match Self::split_sah(prims_slice, centroid_bounds, max_prims_in_node) {
+                match Self::split_sah(prims_slice, centroid_bounds, max_prims_in_node, dim, bounds)
+                {
                     Some(mid) => mid,
                     // Create a leaf as it has lower cost
                     None => {
@@ -172,12 +175,89 @@ impl BVHAggregate {
         mid
     }
 
+    /// Split by Surface Area Heuristic.
     fn split_sah(
         prims_slice: &mut [PrimitiveEnum],
         centroid_bounds: Bounds3f,
         max_prims_in_node: usize,
+        dim: usize,
+        bounds: Bounds3f,
     ) -> Option<usize> {
-        todo!()
+        const NUM_BUCKETS: usize = 12;
+        const NUM_SPLITS: usize = NUM_BUCKETS - 1;
+
+        // If down to two prims or less, just partition into halves
+        if prims_slice.len() <= 2 {
+            let mid = prims_slice.len() / 2;
+            prims_slice.select_nth_unstable_by(mid, |prim_a, prim_b| {
+                prim_a.bounds().centroid()[dim]
+                    .partial_cmp(&prim_b.bounds().centroid()[dim])
+                    .unwrap()
+            });
+            Some(mid)
+        } else {
+            // Initialize buckets
+            let mut buckets: [BVHSplitBucket; NUM_BUCKETS] = Default::default();
+            // Each bucket covers a even slice of the centroid bounds along the axis.
+            // Find the position for the prim's centroid.
+            let get_bucket_idx = |prim: &PrimitiveEnum| {
+                let bucket_offset =
+                    NUM_BUCKETS as Float * centroid_bounds.offset(prim.bounds().centroid())[dim];
+                (bucket_offset as usize).min(NUM_BUCKETS)
+            };
+            // Contribute each prim to its bucket, as determined by above
+            for prim in prims_slice.iter() {
+                let b_idx = get_bucket_idx(prim);
+                buckets[b_idx].count += 1;
+                buckets[b_idx].bounds = buckets[b_idx].bounds.union(prim.bounds());
+            }
+
+            // Compute costs for splitting after each bucket:
+            let mut costs = [0.0; NUM_SPLITS];
+
+            // Partially initialize costs using a forward scan over splits
+            // Num of prims below the current split
+            let mut count_below = 0;
+            // Bounds of those prims
+            let mut bound_below = Bounds3f::EMPTY;
+            for i in 0..NUM_SPLITS {
+                bound_below = bound_below.union(buckets[i].bounds);
+                count_below += buckets[i].count;
+                costs[i] += count_below as Float * bound_below.surface_area();
+            }
+
+            // Similar to above but backwards
+            let mut count_above = 0;
+            let mut bound_above = Bounds3f::EMPTY;
+            for i in (1..=NUM_SPLITS).rev() {
+                bound_above = bound_above.union(buckets[i].bounds);
+                count_above += buckets[i].count;
+                costs[i - 1] += count_above as Float * bound_above.surface_area();
+            }
+
+            // Find bucket to split at that minimizes SAH metric
+            let (min_cost_split_bucket, min_bucket_cost) = costs
+                .iter()
+                .enumerate()
+                .min_by(|(_, cost_a), (_, cost_b)| cost_a.partial_cmp(cost_b).unwrap())
+                .unwrap();
+
+            // Compute leaf cost and SAH split cost for chosen split
+            let leaf_cost = prims_slice.len() as Float;
+            let min_cost = 0.5 + min_bucket_cost / bounds.surface_area();
+
+            // Choose to split at selected bucket if cost is lower than leaf cost,
+            // or if a leaf would have too many prims.
+            // Otherwise choose to make leaf.
+            if min_cost < leaf_cost || prims_slice.len() > max_prims_in_node {
+                let mid = itertools::partition(prims_slice, |prim| {
+                    get_bucket_idx(prim) <= min_cost_split_bucket
+                });
+                Some(mid)
+            } else {
+                None
+            }
+        }
     }
 
     fn build_hlbvh(prims: &mut [PrimitiveEnum]) -> BVHBuildResult {
@@ -261,3 +341,18 @@ impl BVHBuildNode {
 }
 
 struct LinearBVHNode {}
+
+#[derive(Clone, Copy)]
+struct BVHSplitBucket {
+    count: usize,
+    bounds: Bounds3f,
+}
+
+impl Default for BVHSplitBucket {
+    fn default() -> Self {
+        Self {
+            count: 0,
+            bounds: Bounds3f::EMPTY,
+        }
+    }
+}

@@ -21,6 +21,19 @@ pub struct Bounds3i {
 }
 
 impl Bounds3i {
+    /// Represents an empty box.
+    ///
+    /// This is done by setting the extents to an invalid config,
+    /// such that any operations with it would yield the expected result.
+    pub const EMPTY: Self = {
+        let min_val = i32::MIN;
+        let max_val = i32::MAX;
+        let p_min = Point3i::new(max_val, max_val, max_val);
+        let p_max = Point3i::new(min_val, min_val, min_val);
+
+        Self { p_min, p_max }
+    };
+
     /// Construct a new bounding box with two corner points.
     ///
     /// The min and max points are determined by the component-wise mins and maxes
@@ -190,6 +203,38 @@ impl Bounds3i {
         )
     }
 
+    /// Effectively the inverse of lerp.
+    ///
+    /// Returns the continuous position of a point relative to the corners of the box,
+    /// where a point at the minimum corner has offset `(0, 0, 0)`,
+    /// a point at the maximum corner has offset `(1, 1, 1)`, and so forth.
+    ///
+    /// In the case of zero width on an axis, defaults to `0.0`.
+    pub fn offset(self, p: Point3i) -> Vec3f {
+        let b: Bounds3f = self.into();
+        let p: Point3f = p.into();
+
+        let abs_offset = p - b.p_min;
+
+        Vec3f::new(
+            if abs_offset.x() != 0.0 {
+                abs_offset.x() / (b.p_max.x() - b.p_min.x())
+            } else {
+                0.0
+            },
+            if abs_offset.x() != 0.0 {
+                abs_offset.x() / (b.p_max.x() - b.p_min.x())
+            } else {
+                0.0
+            },
+            if abs_offset.x() != 0.0 {
+                abs_offset.x() / (b.p_max.x() - b.p_min.x())
+            } else {
+                0.0
+            },
+        )
+    }
+
     /// Construct the union of `self` and `other`.
     /// Specifically, a box using the min and max points of the two.
     ///
@@ -245,17 +290,10 @@ impl Bounds3i {
         Self { p_min, p_max }
     }
 
-    /// Construct an empty box.
-    ///
-    /// This is done by setting the extents to an invalid config,
-    /// such that any operations with it would yield the expected result.
-    pub fn empty() -> Self {
-        let min_val = i32::MIN;
-        let max_val = i32::MAX;
-        let p_min = Point3i::new(max_val, max_val, max_val);
-        let p_max = Point3i::new(min_val, min_val, min_val);
-
-        Self { p_min, p_max }
+    /// The centroid, or geometric center of this bounding box.
+    pub fn centroid(self) -> Point3f {
+        let b: Bounds3f = self.into();
+        0.5 * b.p_min + 0.5 * b.p_max
     }
 }
 
@@ -466,6 +504,35 @@ impl Bounds3f {
         )
     }
 
+    /// Effectively the inverse of lerp.
+    ///
+    /// Returns the continuous position of a point relative to the corners of the box,
+    /// where a point at the minimum corner has offset `(0, 0, 0)`,
+    /// a point at the maximum corner has offset `(1, 1, 1)`, and so forth.
+    ///
+    /// In the case of zero width on an axis, defaults to `0.0`.
+    pub fn offset(self, p: Point3f) -> Vec3f {
+        let abs_offset = p - self.p_min;
+
+        Vec3f::new(
+            if abs_offset.x() != 0.0 {
+                abs_offset.x() / (self.p_max.x() - self.p_min.x())
+            } else {
+                0.0
+            },
+            if abs_offset.x() != 0.0 {
+                abs_offset.x() / (self.p_max.x() - self.p_min.x())
+            } else {
+                0.0
+            },
+            if abs_offset.x() != 0.0 {
+                abs_offset.x() / (self.p_max.x() - self.p_min.x())
+            } else {
+                0.0
+            },
+        )
+    }
+
     /// Construct the union of `self` and `other`.
     /// Specifically, a box using the min and max points of the two.
     ///
@@ -535,7 +602,7 @@ impl Bounds3f {
     }
 
     /// The centroid, or geometric center of this bounding box.
-    pub fn centroid(&self) -> Point3f {
+    pub fn centroid(self) -> Point3f {
         0.5 * self.p_min + 0.5 * self.p_max
     }
 }

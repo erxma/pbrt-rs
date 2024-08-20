@@ -19,7 +19,7 @@ impl BVHAggregate {
 
         // Build BVH using given method
         let root_result = match split_method {
-            BVHSplitMethod::HLBVH => Self::build_hlbvh(&prims),
+            BVHSplitMethod::HLBVH => Self::build_hlbvh(&mut prims),
             _ => Self::build_recursive(&mut prims, split_method, max_prims_in_node, 0),
         };
 
@@ -47,8 +47,9 @@ impl BVHAggregate {
             .unwrap();
 
         // Creates a leaf from all the prims in this slice. Used in multiple cases below.
-        let create_leaf = || {
-            let node = BVHBuildNode::new_leaf(first_prim_offset, prims_slice.len(), bounds);
+        // Takes prims as param so that it's not immediately borrowed here.
+        let create_leaf = |prims: &[PrimitiveEnum]| {
+            let node = BVHBuildNode::new_leaf(first_prim_offset, prims.len(), bounds);
             BVHBuildResult {
                 node: Some(node),
                 n_nodes: 1,
@@ -57,7 +58,7 @@ impl BVHAggregate {
 
         // If only one primitive, then recursion has bottomed out, create a leaf
         if bounds.surface_area() == 0.0 || prims_slice.len() == 1 {
-            return create_leaf();
+            return create_leaf(prims_slice);
         }
 
         // Bounds containing all prim centroids
@@ -73,7 +74,7 @@ impl BVHAggregate {
         // In the rare case of all centroid points in the same position
         // (bounds has no volume), create a leaf.
         if centroid_bounds.p_max[dim] == centroid_bounds.p_min[dim] {
-            return create_leaf();
+            return create_leaf(prims_slice);
         }
 
         // Partition prims into two based on split method
@@ -84,12 +85,12 @@ impl BVHAggregate {
                     Some(mid) => mid,
                     // Create a leaf as it has lower cost
                     None => {
-                        return create_leaf();
+                        return create_leaf(prims_slice);
                     }
                 }
             }
             // Middle method  may fail, in which case fall back to EqualCounts
-            BVHSplitMethod::Middle => Self::split_middle(prims_slice, centroid_bounds)
+            BVHSplitMethod::Middle => Self::split_middle(prims_slice, centroid_bounds, dim)
                 .unwrap_or_else(|| Self::split_equal_counts(prims_slice)),
             BVHSplitMethod::EqualCounts => Self::split_equal_counts(prims_slice),
             BVHSplitMethod::HLBVH => unreachable!(),
@@ -134,8 +135,29 @@ impl BVHAggregate {
         }
     }
 
-    fn split_middle(prims_slice: &[PrimitiveEnum], centroid_bounds: Bounds3f) -> Option<usize> {
-        todo!()
+    /// Split by the midpoint of the primitives' centroids along the splitting axis,
+    /// one group above and one group below.
+    ///
+    /// May fail to split into two groups, in which returns `None`.
+    fn split_middle(
+        prims_slice: &mut [PrimitiveEnum],
+        centroid_bounds: Bounds3f,
+        dim: usize,
+    ) -> Option<usize> {
+        let num_prims = prims_slice.len();
+
+        // Midpoint of centroids along splitting axis
+        let dim_mid = (centroid_bounds.p_min[dim] + centroid_bounds.p_max[dim]) / 2.0;
+        // Partition by whether centroid is less than midpoint along axis
+        // Would use partition_in_place if stable
+        let mid = itertools::partition(prims_slice, |prim| prim.bounds().centroid()[dim] < dim_mid);
+
+        // Return idx only if it's not at start or past end
+        if (1..num_prims).contains(&mid) {
+            Some(mid)
+        } else {
+            None
+        }
     }
 
     fn split_equal_counts(prims_slice: &[PrimitiveEnum]) -> usize {
@@ -143,14 +165,14 @@ impl BVHAggregate {
     }
 
     fn split_sah(
-        prims_slice: &[PrimitiveEnum],
+        prims_slice: &mut [PrimitiveEnum],
         centroid_bounds: Bounds3f,
         max_prims_in_node: usize,
     ) -> Option<usize> {
         todo!()
     }
 
-    fn build_hlbvh(prims: &[PrimitiveEnum]) -> BVHBuildResult {
+    fn build_hlbvh(prims: &mut [PrimitiveEnum]) -> BVHBuildResult {
         todo!()
     }
 

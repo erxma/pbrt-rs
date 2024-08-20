@@ -11,12 +11,9 @@ pub struct BVHAggregate {
 impl BVHAggregate {
     pub fn new(
         mut prims: Vec<PrimitiveEnum>,
-        max_prims_in_node: usize,
+        max_prims_in_node: u8,
         split_method: BVHSplitMethod,
     ) -> Self {
-        // Cap prims per node to 255
-        let max_prims_in_node = max_prims_in_node.min(255);
-
         // TODO: Consider if it'd be worth it to precompute vec of centroids
 
         // Build BVH using given method
@@ -34,7 +31,7 @@ impl BVHAggregate {
     fn build_recursive(
         prims_slice: &mut [PrimitiveEnum],
         split_method: BVHSplitMethod,
-        max_prims_in_node: usize,
+        max_prims_in_node: u8,
         first_prim_offset: usize,
     ) -> BVHBuildResult {
         // If number of prims to split up is greater than this number,
@@ -51,14 +48,12 @@ impl BVHAggregate {
         // Creates a leaf from all the prims in this slice. Used in multiple cases below.
         // Takes prims as param so that it's not immediately borrowed here.
         let create_leaf = |prims: &[PrimitiveEnum]| {
-            let node = BVHBuildNode::new_leaf(first_prim_offset, prims.len(), bounds);
-            BVHBuildResult {
-                node: Some(node),
-                n_nodes: 1,
-            }
+            let node = BVHBuildNode::new_leaf(first_prim_offset, prims.len() as u8, bounds);
+            BVHBuildResult { node, n_nodes: 1 }
         };
 
         // If only one primitive, then recursion has bottomed out, create a leaf
+        // Also do so if bounds has no surface area (this also covers the 0 prims case)
         if bounds.surface_area() == 0.0 || prims_slice.len() == 1 {
             return create_leaf(prims_slice);
         }
@@ -129,13 +124,10 @@ impl BVHAggregate {
         // Tally up nodes (children's + self)
         let n_nodes = left_result.n_nodes + right_result.n_nodes + 1;
         // Create interior node with the two children
-        let node = BVHBuildNode::new_interior(dim, left_result.node, right_result.node);
+        let node = BVHBuildNode::new_interior(dim as u8, left_result.node, right_result.node);
 
         // Done
-        BVHBuildResult {
-            node: Some(node),
-            n_nodes,
-        }
+        BVHBuildResult { node, n_nodes }
     }
 
     /// Split by the midpoint of the primitives' centroids along the splitting axis,
@@ -179,7 +171,7 @@ impl BVHAggregate {
     fn split_sah(
         prims_slice: &mut [PrimitiveEnum],
         centroid_bounds: Bounds3f,
-        max_prims_in_node: usize,
+        max_prims_in_node: u8,
         dim: usize,
         bounds: Bounds3f,
     ) -> Option<usize> {
@@ -249,7 +241,7 @@ impl BVHAggregate {
             // Choose to split at selected bucket if cost is lower than leaf cost,
             // or if a leaf would have too many prims.
             // Otherwise choose to make leaf.
-            if min_cost < leaf_cost || prims_slice.len() > max_prims_in_node {
+            if min_cost < leaf_cost || prims_slice.len() > max_prims_in_node.into() {
                 let mid = itertools::partition(prims_slice, |prim| {
                     get_bucket_idx(prim) <= min_cost_split_bucket
                 });
@@ -264,13 +256,51 @@ impl BVHAggregate {
         todo!()
     }
 
-    fn flatten_bvh(build_result: BVHBuildResult) -> Vec<LinearBVHNode> {
-        todo!()
+    fn flatten_bvh(root_build_result: BVHBuildResult) -> Vec<LinearBVHNode> {
+        // Prereserve vec to hold the total num of nodes
+        let mut nodes = Vec::with_capacity(root_build_result.n_nodes);
+        // Fill in the vec starting at the root
+        Self::flatten_bvh_node(root_build_result.node, &mut nodes);
+        nodes
+    }
+
+    fn flatten_bvh_node(build_node: BVHBuildNode, linear_nodes: &mut Vec<LinearBVHNode>) {
+        match build_node {
+            BVHBuildNode::Leaf {
+                bounds,
+                first_prim_offset,
+                n_primitives,
+            } => {
+                let node = LinearBVHNode::Leaf {
+                    bounds,
+                    prims_offset: first_prim_offset,
+                    num_prims: n_primitives,
+                };
+                linear_nodes.push(node);
+            }
+            BVHBuildNode::Interior {
+                bounds,
+                left,
+                right,
+                split_axis,
+            } => {
+                Self::flatten_bvh_node(*left, linear_nodes);
+                // Current len of vec = the starting index of right child's nodes, record it
+                let second_child_offset = linear_nodes.len();
+                Self::flatten_bvh_node(*right, linear_nodes);
+                let node = LinearBVHNode::Interior {
+                    bounds,
+                    second_child_offset,
+                    axis: split_axis,
+                };
+                linear_nodes.push(node);
+            }
+        }
     }
 }
 
 struct BVHBuildResult {
-    node: Option<BVHBuildNode>,
+    node: BVHBuildNode,
     n_nodes: usize,
 }
 
@@ -292,18 +322,18 @@ enum BVHBuildNode {
     Leaf {
         bounds: Bounds3f,
         first_prim_offset: usize,
-        n_primitives: usize,
+        n_primitives: u8,
     },
     Interior {
         bounds: Bounds3f,
-        left: Option<Box<BVHBuildNode>>,
-        right: Option<Box<BVHBuildNode>>,
-        split_axis: usize,
+        left: Box<BVHBuildNode>,
+        right: Box<BVHBuildNode>,
+        split_axis: u8,
     },
 }
 
 impl BVHBuildNode {
-    pub fn new_leaf(first_prim_offset: usize, n_primitives: usize, bounds: Bounds3f) -> Self {
+    pub fn new_leaf(first_prim_offset: usize, n_primitives: u8, bounds: Bounds3f) -> Self {
         Self::Leaf {
             bounds,
             first_prim_offset,
@@ -311,23 +341,11 @@ impl BVHBuildNode {
         }
     }
 
-    pub fn new_interior(
-        split_axis: usize,
-        left: Option<BVHBuildNode>,
-        right: Option<BVHBuildNode>,
-    ) -> Self {
-        assert!(
-            left.is_some() || right.is_some(),
-            "Interior node should have at least one child"
-        );
-
-        let left_bounds = left.as_ref().map_or(Bounds3f::EMPTY, |node| node.bounds());
-        let right_bounds = right.as_ref().map_or(Bounds3f::EMPTY, |node| node.bounds());
-
+    pub fn new_interior(split_axis: u8, left: BVHBuildNode, right: BVHBuildNode) -> Self {
         Self::Interior {
-            bounds: left_bounds.union(right_bounds),
-            left: left.map(Box::new),
-            right: right.map(Box::new),
+            bounds: left.bounds().union(right.bounds()),
+            left: Box::new(left),
+            right: Box::new(right),
             split_axis,
         }
     }
@@ -340,7 +358,19 @@ impl BVHBuildNode {
     }
 }
 
-struct LinearBVHNode {}
+#[repr(align(32))]
+enum LinearBVHNode {
+    Leaf {
+        bounds: Bounds3f,
+        prims_offset: usize,
+        num_prims: u8,
+    },
+    Interior {
+        bounds: Bounds3f,
+        second_child_offset: usize,
+        axis: u8,
+    },
+}
 
 #[derive(Clone, Copy)]
 struct BVHSplitBucket {

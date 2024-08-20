@@ -374,7 +374,59 @@ impl Primitive for BVHAggregate {
     }
 
     fn intersect_p(&self, ray: &Ray, t_max: Option<Float>) -> bool {
-        todo!()
+        let t_max = t_max.unwrap_or(Float::INFINITY);
+
+        let inv_dir = [1.0 / ray.dir.x(), 1.0 / ray.dir.y(), 1.0 / ray.dir.z()];
+        let dir_is_neg = inv_dir.map(|v| v < 0.0);
+
+        // Follow ray through BVH nodes to find any intersection
+        // Use depth first search
+        let mut nodes_to_visit_indices = Vec::with_capacity(64);
+        nodes_to_visit_indices.push(0);
+        while let Some(idx) = nodes_to_visit_indices.pop() {
+            let node = &self.nodes[idx];
+            // Check against BVH node
+            // TODO: This expects moving ray but trait takes borrow
+            if node.bounds().intersect_p(ray.clone(), t_max).is_some() {
+                match node {
+                    LinearBVHNode::Leaf {
+                        prims_offset,
+                        num_prims,
+                        ..
+                    } => {
+                        // Intersect ray with primitives in leaf node
+                        for prim in &self.prims[*prims_offset..*prims_offset + *num_prims as usize]
+                        {
+                            // Intersection found, return true
+                            if prim.intersect_p(ray, Some(t_max)) {
+                                return true;
+                            }
+                        }
+                    }
+                    LinearBVHNode::Interior {
+                        second_child_offset,
+                        axis,
+                        ..
+                    } => {
+                        // Pick order to check children
+                        // Nodes structure was built such that First child after node
+                        // is farther (greater value along split axis),
+                        // so pick based on whether ray dir along axis is neg
+                        if dir_is_neg[*axis as usize] {
+                            // Try second child (farther) first
+                            nodes_to_visit_indices.push(idx + 1);
+                            nodes_to_visit_indices.push(*second_child_offset);
+                        } else {
+                            // Try first child (closer) first
+                            nodes_to_visit_indices.push(*second_child_offset);
+                            nodes_to_visit_indices.push(idx + 1);
+                        }
+                    }
+                }
+            }
+        }
+
+        false
     }
 }
 

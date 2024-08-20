@@ -91,8 +91,8 @@ impl BVHAggregate {
             }
             // Middle method  may fail, in which case fall back to EqualCounts
             BVHSplitMethod::Middle => Self::split_middle(prims_slice, centroid_bounds, dim)
-                .unwrap_or_else(|| Self::split_equal_counts(prims_slice)),
-            BVHSplitMethod::EqualCounts => Self::split_equal_counts(prims_slice),
+                .unwrap_or_else(|| Self::split_equal_counts(prims_slice, dim)),
+            BVHSplitMethod::EqualCounts => Self::split_equal_counts(prims_slice, dim),
             BVHSplitMethod::HLBVH => unreachable!(),
         };
 
@@ -160,8 +160,16 @@ impl BVHAggregate {
         }
     }
 
-    fn split_equal_counts(prims_slice: &[PrimitiveEnum]) -> usize {
-        todo!()
+    /// Split into even halves, based on the primitives' centroid coords
+    /// along the splitting axis, one group with smaller values and one group larger.
+    fn split_equal_counts(prims_slice: &mut [PrimitiveEnum], dim: usize) -> usize {
+        let mid = prims_slice.len() / 2;
+        prims_slice.select_nth_unstable_by(mid, |prim_a, prim_b| {
+            prim_a.bounds().centroid()[dim]
+                .partial_cmp(&prim_b.bounds().centroid()[dim])
+                .unwrap()
+        });
+        mid
     }
 
     fn split_sah(

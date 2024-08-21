@@ -42,3 +42,32 @@ where
 {
     rayon::join(oper_a, oper_b)
 }
+
+// Leaks the inner impl (rayon)'s traits for now, but should be easy to swap
+pub fn parallel_for<In, F>(input: In, map_op: F)
+where
+    In: IntoParallelIterator,
+    F: Fn(<In as IntoParallelIterator>::Item) + Send + Sync,
+{
+    input.into_par_iter().for_each(map_op)
+}
+
+// Leaks the inner impl (rayon)'s traits for now, but should be easy to swap
+pub fn parallel_map<In, F, Out, Ret>(input: In, map_op: F) -> Ret
+where
+    In: IntoParallelIterator,
+    F: Fn(<In as IntoParallelIterator>::Item) -> Out + Send + Sync,
+    Out: Send,
+    Ret: FromParallelIterator<Out>,
+{
+    input.into_par_iter().map(map_op).collect()
+}
+
+pub fn parallel_map_enumerate<In, F, Out>(slice: &[In], map_op: F) -> Vec<Out>
+where
+    In: Sync,
+    F: Fn((usize, &In)) -> Out + Send + Sync,
+    Out: Send,
+{
+    slice.par_iter().enumerate().map(map_op).collect()
+}

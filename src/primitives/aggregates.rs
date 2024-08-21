@@ -1,7 +1,14 @@
+use std::{
+    mem,
+    sync::{Arc, Mutex},
+};
+
+use num_traits::NumCast;
+
 use crate::{
     geometry::{Bounds3f, Ray},
-    math::Vec3f,
-    parallel,
+    math::encode_morton_3,
+    parallel::{self, parallel_map, parallel_map_enumerate},
     primitives::Primitive,
     shapes::ShapeIntersection,
     Float,
@@ -11,23 +18,28 @@ use super::PrimitiveEnum;
 
 /// Aggregate primitives based on a bounding volume hierarchy (BVH).
 pub struct BVHAggregate {
-    prims: Vec<PrimitiveEnum>,
+    prims: Vec<Arc<PrimitiveEnum>>,
     nodes: Vec<LinearBVHNode>,
 }
 
 impl BVHAggregate {
     pub fn new(
-        mut prims: Vec<PrimitiveEnum>,
+        mut prims: Vec<Arc<PrimitiveEnum>>,
         max_prims_in_node: u8,
         split_method: BVHSplitMethod,
     ) -> Self {
         // TODO: Consider if it'd be worth it to precompute vec of centroids
 
         // Build BVH using given method
-        let root_result = match split_method {
-            BVHSplitMethod::HLBVH => Self::build_hlbvh(&mut prims),
-            _ => Self::build_recursive(&mut prims, split_method, max_prims_in_node, 0),
-        };
+        let root_result;
+        match split_method {
+            BVHSplitMethod::HLBVH => {
+                (root_result, prims) = Self::build_hlbvh(prims, max_prims_in_node);
+            }
+            method => {
+                root_result = Self::build_recursive(&mut prims, method, max_prims_in_node, 0);
+            }
+        }
 
         // Convert BVH into compact representation in nodes array
         let nodes = Self::flatten_bvh(root_result);
@@ -36,7 +48,7 @@ impl BVHAggregate {
     }
 
     fn build_recursive(
-        prims_slice: &mut [PrimitiveEnum],
+        prims_slice: &mut [Arc<PrimitiveEnum>],
         split_method: BVHSplitMethod,
         max_prims_in_node: u8,
         first_prim_offset: usize,
@@ -54,7 +66,7 @@ impl BVHAggregate {
 
         // Creates a leaf from all the prims in this slice. Used in multiple cases below.
         // Takes prims as param so that it's not immediately borrowed here.
-        let create_leaf = |prims: &[PrimitiveEnum]| {
+        let create_leaf = |prims: &[Arc<PrimitiveEnum>]| {
             let node = BVHBuildNode::new_leaf(first_prim_offset, prims.len() as u8, bounds);
             BVHBuildResult { node, n_nodes: 1 }
         };
@@ -142,7 +154,7 @@ impl BVHAggregate {
     ///
     /// May fail to split into two groups, in which returns `None`.
     fn split_middle(
-        prims_slice: &mut [PrimitiveEnum],
+        prims_slice: &mut [Arc<PrimitiveEnum>],
         centroid_bounds: Bounds3f,
         dim: usize,
     ) -> Option<usize> {
@@ -164,7 +176,7 @@ impl BVHAggregate {
 
     /// Split into even halves, based on the primitives' centroid coords
     /// along the splitting axis, one group with smaller values and one group larger.
-    fn split_equal_counts(prims_slice: &mut [PrimitiveEnum], dim: usize) -> usize {
+    fn split_equal_counts(prims_slice: &mut [Arc<PrimitiveEnum>], dim: usize) -> usize {
         let mid = prims_slice.len() / 2;
         prims_slice.select_nth_unstable_by(mid, |prim_a, prim_b| {
             prim_a.bounds().centroid()[dim]
@@ -176,7 +188,7 @@ impl BVHAggregate {
 
     /// Split by Surface Area Heuristic.
     fn split_sah(
-        prims_slice: &mut [PrimitiveEnum],
+        prims_slice: &mut [Arc<PrimitiveEnum>],
         centroid_bounds: Bounds3f,
         max_prims_in_node: u8,
         dim: usize,
@@ -259,8 +271,207 @@ impl BVHAggregate {
         }
     }
 
-    fn build_hlbvh(prims: &mut [PrimitiveEnum]) -> BVHBuildResult {
-        todo!()
+    fn build_hlbvh(
+        prims: Vec<Arc<PrimitiveEnum>>,
+        max_prims_in_node: u8,
+    ) -> (BVHBuildResult, Vec<Arc<PrimitiveEnum>>) {
+        // Compute bounding box of all centroids
+        let bounds = prims
+            .iter()
+            .map(|prim| prim.bounds())
+            .reduce(|total, bounds| total.union(bounds))
+            .unwrap();
+
+        // Compute Morton indices of prims
+        let mut morton_prims = parallel_map_enumerate(&prims, |(idx, p)| {
+            MortonPrimitive::new(bounds, p.as_ref(), idx)
+        });
+
+        // Radix sort by Morton code
+        MortonPrimitive::radix_sort(&mut morton_prims);
+
+        // Create LBVH treelets at bottom of BVH:
+
+        // Find intervals of prims for each treelet
+
+        let same_treelet = |prim_a: &MortonPrimitive, prim_b: &MortonPrimitive| {
+            const MASK: u32 = 0b00111111111111000000000000000000;
+            (prim_a.code & MASK) == (prim_b.code & MASK)
+        };
+
+        let morton_slices: Vec<_> = morton_prims.chunk_by(same_treelet).collect();
+
+        const FIRST_BIT_IDX: isize = 29 - 12;
+        let ordered_prims = Arc::new(Mutex::new(Vec::with_capacity(prims.len())));
+        let mut built_treelets: Vec<_> = parallel_map(morton_slices, |treelet| {
+            Self::emit_lbvh(
+                treelet,
+                &prims,
+                ordered_prims.clone(),
+                FIRST_BIT_IDX,
+                max_prims_in_node,
+            )
+        });
+
+        // Create and return SAH BVH from LBVH treelets
+        let root_result = Self::build_upper_sah(&mut built_treelets);
+        (root_result, prims)
+    }
+
+    fn emit_lbvh(
+        morton_slice: &[MortonPrimitive],
+        prims: &[Arc<PrimitiveEnum>],
+        ordered_prims: Arc<Mutex<Vec<Arc<PrimitiveEnum>>>>,
+        bit_idx: isize,
+        max_prims_in_node: u8,
+    ) -> BVHBuildResult {
+        // TODO Performance: The book preallocates a vec to hold nodes
+        // that will be created(the number is bounded).
+        // Not doing that for now as it was leading to a lot of tricky ownership issues
+        // that may or may not have defeated the purpose anyway,
+        // at least with the current overall workflow.
+
+        let num_prims = morton_slice.len();
+
+        if bit_idx == -1 || num_prims < max_prims_in_node.into() {
+            // Create and return leaf node of LBVH treelet
+            let mut treelet_ordered_prims: Vec<_> = morton_slice
+                .iter()
+                .map(|mp| prims[mp.prim_idx].clone())
+                .collect();
+            let bounds = treelet_ordered_prims
+                .iter()
+                .map(|prim| prim.bounds())
+                .reduce(|total, bound| total.union(bound))
+                .unwrap();
+            let first_prim_offset;
+            {
+                let mut ordered_prims = ordered_prims.lock().unwrap();
+                first_prim_offset = ordered_prims.len();
+                ordered_prims.append(&mut treelet_ordered_prims);
+            }
+            let node = BVHBuildNode::new_leaf(first_prim_offset, num_prims as u8, bounds);
+            BVHBuildResult { node, n_nodes: 1 }
+        } else {
+            let mask = 1 << bit_idx;
+            // Advance to next subtree level if there is no LBVH split for this bit
+            // (all lie on one side)
+            if (morton_slice[0].code & mask) == (morton_slice[num_prims - 1].code & mask) {
+                return Self::emit_lbvh(
+                    morton_slice,
+                    prims,
+                    ordered_prims,
+                    bit_idx - 1,
+                    max_prims_in_node,
+                );
+            }
+
+            // Find LBVH split point for this dimension
+            // Because of above check, this can never past end
+            let split_offset = morton_slice
+                .partition_point(|prim| (prim.code & mask) == (morton_slice[0].code & mask));
+
+            // Create and return interior LBVH node
+            let left = Self::emit_lbvh(
+                &morton_slice[..split_offset],
+                prims,
+                ordered_prims.clone(),
+                bit_idx - 1,
+                max_prims_in_node,
+            );
+            let right = Self::emit_lbvh(
+                &morton_slice[split_offset..],
+                prims,
+                ordered_prims,
+                bit_idx - 1,
+                max_prims_in_node,
+            );
+            let axis = bit_idx % 3;
+            let n_nodes = 1 + left.n_nodes + right.n_nodes;
+            let node = BVHBuildNode::new_interior(axis as u8, left.node, right.node);
+            BVHBuildResult { node, n_nodes }
+        }
+    }
+
+    fn build_upper_sah(treelets: &mut [BVHBuildResult]) -> BVHBuildResult {
+        const NUM_BUCKETS: usize = 12;
+        const NUM_SPLITS: usize = NUM_BUCKETS - 1;
+
+        // If down to one, just return it
+        if treelets.len() == 1 {
+            treelets[0].clone()
+        } else {
+            // Bounds of all centroids in this treelet
+            let centroid_bounds = treelets
+                .iter()
+                .map(|t| t.node.bounds().centroid())
+                .fold(Bounds3f::EMPTY, |total, centroid| {
+                    total.union_point(centroid)
+                });
+            // Pick widest dim as splitting axis
+            let dim = centroid_bounds.max_extent();
+
+            // Initialize buckets
+            let mut buckets: [BVHSplitBucket; NUM_BUCKETS] = Default::default();
+            // Each bucket covers a even slice of the centroid bounds along the axis.
+            // Find the position for the node's centroid.
+            let get_bucket_idx = |t: &BVHBuildNode| {
+                let bucket_offset =
+                    NUM_BUCKETS as Float * centroid_bounds.offset(t.bounds().centroid())[dim];
+                (bucket_offset as usize).min(NUM_BUCKETS)
+            };
+            // Contribute each node to its bucket, as determined by above
+            for treelet in treelets.iter() {
+                let b_idx = get_bucket_idx(&treelet.node);
+                buckets[b_idx].count += 1;
+                buckets[b_idx].bounds = buckets[b_idx].bounds.union(treelet.node.bounds());
+            }
+
+            // Compute costs for splitting after each bucket:
+            let mut costs = [0.0; NUM_SPLITS];
+
+            // Partially initialize costs using a forward scan over splits
+            // Num of prims below the current split
+            let mut count_below = 0;
+            // Bounds of those prims
+            let mut bound_below = Bounds3f::EMPTY;
+            for i in 0..NUM_SPLITS {
+                bound_below = bound_below.union(buckets[i].bounds);
+                count_below += buckets[i].count;
+                costs[i] += count_below as Float * bound_below.surface_area();
+            }
+
+            // Similar to above but backwards
+            let mut count_above = 0;
+            let mut bound_above = Bounds3f::EMPTY;
+            for i in (1..=NUM_SPLITS).rev() {
+                bound_above = bound_above.union(buckets[i].bounds);
+                count_above += buckets[i].count;
+                costs[i - 1] += count_above as Float * bound_above.surface_area();
+            }
+
+            // Find bucket to split at that minimizes SAH metric
+            let (min_cost_split_bucket, _) = costs
+                .iter()
+                .enumerate()
+                .min_by(|(_, cost_a), (_, cost_b)| cost_a.partial_cmp(cost_b).unwrap())
+                .unwrap();
+
+            // Choose to split at selected bucket if cost is lower than leaf cost,
+            // or if a leaf would have too many prims.
+            // Otherwise choose to make leaf.
+            let mid = itertools::partition(&mut *treelets, |t| {
+                get_bucket_idx(&t.node) <= min_cost_split_bucket
+            });
+
+            let left = Self::build_upper_sah(&mut treelets[..mid]);
+            let right = Self::build_upper_sah(&mut treelets[mid..]);
+
+            let node = BVHBuildNode::new_interior(dim as u8, left.node, right.node);
+            let n_nodes = 1 + left.n_nodes + right.n_nodes;
+
+            BVHBuildResult { node, n_nodes }
+        }
     }
 
     fn flatten_bvh(root_build_result: BVHBuildResult) -> Vec<LinearBVHNode> {
@@ -430,6 +641,7 @@ impl Primitive for BVHAggregate {
     }
 }
 
+#[derive(Clone)]
 struct BVHBuildResult {
     node: BVHBuildNode,
     n_nodes: usize,
@@ -449,6 +661,7 @@ pub enum BVHSplitMethod {
     EqualCounts,
 }
 
+#[derive(Clone)]
 enum BVHBuildNode {
     Leaf {
         bounds: Bounds3f,
@@ -523,6 +736,72 @@ impl Default for BVHSplitBucket {
         Self {
             count: 0,
             bounds: Bounds3f::EMPTY,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct MortonPrimitive {
+    prim_idx: usize,
+    code: u32,
+}
+
+impl MortonPrimitive {
+    const MORTON_BITS: usize = 10;
+    const MORTON_SCALE: usize = 1 << Self::MORTON_BITS;
+
+    pub fn new(bounds: Bounds3f, prim: &impl Primitive, prim_idx: usize) -> Self {
+        let centroid_offset = bounds.offset(prim.bounds().centroid());
+        let offset = centroid_offset * Self::MORTON_SCALE as Float;
+        let code = encode_morton_3(
+            NumCast::from(offset.x()).unwrap(),
+            NumCast::from(offset.x()).unwrap(),
+            NumCast::from(offset.x()).unwrap(),
+        );
+        Self { prim_idx, code }
+    }
+
+    pub fn radix_sort(values: &mut [MortonPrimitive]) {
+        const BITS_PER_PASS: usize = 6;
+        const NUM_BITS: usize = 30;
+        const NUM_PASSES: usize = NUM_BITS / BITS_PER_PASS;
+        const NUM_BUCKETS: usize = 1 << BITS_PER_PASS;
+        const BITMASK: u32 = (1 << BITS_PER_PASS) - 1;
+
+        let mut temp = values.to_owned();
+        for pass in 0..NUM_PASSES {
+            // Perform one pass of radix sort:
+            let low_bit = pass * BITS_PER_PASS;
+            // Set in and out slices for pass
+            let (in_slice, out_slice) = if pass % 2 == 0 {
+                (&mut *values, temp.as_mut_slice())
+            } else {
+                (temp.as_mut_slice(), &mut *values)
+            };
+
+            // Count num of zero bits in in slice for current sort bit
+            let mut bucket_tallies = [0; NUM_BUCKETS];
+            for mp in in_slice.iter() {
+                let bucket = (mp.code >> low_bit) & BITMASK;
+                bucket_tallies[bucket as usize] += 1;
+            }
+
+            // Compute starting idx in output slice for each bucket
+            let mut out_indices = [0; NUM_BUCKETS];
+            for i in 1..NUM_BUCKETS {
+                out_indices[i] = out_indices[i - 1] + bucket_tallies[i - 1];
+            }
+
+            // Store sorted values in out slice
+            for mp in in_slice {
+                let bucket = (mp.code >> low_bit) & BITMASK;
+                mem::swap(mp, &mut out_slice[out_indices[bucket as usize]])
+            }
+        }
+
+        // Once done, make sure that the passed values has the final result
+        if NUM_PASSES % 2 == 1 {
+            values.copy_from_slice(&temp);
         }
     }
 }

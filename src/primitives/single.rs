@@ -9,6 +9,7 @@ use crate::{
 
 use super::Primitive;
 
+#[derive(Clone)]
 pub struct SimplePrimitive {
     // TODO: Cost of Arcs acceptable?
     shape: Arc<ShapeEnum>,

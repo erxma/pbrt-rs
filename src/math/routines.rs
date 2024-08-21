@@ -153,6 +153,24 @@ macro_rules! inner_product {
     }
 }
 
+#[inline]
+pub fn encode_morton_3(x: f32, y: f32, z: f32) -> u32 {
+    (left_shift_3(z.to_bits()) << 2) | (left_shift_3(y.to_bits()) << 1) | left_shift_3(x.to_bits())
+}
+
+#[inline]
+fn left_shift_3(mut x: u32) -> u32 {
+    if x == (1 << 10) {
+        x -= 1;
+    }
+    x = (x | (x << 16)) & 0b00000011000000000000000011111111;
+    x = (x | (x << 8)) & 0b00000011000000001111000000001111;
+    x = (x | (x << 4)) & 0b00000011000011000011000011000011;
+    x = (x | (x << 2)) & 0b00001001001001001001001001001001;
+
+    x
+}
+
 pub(crate) use inner_product;
 
 #[cfg(test)]

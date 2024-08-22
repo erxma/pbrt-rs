@@ -22,15 +22,17 @@ pub struct PixelSensor {
     pub xyz_from_sensor_rgb: SquareMatrix<3>,
 }
 
-pub const N_SWATCH_REFLECTANCES: usize = 24;
-static SWATCH_REFLECTANCES: LazyLock<[PiecewiseLinearSpectrum; N_SWATCH_REFLECTANCES]> =
-    LazyLock::new(|| {
-        core::array::from_fn(|i| {
-            PiecewiseLinearSpectrum::from_interleaved(&SWATCH_REFLECTANCES_INTERLEAVED[i], false)
-        })
-    });
+static SWATCH_REFLECTANCES: LazyLock<
+    [PiecewiseLinearSpectrum; PixelSensor::N_SWATCH_REFLECTANCES],
+> = LazyLock::new(|| {
+    core::array::from_fn(|i| {
+        PiecewiseLinearSpectrum::from_interleaved(&SWATCH_REFLECTANCES_INTERLEAVED[i], false)
+    })
+});
 
 impl PixelSensor {
+    pub const N_SWATCH_REFLECTANCES: usize = 24;
+
     pub fn builder<'a>() -> PixelSensorBuilder<'a> {
         PixelSensorBuilder::default()
     }
@@ -90,7 +92,7 @@ impl<'a> PixelSensorBuilder<'a> {
         // Compute XYZ from camera RGB matrix:
 
         // Compute rgb_camera values for training swatches
-        let rgb_camera: [[Float; 3]; N_SWATCH_REFLECTANCES] = array::from_fn(|row| {
+        let rgb_camera: [[Float; 3]; PixelSensor::N_SWATCH_REFLECTANCES] = array::from_fn(|row| {
             let rgb: RGB = project_reflectance(
                 &SWATCH_REFLECTANCES[row],
                 sensor_illum,
@@ -104,7 +106,7 @@ impl<'a> PixelSensorBuilder<'a> {
         let sensor_white_g = spectrum::inner_product(sensor_illum, &g_bar);
         let sensor_white_y = spectrum::inner_product(sensor_illum, &*spectrum::Y);
 
-        let xyz_output: [[Float; 3]; N_SWATCH_REFLECTANCES] = array::from_fn(|row| {
+        let xyz_output: [[Float; 3]; PixelSensor::N_SWATCH_REFLECTANCES] = array::from_fn(|row| {
             let xyz = project_reflectance::<XYZ>(
                 &SWATCH_REFLECTANCES[row],
                 &params.output_color_space.illuminant,

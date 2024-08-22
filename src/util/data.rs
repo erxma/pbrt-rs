@@ -2,7 +2,7 @@
 // and will be truncated, which is fine.
 #![allow(clippy::excessive_precision)]
 
-use crate::{camera::sensor::N_SWATCH_REFLECTANCES, Float};
+use crate::{camera::PixelSensor, Float};
 
 pub const N_CIE_SAMPLES: usize = 471;
 
@@ -1475,7 +1475,7 @@ pub const CIE_LAMBDA: [Float; N_CIE_SAMPLES] = [
 
 // Clippy finds a false positive here
 #[allow(clippy::approx_constant)]
-pub const SWATCH_REFLECTANCES_INTERLEAVED: [[Float; 72]; N_SWATCH_REFLECTANCES] = [
+pub const SWATCH_REFLECTANCES_INTERLEAVED: [[Float; 72]; PixelSensor::N_SWATCH_REFLECTANCES] = [
     [
         380.0, 0.055, 390.0, 0.058, 400.0, 0.061, 410.0, 0.062, 420.0, 0.062, 430.0, 0.062, 440.0,
         0.062, 450.0, 0.062, 460.0, 0.062, 470.0, 0.062, 480.0, 0.062, 490.0, 0.063, 500.0, 0.065,

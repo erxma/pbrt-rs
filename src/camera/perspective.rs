@@ -11,8 +11,8 @@ use crate::{
     geometry::{Bounds2f, Differentials, Ray, RayDifferential, Transform},
     math::{Point2f, Point3f, Vec3f},
     media::MediumEnum,
+    sampling::routines::sample_uniform_disk_concentric,
     sampling::spectrum::SampledWavelengths,
-    util::sampling::sample_uniform_disk_concentric,
     Float,
 };
 

@@ -1,3 +1,4 @@
+pub mod routines;
 mod sampler;
 pub mod spectrum;
 mod variance;

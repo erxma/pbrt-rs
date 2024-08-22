@@ -1,4 +1,3 @@
-pub mod bxdf;
 pub mod camera;
 pub mod color;
 pub mod geometry;
@@ -11,6 +10,7 @@ pub mod media;
 pub mod memory;
 pub mod parallel;
 pub mod primitives;
+pub mod reflection;
 pub mod sampling;
 pub mod scenes;
 pub mod shapes;

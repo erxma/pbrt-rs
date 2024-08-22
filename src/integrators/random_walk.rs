@@ -1,19 +1,19 @@
 use delegate::delegate;
 
 use crate::{
-    bxdf::TransportMode,
     camera::{CameraEnum, VisibleSurface},
     float::PI,
     geometry::{Ray, RayDifferential},
     math::Point2i,
     memory::ScratchBuffer,
     primitives::Primitive,
+    reflection::TransportMode,
+    sampling::routines::sample_uniform_sphere,
     sampling::{
         spectrum::{SampledSpectrum, SampledWavelengths},
         Sampler, SamplerEnum,
     },
     shapes::ShapeIntersection,
-    util::sampling::sample_uniform_sphere,
     Float,
 };
 

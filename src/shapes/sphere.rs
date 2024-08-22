@@ -9,7 +9,7 @@ use crate::{
         difference_of_products, gamma, safe_acos, safe_sqrt, spherical_direction, Interval,
         Normal3f, Point2f, Point3f, Point3fi, Tuple, Vec3f, Vec3fi,
     },
-    util::sampling::sample_uniform_sphere,
+    sampling::routines::sample_uniform_sphere,
     Float,
 };
 

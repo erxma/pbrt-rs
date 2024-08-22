@@ -7,7 +7,7 @@ use crate::{
     Float,
 };
 
-use super::{HGPhaseFunction, PhaseFunctionEnum};
+use super::{HenyeyGreenstein, PhaseFunctionEnum};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum MediumEnum {}
@@ -56,7 +56,7 @@ impl HomogeneousMedium {
         let sigma_a_spec = DenselySampledSpectrum::new(sigma_a, None, None).scaled(sigma_scale);
         let sigma_s_spec = DenselySampledSpectrum::new(sigma_s, None, None).scaled(sigma_scale);
         let emission_spec = DenselySampledSpectrum::new(emission, None, None);
-        let phase = HGPhaseFunction::new(g).into();
+        let phase = HenyeyGreenstein::new(g).into();
 
         Self {
             sigma_a_spec,

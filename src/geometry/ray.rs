@@ -1,6 +1,6 @@
 use crate::{
     math::{Point3f, Vec3f},
-    media::Medium,
+    media::MediumEnum,
     Float,
 };
 
@@ -11,11 +11,11 @@ pub struct Ray<'a> {
     /// Direction of the ray. Is multiplied for each step.
     pub dir: Vec3f,
     pub time: Float,
-    pub medium: Option<&'a Medium>,
+    pub medium: Option<&'a MediumEnum>,
 }
 
 impl<'a> Ray<'a> {
-    pub fn new(o: Point3f, dir: Vec3f, time: Float, medium: Option<&'a Medium>) -> Self {
+    pub fn new(o: Point3f, dir: Vec3f, time: Float, medium: Option<&'a MediumEnum>) -> Self {
         Self {
             o,
             dir,

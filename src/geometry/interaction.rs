@@ -4,7 +4,7 @@ use crate::{
     lights::LightEnum,
     materials::Material,
     math::{next_float_down, next_float_up, Normal3f, Point2f, Point3f, Point3fi, Tuple, Vec3f},
-    media::{Medium, MediumInterface, PhaseFunction},
+    media::{MediumEnum, MediumInterface, PhaseFunction},
     memory::ScratchBuffer,
     sampling::{
         spectrum::{SampledSpectrum, SampledWavelengths},
@@ -80,7 +80,7 @@ pub struct SurfaceInteraction<'a> {
     pub material: Option<&'a Material>,
     pub area_light: Option<&'a LightEnum>,
     pub medium_interface: Option<&'a MediumInterface>,
-    pub medium: Option<&'a Medium>,
+    pub medium: Option<&'a MediumEnum>,
 }
 
 #[derive(Clone, Debug)]
@@ -148,7 +148,7 @@ impl<'a> SurfaceInteraction<'a> {
         material: Option<&'a Material>,
         area_light: Option<&'a LightEnum>,
         prim_medium_interface: Option<&'a MediumInterface>,
-        ray_medium: Option<&'a Medium>,
+        ray_medium: Option<&'a MediumEnum>,
     ) {
         self.material = material;
         self.area_light = area_light;
@@ -269,7 +269,7 @@ pub struct IntraMediumInteraction<'a> {
     pub time: Float,
     pub wo: Vec3f,
 
-    pub medium: &'a Medium,
+    pub medium: &'a MediumEnum,
     pub phase: PhaseFunction,
 }
 
@@ -278,7 +278,7 @@ impl<'a> IntraMediumInteraction<'a> {
         p: Point3f,
         wo: Vec3f,
         time: Float,
-        medium: &'a Medium,
+        medium: &'a MediumEnum,
         phase: PhaseFunction,
     ) -> Self {
         Self {

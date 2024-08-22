@@ -4,7 +4,7 @@ use super::film::Film;
 use crate::{
     geometry::{Bounds2f, Ray, RayDifferential, Transform},
     math::{lerp, Point2f, Vec3f},
-    media::Medium,
+    media::MediumEnum,
     sampling::spectrum::{SampledSpectrum, SampledWavelengths},
     Float,
 };
@@ -114,7 +114,7 @@ struct ProjectiveCamera {
     shutter_open: Float,
     shutter_close: Float,
     film: Arc<Film>,
-    _medium: Arc<Medium>,
+    _medium: Arc<MediumEnum>,
 
     _screen_from_camera: Transform,
     camera_from_raster: Transform,
@@ -129,7 +129,7 @@ struct ProjectiveCameraParams {
     shutter_open: Float,
     shutter_close: Float,
     film: Arc<Film>,
-    medium: Arc<Medium>,
+    medium: Arc<MediumEnum>,
 
     screen_from_camera: Transform,
     screen_window: Bounds2f,
@@ -194,7 +194,7 @@ struct OrthographicCameraParams {
     shutter_open: Float,
     shutter_close: Float,
     film: Arc<Film>,
-    medium: Arc<Medium>,
+    medium: Arc<MediumEnum>,
 
     screen_from_camera: Transform,
     screen_window: Bounds2f,

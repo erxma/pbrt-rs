@@ -479,6 +479,7 @@ name = "pbrt-rs"
 version = "0.1.0"
 dependencies = [
  "approx",
+ "bitflags",
  "bumpalo",
  "bytemuck",
  "crossbeam-utils",

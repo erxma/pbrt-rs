@@ -1,11 +1,11 @@
 use crate::{
-    bxdf::BSDF,
     camera::Camera,
     lights::LightEnum,
     materials::Material,
     math::{next_float_down, next_float_up, Normal3f, Point2f, Point3f, Point3fi, Tuple, Vec3f},
     media::{MediumEnum, MediumInterface, PhaseFunctionEnum},
     memory::ScratchBuffer,
+    reflection::BSDF,
     sampling::{
         spectrum::{SampledSpectrum, SampledWavelengths},
         Sampler,

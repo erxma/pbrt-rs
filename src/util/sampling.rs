@@ -251,3 +251,8 @@ pub fn sample_uniform_sphere(u: Point2f) -> Vec3f {
     let phi = 2.0 * PI * u.y();
     Vec3f::new(r * phi.cos(), r * phi.sin(), z)
 }
+
+#[inline]
+pub fn sample_uniform_disk_concentric(u: Point2f) -> Point2f {
+    todo!()
+}

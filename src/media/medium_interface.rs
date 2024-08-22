@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use super::medium::Medium;
+use super::medium::MediumEnum;
 
 #[derive(Clone, Debug)]
 pub struct MediumInterface {
-    pub inside: Arc<Medium>,
-    pub outside: Arc<Medium>,
+    pub inside: Arc<MediumEnum>,
+    pub outside: Arc<MediumEnum>,
 }
 
 impl MediumInterface {

@@ -154,6 +154,13 @@ impl DenselySampledSpectrum {
             values,
         }
     }
+
+    pub fn scaled(mut self, factor: Float) -> Self {
+        for v in self.values.iter_mut() {
+            *v *= factor;
+        }
+        self
+    }
 }
 
 impl Spectrum for DenselySampledSpectrum {

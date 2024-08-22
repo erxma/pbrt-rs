@@ -7,4 +7,4 @@ pub use medium::{
     RayMajorantSegment,
 };
 pub use medium_interface::MediumInterface;
-pub use phase_function::{HGPhaseFunction, PhaseFunction, PhaseFunctionEnum};
+pub use phase_function::{HenyeyGreenstein, PhaseFunction, PhaseFunctionEnum, PhaseFunctionSample};

@@ -8,7 +8,7 @@ use crate::{
     Float,
 };
 
-use super::{bounds::Bounds3f, ray::Ray};
+use super::{bounds::Bounds3f, ray::Ray, Differentials, RayDifferential};
 
 /// Represents a 3D transformation.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -33,7 +33,18 @@ impl Transform {
     /// Construct a new transform from the given matrix.
     ///
     /// The inverse is calculated from the matrix.
-    pub fn new_from_mat(mat: [[Float; 4]; 4]) -> Self {
+    pub fn from_mat(m: SquareMatrix<4>) -> Self {
+        let m_inv = m
+            .inverse()
+            .expect("Supplied matrix should have an inverse (not singular)");
+
+        Self { m, m_inv }
+    }
+
+    /// Construct a new transform from a matrix given as a 4x4 array.
+    ///
+    /// The inverse is calculated from the matrix.
+    pub fn from_arr(mat: [[Float; 4]; 4]) -> Self {
         let m = SquareMatrix::new(mat);
         let m_inv = m
             .inverse()
@@ -182,6 +193,31 @@ impl Transform {
             m: camera_to_world.inverse().unwrap(),
             m_inv: camera_to_world,
         }
+    }
+
+    /// Transformation representing a projection of camera-space points
+    /// onto a perspective viewing plane.
+    ///
+    /// FOV should be given in degrees.
+    pub fn perspective(fov: Float, near_z: Float, far_z: Float) -> Self {
+        // Perform projective divide for projection
+        let persp = Transform::from_arr([
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [
+                0.0,
+                0.0,
+                far_z / (far_z - near_z),
+                -far_z * near_z / (far_z - near_z),
+            ],
+            [0.0, 0.0, 1.0, 0.0],
+        ]);
+
+        // Scale canonical perspective view to specified FOV
+        let inv_tag_ang = 1.0 / (fov.to_radians() / 2.0).tan();
+        let scale = Self::scale(inv_tag_ang, inv_tag_ang, 1.0);
+
+        scale * persp
     }
 
     /// Construct the inverse of a transform.
@@ -381,16 +417,7 @@ impl<'a> Mul<Ray<'a>> for Transform {
 
     /// Apply `self` to a ray.
     fn mul(self, r: Ray<'a>) -> Self::Output {
-        // TODO: Deal with round-off error
-        let o = &self * r.o;
-        let dir = self * r.dir;
-
-        Self::Output {
-            o,
-            dir,
-            time: r.time,
-            medium: r.medium,
-        }
+        &self * r
     }
 }
 
@@ -410,6 +437,41 @@ impl<'a> Mul<Ray<'a>> for &Transform {
             time: r.time,
             medium: r.medium,
         }
+    }
+}
+
+impl<'a> Mul<RayDifferential<'a>> for Transform {
+    type Output = RayDifferential<'a>;
+
+    fn mul(self, rd: RayDifferential<'a>) -> Self::Output {
+        &self * rd
+    }
+}
+
+impl<'a> Mul<RayDifferential<'a>> for &Transform {
+    type Output = RayDifferential<'a>;
+
+    /// Apply `self` to a ray.
+    fn mul(self, rd: RayDifferential<'a>) -> Self::Output {
+        // TODO: Deal with round-off error
+        // TODO: overload! doesn't support generics (lifetimes). Consider alternative?
+        // Apply to ray
+        let ray = self * rd.ray;
+        // Apply to diffs if they've been set
+        let differentials = rd.differentials.map(|diff| {
+            let rx_origin = self * diff.rx_origin;
+            let ry_origin = self * diff.ry_origin;
+            let rx_dir = self * diff.rx_dir;
+            let ry_dir = self * diff.ry_dir;
+            Differentials {
+                rx_origin,
+                ry_origin,
+                rx_dir,
+                ry_dir,
+            }
+        });
+
+        RayDifferential { ray, differentials }
     }
 }
 

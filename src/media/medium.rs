@@ -74,7 +74,7 @@ impl Medium for HomogeneousMedium {
         self.emission_spec.max_value() > 0.0
     }
 
-    fn sample_point(&self, p: Point3f, wavelengths: &SampledWavelengths) -> MediumProperties {
+    fn sample_point(&self, _p: Point3f, wavelengths: &SampledWavelengths) -> MediumProperties {
         MediumProperties {
             sigma_a: self.sigma_a_spec.sample(wavelengths),
             sigma_s: self.sigma_s_spec.sample(wavelengths),

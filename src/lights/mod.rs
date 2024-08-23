@@ -1,4 +1,5 @@
 mod base;
+mod directional;
 mod point;
 
 pub use base::{Light, LightEnum, LightLiSample, LightSampleContext, LightType};

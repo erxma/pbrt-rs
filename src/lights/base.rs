@@ -10,11 +10,12 @@ use delegate::delegate;
 use enum_dispatch::enum_dispatch;
 use std::sync::LazyLock;
 
-use super::PointLight;
+use super::{directional::DirectionalLight, PointLight};
 
 #[enum_dispatch]
 pub enum LightEnum {
     Point(PointLight),
+    Directional(DirectionalLight),
 }
 
 impl LightEnum {
@@ -167,7 +168,7 @@ pub struct LightLiSample<'a> {
     /// The point from which light is being emitted.
     pub p_light: Point3f,
     /// The participating medium on the inside and outside of the light source.
-    pub medium_interface: &'a MediumInterface,
+    pub medium_interface: Option<&'a MediumInterface>,
 }
 
 pub(super) struct SpectrumCache;

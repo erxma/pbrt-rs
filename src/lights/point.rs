@@ -14,7 +14,6 @@ use derive_builder::Builder;
 use super::base::{Light, LightLiSample, LightSampleContext, LightType, SpectrumCache};
 
 pub struct PointLight {
-    light_type: LightType,
     render_from_light: Transform,
     medium_interface: MediumInterface,
 
@@ -41,7 +40,6 @@ impl<'a> PointLightBuilder<'a> {
         let params = self.build_params()?;
 
         Ok(PointLight {
-            light_type: LightType::DeltaPosition,
             render_from_light: params.render_from_light,
             medium_interface: params.medium_interface,
             i: SpectrumCache::lookup_spectrum(params.i),
@@ -62,7 +60,7 @@ impl Light for PointLight {
     }
 
     fn light_type(&self) -> LightType {
-        self.light_type
+        LightType::DeltaPosition
     }
 
     fn sample_li(
@@ -81,7 +79,7 @@ impl Light for PointLight {
             wi,
             pdf: 1.0,
             p_light: p,
-            medium_interface: &self.medium_interface,
+            medium_interface: Some(&self.medium_interface),
         })
     }
 

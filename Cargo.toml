@@ -15,7 +15,6 @@ derive_builder = "0.20.0"
 derive_more = { version = "1.0.0", features = ["add", "add_assign", "mul", "mul_assign", "not", "from", "index", "index_mut"] }
 enum-as-inner = "0.6.0"
 enum_dispatch = "0.3.13"
-getset = "0.1.2"
 glam = { version = "0.28.0", optional = true, features = ["bytemuck"] }
 indicatif = { version = "0.17.8", features = ["rayon"] }
 inherent = "1.0.11"

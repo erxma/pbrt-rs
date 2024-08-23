@@ -1,4 +1,7 @@
-use std::{cell::RefCell, sync::Arc};
+use std::{
+    cell::RefCell,
+    sync::{Arc, RwLock},
+};
 
 use indicatif::ProgressBar;
 

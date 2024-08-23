@@ -1,7 +1,8 @@
 use crate::{
-    math::{safe_sqrt, Normal3f, Point2f, Vec3f},
+    float::PI,
+    math::{lerp, safe_sqrt, Normal3f, Point2f, Vec2f, Vec3f},
     reflection::base::same_hemisphere,
-    sampling::spectrum::SampledSpectrum,
+    sampling::{routines::sample_uniform_disk_polar, spectrum::SampledSpectrum},
     Float,
 };
 
@@ -338,27 +339,96 @@ impl BxDF for DielectricBxDF {
     }
 }
 
-pub struct TrowbridgeReitz {}
+pub struct TrowbridgeReitz {
+    alpha_x: Float,
+    alpha_y: Float,
+}
 
 impl TrowbridgeReitz {
+    pub fn new(alpha_x: Float, alpha_y: Float) -> Self {
+        Self { alpha_x, alpha_y }
+    }
     pub fn effectively_smooth(&self) -> bool {
-        todo!()
+        self.alpha_x.max(self.alpha_y) < 0.001
     }
 
     pub fn sample_microfacet_n(&self, incident: Vec3f, u: Point2f) -> Vec3f {
-        todo!()
+        // Transform incident to hemispherical config
+        let mut wh = Vec3f::new(
+            self.alpha_x * incident.x(),
+            self.alpha_y * incident.y(),
+            incident.z(),
+        )
+        .normalized();
+        if wh.z() < 0.0 {
+            wh = -wh;
+        }
+
+        // Find orthonormal basis for visible normal sampling
+        let t1 = if wh.z() < 0.99999 {
+            Vec3f::new(0.0, 0.0, 1.0).cross(wh).normalized()
+        } else {
+            Vec3f::new(1.0, 0.0, 0.0)
+        };
+        let t2 = wh.cross(t1);
+
+        // Generate uniformly distributed points on the unit disk
+        let mut p = sample_uniform_disk_polar(u);
+
+        // Warp hemispherical projection for visible normal sampling
+        let height = (1.0 - p.x() * p.x()).sqrt();
+        *p.y_mut() = lerp(height, p.y(), (1.0 + wh.z()) / 2.0);
+
+        // Reproject to hemisphere and transform normal to ellipsoid config
+        let pz = (1.0 - Vec2f::from(p).length_squared()).max(0.0).sqrt();
+        let nh = p.x() * t1 + p.y() * t2 + pz * wh;
+
+        Vec3f::new(
+            self.alpha_x * nh.x(),
+            self.alpha_y * nh.y(),
+            nh.z().max(1e-6),
+        )
+        .normalized()
     }
 
     pub fn masking_shadowing(&self, outgoing: Vec3f, incident: Vec3f) -> Float {
-        todo!()
+        1.0 / (1.0 + self.lambda(outgoing) + self.lambda(incident))
     }
 
     pub fn density(&self, microfacet_n: Vec3f) -> Float {
-        todo!()
+        let tan2_theta = microfacet_n.tan2_theta();
+        if tan2_theta.is_finite() {
+            let cos4_theta = microfacet_n.cos2_theta().powi(2);
+            let e = tan2_theta
+                * ((microfacet_n.cos_phi() / self.alpha_x).powi(2)
+                    + (microfacet_n.sin_phi() / self.alpha_y).powi(2));
+            1.0 / (PI * self.alpha_x * self.alpha_y * cos4_theta * (1.0 + e).powi(2))
+        } else {
+            0.0
+        }
+    }
+
+    pub fn density_visible(&self, w: Vec3f, microfacet_n: Vec3f) -> Float {
+        self.g1(w) / w.cos_theta().abs() * self.density(microfacet_n) * w.dot(microfacet_n).abs()
     }
 
     pub fn pdf(&self, w: Vec3f, microfacet_n: Vec3f) -> Float {
-        todo!()
+        self.density_visible(w, microfacet_n)
+    }
+
+    pub fn g1(&self, w: Vec3f) -> Float {
+        1.0 / (1.0 + self.lambda(w))
+    }
+
+    pub fn lambda(&self, w: Vec3f) -> Float {
+        let tan2_theta = w.tan2_theta();
+        if tan2_theta.is_finite() {
+            let alpha2 =
+                (w.cos_phi() * self.alpha_x).powi(2) + (w.sin_phi() * self.alpha_y).powi(2);
+            ((1.0 + alpha2 * tan2_theta).sqrt() - 1.0) / 2.0
+        } else {
+            0.0
+        }
     }
 }
 

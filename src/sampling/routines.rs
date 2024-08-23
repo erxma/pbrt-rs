@@ -1,6 +1,8 @@
 use crate::{
-    float::{PI, SQRT_2},
-    math::{self, gaussian, lerp, next_float_down, safe_sqrt, Point2f, Vec3f, ONE_MINUS_EPSILON},
+    float::{FRAC_PI_2, FRAC_PI_4, PI, SQRT_2},
+    math::{
+        self, gaussian, lerp, next_float_down, safe_sqrt, Point2f, Vec2f, Vec3f, ONE_MINUS_EPSILON,
+    },
     Float,
 };
 
@@ -254,5 +256,29 @@ pub fn sample_uniform_sphere(u: Point2f) -> Vec3f {
 
 #[inline]
 pub fn sample_uniform_disk_concentric(u: Point2f) -> Point2f {
-    todo!()
+    // Map u to [-1, 1]^2 and handle degeneracy at origin
+    let u_offset = 2.0 * u - Vec2f::new(1.0, 1.0);
+    if u_offset == Point2f::ZERO {
+        return Point2f::ZERO;
+    }
+
+    // Apply concentric mapping to point
+    let r;
+    let theta;
+    if u_offset.x().abs() > u_offset.y().abs() {
+        r = u_offset.x();
+        theta = FRAC_PI_4 * (u_offset.y() / u_offset.x());
+    } else {
+        r = u_offset.y();
+        theta = FRAC_PI_2 - FRAC_PI_4 * (u_offset.x() / u_offset.y());
+    }
+
+    r * Point2f::new(theta.cos(), theta.sin())
+}
+
+#[inline]
+pub fn sample_uniform_disk_polar(u: Point2f) -> Point2f {
+    let r = u[0].sqrt();
+    let theta = 2.0 * PI * u[1];
+    Point2f::new(r * theta.cos(), r * theta.sin())
 }

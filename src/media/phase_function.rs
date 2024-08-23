@@ -1,7 +1,7 @@
 use enum_dispatch::enum_dispatch;
 
 use crate::{
-    float::{FRAC_PI_4, PI},
+    float::{INV_4_PI, PI},
     geometry::Frame,
     math::{safe_sqrt, spherical_direction, Point2f, Vec3f},
     Float,
@@ -58,7 +58,7 @@ impl PhaseFunction for HenyeyGreenstein {
 
 fn henyey_greenstein(cos_theta: Float, g: Float) -> Float {
     let denom = 1.0 + g * g + 2.0 * g * cos_theta;
-    FRAC_PI_4 * (1.0 - g * g) / (denom * safe_sqrt(denom))
+    INV_4_PI * (1.0 - g * g) / (denom * safe_sqrt(denom))
 }
 
 fn sample_henyey_greenstein(out_dir: Vec3f, g: Float, u: Point2f) -> (Vec3f, Float) {

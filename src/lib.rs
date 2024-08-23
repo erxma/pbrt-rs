@@ -22,6 +22,7 @@ pub mod float {
     use crate::Float;
     pub use std::f64::consts::*;
     pub const MACHINE_EPSILON: Float = f64::EPSILON * 0.5;
+    pub const INV_4_PI: Float = 0.07957747154594767;
 }
 
 #[cfg(feature = "use-f64")]
@@ -32,6 +33,7 @@ pub mod float {
     use crate::Float;
     pub use std::f32::consts::*;
     pub const MACHINE_EPSILON: Float = f32::EPSILON * 0.5;
+    pub const INV_4_PI: Float = 0.07957747;
 }
 
 #[cfg(not(feature = "use-f64"))]

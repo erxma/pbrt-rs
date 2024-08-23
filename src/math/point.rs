@@ -453,6 +453,8 @@ impl From<[pbrt::Float; 2]> for Point2f {
 }
 
 impl Point2f {
+    pub const ZERO: Self = Self::new(0.0, 0.0);
+
     /// Construct a new point with given elements.
     pub const fn new(x: pbrt::Float, y: pbrt::Float) -> Self {
         Self(Vec2f::new(x, y))

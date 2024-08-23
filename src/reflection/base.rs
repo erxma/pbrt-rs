@@ -17,14 +17,23 @@ pub enum BxDFEnum {
 #[enum_dispatch(BxDFEnum)]
 pub trait BxDF {
     fn flags(&self) -> BxDFFlags;
-    fn sample_f(
+
+    fn func(&self, outgoing: Vec3f, incident: Vec3f, mode: TransportMode) -> SampledSpectrum;
+    fn sample_func(
         &self,
-        outgoing_dir: Vec3f,
+        outgoing: Vec3f,
         uc: Float,
         u: Point2f,
         mode: TransportMode,
         sample_flags: BxDFReflTransFlags,
     ) -> Option<BSDFSample>;
+    fn pdf(
+        &self,
+        outgoing: Vec3f,
+        incident: Vec3f,
+        mode: TransportMode,
+        sample_flags: BxDFReflTransFlags,
+    ) -> Float;
 }
 
 bitflags! {
@@ -68,7 +77,7 @@ impl BSDF {
 
 pub struct BSDFSample {
     pub value: SampledSpectrum,
-    pub incident_dir: Vec3f,
+    pub incident: Vec3f,
     pub pdf: Float,
     pub pdf_is_proportional: bool,
     pub flags: BxDFFlags,
@@ -79,4 +88,8 @@ pub struct BSDFSample {
 pub enum TransportMode {
     Radiance,
     Importance,
+}
+
+pub(super) fn same_hemisphere(w: Vec3f, wp: Vec3f) -> bool {
+    w.z() * wp.z() > 0.0
 }

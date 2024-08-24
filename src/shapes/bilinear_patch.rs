@@ -1,9 +1,13 @@
+use std::sync::OnceLock;
+
 use itertools::iproduct;
 
 use crate::{
     math::{lerp, Point3f},
     Float,
 };
+
+use super::Shape;
 
 pub struct BilinearPatch {
     mesh_idx: usize,
@@ -52,14 +56,34 @@ impl BilinearPatch {
             area,
         }
     }
+
+    fn mesh(&self) -> &BilinearPatchMesh {
+        BilinearPatchMesh::get(self.mesh_idx).unwrap()
+    }
 }
 
-pub struct BilinearPatchMesh<'a> {
-    pub vertices: &'a [usize],
-    pub positions: &'a [Point3f],
+#[derive(Debug)]
+pub struct BilinearPatchMesh {
+    pub vertices: &'static [usize],
+    pub positions: &'static [Point3f],
 }
 
-impl BilinearPatchMesh<'_> {
+static MESH_DATA: OnceLock<Vec<BilinearPatchMesh>> = OnceLock::new();
+
+impl BilinearPatchMesh {
+    pub fn get(idx: usize) -> Option<&'static Self> {
+        MESH_DATA
+            .get()
+            .expect("Should not try to get() a mesh from storage before storage's been initialized")
+            .get(idx)
+    }
+
+    pub fn init_mesh_data(all_meshes: Vec<BilinearPatchMesh>) {
+        MESH_DATA
+            .set(all_meshes)
+            .expect("Mesh storage shouldn't be ")
+    }
+
     pub fn is_rectangle(&self) -> bool {
         todo!()
     }

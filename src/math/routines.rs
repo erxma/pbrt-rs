@@ -1,3 +1,5 @@
+use std::ops::{Add, Mul};
+
 use super::float_utility::exponent;
 use crate::{
     float::{MACHINE_EPSILON, PI},
@@ -6,8 +8,11 @@ use crate::{
 use num_traits::{AsPrimitive, Pow};
 
 #[inline]
-pub fn lerp(v1: Float, v2: Float, t: Float) -> Float {
-    (1.0 - t) * v1 + t * v2
+pub fn lerp<T>(v1: T, v2: T, t: Float) -> T
+where
+    T: Mul<Float, Output = T> + Add<T, Output = T>,
+{
+    v1 * (1.0 - t) + v2 * t
 }
 
 pub fn gamma(n: i32) -> Float {

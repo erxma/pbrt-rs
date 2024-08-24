@@ -1,4 +1,4 @@
-use std::sync::RwLock;
+use std::sync::OnceLock;
 
 use crate::{
     float::PI,
@@ -16,11 +16,9 @@ pub struct DirectionalLight {
 
     emitted_radiance: ArcIntern<DenselySampledSpectrum>,
     scale: Float,
-    // Likely to be set late via preprocess()
-    // Behind lock to take the burden off Light users; they won't be changed
-    // during actual work anyway.
-    scene_center: RwLock<Option<Point3f>>,
-    scene_radius: RwLock<Option<Float>>,
+    // To be set late via preprocess()
+    scene_center: OnceLock<Point3f>,
+    scene_radius: OnceLock<Float>,
 }
 
 impl DirectionalLight {
@@ -33,8 +31,8 @@ impl DirectionalLight {
             render_from_light,
             emitted_radiance: SpectrumCache::lookup_spectrum(emitted_radiance),
             scale,
-            scene_center: RwLock::new(None),
-            scene_radius: RwLock::new(None),
+            scene_center: OnceLock::new(),
+            scene_radius: OnceLock::new(),
         }
     }
 }
@@ -43,11 +41,10 @@ impl Light for DirectionalLight {
     fn phi(&self, wavelengths: &SampledWavelengths) -> SampledSpectrum {
         let scene_radius = self
             .scene_radius
-            .read()
-            .unwrap()
+            .get()
             .expect("Must call preprocess() with scene bounds info for DirectionalLight first");
 
-        self.scale * self.emitted_radiance.sample(wavelengths) * PI * scene_radius * scene_radius
+        self.scale * self.emitted_radiance.sample(wavelengths) * PI * scene_radius.powi(2)
     }
 
     fn light_type(&self) -> LightType {
@@ -63,8 +60,7 @@ impl Light for DirectionalLight {
     ) -> Option<LightLiSample> {
         let scene_radius = self
             .scene_radius
-            .read()
-            .unwrap()
+            .get()
             .expect("Must call preprocess() with scene bounds info for DirectionalLight first");
         let incident = (&self.render_from_light * Vec3f::UP).normalized();
         let p_outside = ctx.p() + incident * (2.0 * scene_radius);
@@ -99,7 +95,9 @@ impl Light for DirectionalLight {
 
     fn preprocess(&self, scene_bounds: Bounds3f) {
         let (scene_center, scene_radius) = scene_bounds.bounding_sphere();
-        *self.scene_center.write().unwrap() = Some(scene_center);
-        *self.scene_radius.write().unwrap() = Some(scene_radius);
+        self.scene_center
+            .set(scene_center)
+            .expect("Preprocess should only be called once");
+        self.scene_radius.set(scene_radius).unwrap();
     }
 }

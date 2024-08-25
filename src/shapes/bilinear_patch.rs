@@ -218,7 +218,30 @@ impl Shape for BilinearPatch {
     }
 
     fn intersect(&self, ray: &Ray, t_max: Option<Float>) -> Option<ShapeIntersection> {
-        todo!()
+        let t_max = t_max.unwrap_or(Float::INFINITY);
+        // Get positions
+        let (p00, p10, p01, p11) = self.mesh_positions();
+
+        let blp_isect = intersect_bilinear_patch(ray, t_max, p00, p10, p01, p11)?;
+
+        let intr = Self::interaction_from_intersection(
+            self.mesh(),
+            self.blp_idx,
+            blp_isect.uv,
+            ray.time,
+            -ray.dir,
+        );
+        Some(ShapeIntersection {
+            intr,
+            t_hit: blp_isect.t,
+        })
+    }
+
+    fn intersect_p(&self, ray: &Ray, t_max: Option<Float>) -> bool {
+        let t_max = t_max.unwrap_or(Float::INFINITY);
+
+        let (p00, p10, p01, p11) = self.mesh_positions();
+        intersect_bilinear_patch(ray, t_max, p00, p10, p01, p11).is_some()
     }
 
     fn area(&self) -> Float {

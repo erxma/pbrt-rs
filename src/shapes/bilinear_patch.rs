@@ -3,8 +3,11 @@ use std::sync::OnceLock;
 use itertools::iproduct;
 
 use crate::{
-    geometry::{Bounds3f, DirectionCone, Ray, SampleInteraction},
-    math::{gamma, lerp, solve_quadratic, Normal3f, Point2f, Point3f, SquareMatrix, Tuple, Vec3f},
+    geometry::{Bounds3f, DirectionCone, Ray, SampleInteraction, SurfaceInteraction, Transform},
+    math::{
+        difference_of_products, gamma, lerp, solve_quadratic, Normal3f, Point2f, Point3f, Point3fi,
+        SquareMatrix, Tuple, Vec3f,
+    },
     Float,
 };
 
@@ -21,11 +24,7 @@ impl BilinearPatch {
         // Determine area of bilinear patch
 
         // Get bilinear patch vertices
-        let verts = &mesh.vertices[4 * blp_idx..4 * blp_idx + 4];
-        let p00 = mesh.positions[verts[0]];
-        let p10 = mesh.positions[verts[1]];
-        let p01 = mesh.positions[verts[2]];
-        let p11 = mesh.positions[verts[3]];
+        let (p00, p10, p01, p11) = mesh.positions(blp_idx);
 
         let area;
         if mesh.is_rectangle() {
@@ -62,28 +61,95 @@ impl BilinearPatch {
         BilinearPatchMesh::get(self.mesh_idx).unwrap()
     }
 
-    fn positions(&self) -> (Point3f, Point3f, Point3f, Point3f) {
-        let mesh = self.mesh();
-        let verts = &mesh.vertices[4 * self.blp_idx..4 * self.blp_idx + 4];
-        let p00 = mesh.positions[verts[0]];
-        let p10 = mesh.positions[verts[1]];
-        let p01 = mesh.positions[verts[2]];
-        let p11 = mesh.positions[verts[3]];
-        (p00, p10, p01, p11)
+    pub fn positions(&self) -> (Point3f, Point3f, Point3f, Point3f) {
+        self.mesh().positions(self.blp_idx)
     }
 
-    fn vertex_normals(&self) -> Option<(Normal3f, Normal3f, Normal3f, Normal3f)> {
-        let mesh = self.mesh();
-        if let Some(mesh_n) = mesh.normals {
-            let verts = &mesh.vertices[4 * self.blp_idx..4 * self.blp_idx + 4];
-            let n00 = mesh_n[verts[0]];
-            let n10 = mesh_n[verts[1]];
-            let n01 = mesh_n[verts[2]];
-            let n11 = mesh_n[verts[3]];
-            Some((n00, n10, n01, n11))
-        } else {
-            None
+    pub fn vertex_normals(&self) -> Option<(Normal3f, Normal3f, Normal3f, Normal3f)> {
+        self.mesh().vertex_normals(self.blp_idx)
+    }
+
+    pub fn interaction_from_intersection(
+        mesh: &BilinearPatchMesh,
+        blp_idx: usize,
+        uv: Point2f,
+        time: Float,
+        outgoing: Vec3f,
+    ) -> SurfaceInteraction {
+        #![allow(non_snake_case)]
+
+        // Get bilinear patch vertices
+        let (p00, p10, p01, p11) = mesh.positions(blp_idx);
+
+        // Compute patch point p, dp/du, dp/dv for (u, v)
+        let p = lerp(lerp(p00, p01, uv[1]), lerp(p10, p11, uv[1]), uv[0]);
+        let dpdu: Vec3f = (lerp(p10, p11, uv[1]) - lerp(p00, p01, uv[1])).into();
+        let dpdv: Vec3f = (lerp(p01, p11, uv[0]) - lerp(p00, p10, uv[0])).into();
+
+        // TODO: Skipping this part for now
+        // Compute (s, t) texcoords at patch (u, v)
+        /*
+        let st = uv;
+        let duds = 1.0;
+        let dudt = 0.0;
+        let dvds = 0.0;
+        let dvdt = 1.0;
+        // if Some mesh.uv...
+        */
+
+        // Find partial derivatives dndu and dndv for patch
+        let d2p_duu = Vec3f::ZERO;
+        let d2p_dvv = Vec3f::ZERO;
+        let d2p_duv = (p00 - p01) + (p11 - p10);
+        // Compute coeffs for fundamental forms
+        let E = dpdu.dot(dpdu);
+        let F = dpdu.dot(dpdv);
+        let G = dpdv.dot(dpdv);
+        let n = dpdu.cross(dpdu).normalized();
+        let e = n.dot(d2p_duu);
+        let f = n.dot(d2p_duv);
+        let g = n.dot(d2p_dvv);
+        // Compute dn/du and dn/dv from coeffs
+        let EGF2 = difference_of_products(E, G, F, F);
+        let inv_EGF2 = if EGF2 != 0.0 { 1.0 / EGF2 } else { 0.0 };
+        let dndu: Normal3f =
+            ((f * F - e * G) * inv_EGF2 * dpdu + (e * F - f * E) * inv_EGF2 * dpdv).into();
+        let dndv: Normal3f =
+            ((g * F - f * G) * inv_EGF2 * dpdu + (f * F - g * E) * inv_EGF2 * dpdv).into();
+        // TODO: Update dn/du and dn/dv to account for (s, t) parameterization
+
+        // Initialize intersection point error
+        let p_abs_sum = p00.abs() + p10.abs() + p01.abs() + p11.abs();
+        let p_err = gamma(6) * Vec3f::from(p_abs_sum);
+
+        let flip_normal = mesh.reverse_orientation ^ mesh.transform_swaps_handedness;
+        let mut isect = SurfaceInteraction::builder()
+            .pi(Point3fi::new_fi(p, p_err))
+            .wo(outgoing)
+            .dpdu(dpdu)
+            .dpdv(dpdv)
+            .dndu(dndu)
+            .dndv(dndv)
+            .time(time)
+            .flip_normal(flip_normal)
+            .build()
+            .unwrap();
+
+        // Compute patch shading normal if necessary
+        if let Some((n00, n10, n01, n11)) = mesh.vertex_normals(blp_idx) {
+            let mut ns = lerp(lerp(n00, n01, uv[1]), lerp(n10, n11, uv[1]), uv[0]);
+            if ns.length_squared() > 0.0 {
+                ns = ns.normalized();
+                // Set shading geometry for patch intersection
+                let dndu = lerp(n10, n11, uv[1]) - lerp(n00, n01, uv[1]);
+                let dndv = lerp(n01, n11, uv[0]) - lerp(n00, n10, uv[0]);
+                // TODO: Update dn/du and dn/dv to account for (s, t) parameterization
+                let rotation = Transform::rotate_from_to(isect.n.normalized().into(), ns.into());
+                isect.set_shading_geometry(ns, &rotation * dpdu, rotation * dpdv, dndu, dndv, true);
+            }
         }
+
+        isect
     }
 }
 
@@ -297,6 +363,31 @@ impl BilinearPatchMesh {
         MESH_DATA
             .set(all_meshes)
             .expect("Mesh storage shouldn't be ")
+    }
+
+    pub fn positions(&self, blp_idx: usize) -> (Point3f, Point3f, Point3f, Point3f) {
+        let verts = &self.vertices[4 * blp_idx..4 * blp_idx + 4];
+        let p00 = self.positions[verts[0]];
+        let p10 = self.positions[verts[1]];
+        let p01 = self.positions[verts[2]];
+        let p11 = self.positions[verts[3]];
+        (p00, p10, p01, p11)
+    }
+
+    pub fn vertex_normals(
+        &self,
+        blp_idx: usize,
+    ) -> Option<(Normal3f, Normal3f, Normal3f, Normal3f)> {
+        if let Some(vert_n) = self.normals {
+            let verts = &self.vertices[4 * blp_idx..4 * blp_idx + 4];
+            let n00 = vert_n[verts[0]];
+            let n10 = vert_n[verts[1]];
+            let n01 = vert_n[verts[2]];
+            let n11 = vert_n[verts[3]];
+            Some((n00, n10, n01, n11))
+        } else {
+            None
+        }
     }
 
     pub fn is_rectangle(&self) -> bool {

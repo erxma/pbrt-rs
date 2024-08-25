@@ -173,6 +173,10 @@ impl Transform {
         Self { m, m_inv }
     }
 
+    pub fn rotate_from_to(from: Vec3f, to: Vec3f) -> Self {
+        todo!()
+    }
+
     /// Construct a look-at transformation, given the position of the viewer,
     /// the point to look at, and the up vector of the view.
     ///

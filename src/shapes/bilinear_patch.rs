@@ -9,7 +9,8 @@ use crate::{
         SquareMatrix, Tuple, Vec3f,
     },
     sampling::routines::{
-        bilinear_pdf, sample_bilinear, sample_spherical_rectangle, PiecewiseConstant2D,
+        bilinear_pdf, invert_bilinear, sample_bilinear, sample_spherical_rectangle,
+        PiecewiseConstant2D,
     },
     Float,
 };
@@ -365,7 +366,40 @@ impl Shape for BilinearPatch {
     }
 
     fn pdf(&self, interaction: &SampleInteraction) -> Float {
-        todo!()
+        // Get positons
+        let (p00, p10, p01, p11) = self.mesh_positions();
+
+        // Compute parametric (u, v) of point on patch
+        let mut uv = interaction.uv;
+        if let Some((uv00, uv10, uv01, uv11)) = self.mesh_uvs() {
+            uv = invert_bilinear(uv, &[uv00, uv10, uv01, uv11]);
+        }
+
+        // Compute PDF for sampling (u, v)
+        let pdf = if let Some(distrib) = &self.mesh().image_distribution {
+            todo!()
+        } else if !self.mesh().is_rectangle() {
+            // Init w array with differential area at patch corners
+            let w = [
+                (p10 - p00).cross(p01 - p00).length(),
+                (p10 - p00).cross(p11 - p10).length(),
+                (p01 - p00).cross(p11 - p01).length(),
+                (p11 - p10).cross(p11 - p01).length(),
+            ];
+
+            bilinear_pdf(uv, &w)
+        } else {
+            1.0
+        };
+
+        // FInd dp/du and dp/dv at patch (u, v)
+        let pu0 = lerp(p00, p01, uv[1]);
+        let pu1 = lerp(p10, p11, uv[1]);
+        let dpdu = pu1 - pu0;
+        let dpdv = lerp(p01, p11, uv[0]) - lerp(p00, p10, uv[0]);
+
+        // Scale to get PDF with respect to surface area
+        pdf / dpdu.cross(dpdv).length()
     }
 
     fn pdf_with_context(&self, ctx: &ShapeSampleContext, wi: Vec3f) -> Float {

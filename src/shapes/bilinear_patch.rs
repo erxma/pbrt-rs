@@ -8,7 +8,9 @@ use crate::{
         difference_of_products, gamma, lerp, solve_quadratic, Normal3f, Point2f, Point3f, Point3fi,
         SquareMatrix, Tuple, Vec3f,
     },
-    sampling::routines::{bilinear_pdf, sample_bilinear, PiecewiseConstant2D},
+    sampling::routines::{
+        bilinear_pdf, sample_bilinear, sample_spherical_rectangle, PiecewiseConstant2D,
+    },
     Float,
 };
 
@@ -21,6 +23,8 @@ pub struct BilinearPatch {
 }
 
 impl BilinearPatch {
+    const MIN_SPHERICAL_SAMPLE_AREA: Float = 1e-4;
+
     pub fn new(mesh: &BilinearPatchMesh, mesh_idx: usize, blp_idx: usize) -> Self {
         // Determine area of bilinear patch
 
@@ -281,8 +285,83 @@ impl Shape for BilinearPatch {
         Some(ShapeSample { intr, pdf })
     }
 
-    fn sample_with_context(&self, ctx: &ShapeSampleContext, u: Point2f) -> Option<ShapeSample> {
-        todo!()
+    fn sample_with_context(&self, ctx: &ShapeSampleContext, mut u: Point2f) -> Option<ShapeSample> {
+        // Get positions
+        let (p00, p10, p01, p11) = self.mesh_positions();
+
+        // Sample patch with respect to solid angle from reference point
+        let v00 = (p00 - ctx.pi.midpoints_only()).normalized();
+        let v10 = (p10 - ctx.pi.midpoints_only()).normalized();
+        let v01 = (p01 - ctx.pi.midpoints_only()).normalized();
+        let v11 = (p11 - ctx.pi.midpoints_only()).normalized();
+        if !self.mesh().is_rectangle() || self.mesh().image_distribution.is_some() {
+            let mut ss = self.sample(u)?;
+            ss.intr.time = ctx.time;
+            let mut wi = ss.intr.pi.midpoints_only() - ctx.pi.midpoints_only();
+            if wi.length_squared() == 0.0 {
+                return None;
+            }
+            wi = wi.normalized();
+
+            // Convert area sampling PDF in ss to solid angle measure
+            ss.pdf /= ss.intr.n.dot_v(-wi).abs()
+                / ctx
+                    .pi
+                    .midpoints_only()
+                    .distance_squared(ss.intr.pi.midpoints_only());
+            if ss.pdf.is_infinite() {
+                return None;
+            }
+
+            Some(ss)
+        } else {
+            // Sample dir to rectangular patch
+            let mut pdf = 1.0;
+
+            // Warp uniform sample u to account for incident cos theta factor
+            if let Some(ns) = ctx.ns {
+                let ns = ns.into();
+                // Compute cos theta weights for rectangle seen from reference point
+                let w = [
+                    v00.absdot(ns).max(0.01),
+                    v10.absdot(ns).max(0.01),
+                    v01.absdot(ns).max(0.01),
+                    v11.absdot(ns).max(0.01),
+                ];
+
+                u = sample_bilinear(u, &w);
+                pdf *= bilinear_pdf(u, &w);
+            }
+
+            // Sample spherical rectangle at reference point
+            let eu = p10 - p00;
+            let ev = p01 - p00;
+            let (p, quad_pdf) = sample_spherical_rectangle(ctx.pi.midpoints_only(), p00, eu, ev, u);
+            pdf *= quad_pdf;
+
+            // Compute (u, v) and surface normal for sampled point
+            let uv = Point2f::new(
+                (p - p00).dot(eu) / p10.distance_squared(p00),
+                (p - p00).dot(ev) / p01.distance_squared(p00),
+            );
+            let mut n: Normal3f = eu.cross(ev).normalized().into();
+            // Flip normal if necessary
+            if let Some((n00, n10, n01, n11)) = self.mesh_vertex_normals() {
+                let ns = lerp(lerp(n00, n01, uv[1]), lerp(n10, n11, uv[1]), uv[0]);
+                n = n.face_forward(ns.into());
+            } else if self.mesh().reverse_orientation ^ self.mesh().transform_swaps_handedness {
+                n = -n;
+            }
+
+            // Compute st texcoords for (u, v)
+            let st = uv;
+            if let Some(uv) = self.mesh_uvs() {
+                todo!();
+            }
+
+            let intr = SampleInteraction::new(p.into(), Some(ctx.time), n, st);
+            Some(ShapeSample { intr, pdf })
+        }
     }
 
     fn pdf(&self, interaction: &SampleInteraction) -> Float {

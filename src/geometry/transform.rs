@@ -1,6 +1,7 @@
 use std::{ops, ops::Mul};
 
 use approx::abs_diff_ne;
+use itertools::iproduct;
 use overload::overload;
 
 use crate::{
@@ -173,8 +174,28 @@ impl Transform {
         Self { m, m_inv }
     }
 
+    /// Transformation representing a rotation from one vector to another.
     pub fn rotate_from_to(from: Vec3f, to: Vec3f) -> Self {
-        todo!()
+        // Compute intermediate vec for vec reflection
+        let refl = if from.x().abs() < 0.72 && to.x().abs() < 0.72 {
+            Vec3f::RIGHT
+        } else if from.y().abs() < 0.72 && to.y().abs() < 0.72 {
+            Vec3f::UP
+        } else {
+            Vec3f::FORWARD
+        };
+
+        let u = refl - from;
+        let v = refl - to;
+        let mut mat: SquareMatrix<4> = Default::default();
+        for (i, j) in iproduct!(0..3, 0..3) {
+            mat[i][j] = if i == j { 1.0 } else { 0.0 }
+                - 2.0 / u.dot(u) * u[i] * u[j]
+                - 2.0 / v.dot(v) * v[i] * v[j]
+                + 4.0 * u.dot(v) / (u.dot(u) * v.dot(v)) * v[i] * u[j];
+        }
+
+        Self::from_mat(mat)
     }
 
     /// Construct a look-at transformation, given the position of the viewer,

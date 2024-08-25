@@ -1,7 +1,9 @@
 use crate::{
     float::{FRAC_PI_2, FRAC_PI_4, PI, SQRT_2},
+    geometry::Bounds2f,
     math::{
-        self, gaussian, lerp, next_float_down, safe_sqrt, Point2f, Vec2f, Vec3f, ONE_MINUS_EPSILON,
+        self, gaussian, lerp, next_float_down, safe_sqrt, Point2f, Point2i, Vec2f, Vec3f,
+        ONE_MINUS_EPSILON,
     },
     Float,
 };
@@ -282,3 +284,6 @@ pub fn sample_uniform_disk_polar(u: Point2f) -> Point2f {
     let theta = 2.0 * PI * u[1];
     Point2f::new(r * theta.cos(), r * theta.sin())
 }
+
+#[derive(Debug)]
+pub struct PiecewiseConstant2D {}

@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[enum_dispatch]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum PhaseFunctionEnum {
     HenyeyGreenstein,
 }
@@ -26,7 +26,7 @@ pub struct PhaseFunctionSample {
     pub pdf: Float,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct HenyeyGreenstein {
     g: Float,
 }

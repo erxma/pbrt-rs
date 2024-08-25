@@ -10,7 +10,9 @@ use crate::{
 use super::{HenyeyGreenstein, PhaseFunctionEnum};
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum MediumEnum {}
+pub enum MediumEnum {
+    Homogeneous(HomogeneousMedium),
+}
 
 pub trait Medium {
     type MajorantIter: Iterator<Item = RayMajorantSegment>;
@@ -38,6 +40,7 @@ pub struct RayMajorantSegment {
     sigma_maj: SampledSpectrum,
 }
 
+#[derive(Clone, Debug, PartialEq)]
 pub struct HomogeneousMedium {
     sigma_a_spec: DenselySampledSpectrum,
     sigma_s_spec: DenselySampledSpectrum,

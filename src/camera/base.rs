@@ -127,10 +127,14 @@ impl<'a> CameraRayDifferential<'a> {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CameraTransform {
-    world_from_render: Transform,
+    pub world_from_render: Transform,
 }
 
 impl CameraTransform {
+    pub fn new(world_from_camera: Transform) -> Self {
+        todo!()
+    }
+
     pub fn render_from_camera<T>(&self, item: T) -> T
     where
         for<'a> &'a Transform: Mul<T, Output = T>,

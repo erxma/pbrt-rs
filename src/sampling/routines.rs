@@ -249,6 +249,11 @@ pub fn invert_bilinear_sample(p: Point2f, w: &[Float]) -> Point2f {
 }
 
 #[inline]
+pub fn invert_bilinear(p: Point2f, v: &[Point2f]) -> Point2f {
+    todo!()
+}
+
+#[inline]
 pub fn sample_uniform_sphere(u: Point2f) -> Vec3f {
     let z = 1.0 - 2.0 * u.x();
     let r = safe_sqrt(1.0 - z.sqrt());

@@ -2,7 +2,9 @@ mod bilinear_patch;
 mod common;
 mod sphere;
 
-pub use bilinear_patch::{BilinearPatch, BilinearPatchMesh};
+pub use bilinear_patch::{
+    intersect_bilinear_patch, BilinearIntersection, BilinearPatch, BilinearPatchMesh,
+};
 pub use common::{
     QuadricIntersection, Shape, ShapeEnum, ShapeIntersection, ShapeSample, ShapeSampleContext,
 };

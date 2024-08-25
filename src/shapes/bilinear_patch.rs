@@ -4,7 +4,7 @@ use itertools::iproduct;
 
 use crate::{
     geometry::{Bounds3f, DirectionCone, Ray, SampleInteraction},
-    math::{lerp, Normal3f, Point2f, Point3f, Vec3f},
+    math::{gamma, lerp, solve_quadratic, Normal3f, Point2f, Point3f, SquareMatrix, Tuple, Vec3f},
     Float,
 };
 
@@ -166,6 +166,114 @@ impl Shape for BilinearPatch {
     }
 }
 
+pub fn intersect_bilinear_patch(
+    ray: &Ray,
+    t_max: Float,
+    p00: Point3f,
+    p10: Point3f,
+    p01: Point3f,
+    p11: Point3f,
+) -> Option<BilinearIntersection> {
+    // Find quadratic coeffs for distance from ray to u iso-lines
+    let a = (p10 - p00).cross(p01 - p11).dot(ray.dir);
+    let c = (p00 - ray.o).cross(ray.dir).dot(p01 - p00);
+    let b = (p10 - ray.o).cross(ray.dir).dot(p11 - p10) - (a + c);
+
+    // Solve quadratic for patch u intersection
+    let (u1, u2) = solve_quadratic(a, b, c)?;
+
+    // Find epsilon to ensure that candidate is greater than zero
+    let epsilon = gamma(10)
+        * (ray.o.abs().max_component()
+            + ray.dir.abs().max_component()
+            + p00.abs().max_component()
+            + p10.abs().max_component()
+            + p01.abs().max_component()
+            + p11.abs().max_component());
+
+    // Compute v and t for first u intersection
+    // Only a valid intersection if between 0 and 1
+    let mut t = t_max;
+    let mut u = None;
+    let mut v = None;
+    if (0.0..=1.0).contains(&u1) {
+        // Precompute some common terms
+        let u_o = lerp(p00, p10, u1);
+        let u_dir = lerp(p01, p11, u1) - u_o;
+        let delta_o = u_o - ray.o;
+        let perp = ray.dir.cross(u_dir);
+        let p2 = perp.length_squared();
+
+        // Compute matrix determinants for v and t numerators
+        let v1 = SquareMatrix::new([
+            [delta_o.x(), ray.dir.x(), perp.x()],
+            [delta_o.y(), ray.dir.y(), perp.y()],
+            [delta_o.z(), ray.dir.z(), perp.z()],
+        ])
+        .determinant();
+        let t1 = SquareMatrix::new([
+            [delta_o.x(), u_dir.x(), perp.x()],
+            [delta_o.y(), u_dir.y(), perp.y()],
+            [delta_o.z(), u_dir.z(), perp.z()],
+        ])
+        .determinant();
+
+        // Set u, v, t if intersection is valid
+        // (may not be despite positive t due to float error)
+        if t1 > p2 * epsilon && (0.0..=p2).contains(&v1) {
+            u = Some(u1);
+            v = Some(v1 / p2);
+            t = t1 / p2;
+        }
+    }
+
+    // Compute v and t for second u intersection
+    // Only a valid intersection if between 0 and 1,
+    // No need to repeat if it's the same intersection
+    if (0.0..=1.0).contains(&u2) && u2 != u1 {
+        // Precompute some common terms
+        let u_o = lerp(p00, p10, u2);
+        let u_dir = lerp(p01, p11, u2) - u_o;
+        let delta_o = u_o - ray.o;
+        let perp = ray.dir.cross(u_dir);
+        let p2 = perp.length_squared();
+
+        // Compute matrix determinants for v and t numerators
+        let v2 = SquareMatrix::new([
+            [delta_o.x(), ray.dir.x(), perp.x()],
+            [delta_o.y(), ray.dir.y(), perp.y()],
+            [delta_o.z(), ray.dir.z(), perp.z()],
+        ])
+        .determinant();
+        let t2 = SquareMatrix::new([
+            [delta_o.x(), u_dir.x(), perp.x()],
+            [delta_o.y(), u_dir.y(), perp.y()],
+            [delta_o.z(), u_dir.z(), perp.z()],
+        ])
+        .determinant()
+            / p2;
+
+        // Set u, v, t if intersection is valid, and is closer than t1
+        // (may not be despite positive t due to float error)
+        if t2 > p2 * epsilon && (0.0..=p2).contains(&v2) && t2 < t {
+            u = Some(u2);
+            v = Some(v2 / p2);
+            t = t2;
+        }
+    }
+
+    // Check intersection against t_max and possibly return intersection
+    if t < t_max {
+        // u and v should have been set
+        Some(BilinearIntersection {
+            uv: Point2f::new(u.unwrap(), v.unwrap()),
+            t,
+        })
+    } else {
+        None
+    }
+}
+
 #[derive(Debug)]
 pub struct BilinearPatchMesh {
     pub vertices: &'static [usize],
@@ -194,4 +302,9 @@ impl BilinearPatchMesh {
     pub fn is_rectangle(&self) -> bool {
         todo!()
     }
+}
+
+pub struct BilinearIntersection {
+    pub uv: Point2f,
+    pub t: Float,
 }

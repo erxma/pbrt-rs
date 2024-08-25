@@ -130,6 +130,53 @@ pub fn evaluate_polynomial<F: num_traits::Float>(t: F, coefficients: &[F]) -> F 
         .rfold(F::zero(), |sum, &c| sum.mul_add(t, c))
 }
 
+/// Solve a quadratic equation `at^2 + bt + c = 0` for values of `t`.
+///
+/// - If two solutions, they are returned as `(lower, higher)`.
+///
+/// - If one solution, it is returned for both values.
+///
+/// - If no solutions, returns `None`.
+///
+/// # Panics
+/// If all coefficients are zero, as there are infinite solutions.
+#[inline]
+pub fn solve_quadratic(a: Float, b: Float, c: Float) -> Option<(Float, Float)> {
+    // Panic on all zero, would have infinite solutions
+    assert!(
+        a != 0.0 || b != 0.0 || c != 0.0,
+        "solve_quadratic shouldn't be used would all-zero coefficients, as there are infinite solutions"
+    );
+
+    // Handle case of a = 0 (actually linear)
+    if a == 0.0 {
+        if b == 0.0 {
+            return None;
+        } else {
+            let t = -c / b;
+            return Some((t, t));
+        }
+    }
+
+    let discrim = difference_of_products(b, b, 4.0 * a, c);
+    // If discrim is neg, no real roots
+    if discrim < 0.0 {
+        return None;
+    }
+    let root_discrim = discrim.sqrt();
+
+    // Compute ts
+    let q = -0.5 * (b + root_discrim.copysign(b));
+    let t0 = q / a;
+    let t1 = c / q;
+
+    if t0 <= t1 {
+        Some((t0, t1))
+    } else {
+        Some((t1, t0))
+    }
+}
+
 #[inline]
 pub fn difference_of_products<T>(a: T, b: T, c: T, d: T) -> T
 where

@@ -301,5 +301,16 @@ pub fn sample_spherical_rectangle(
     todo!()
 }
 
+#[inline]
+pub fn invert_spherical_rectangle_sample(
+    p_ref: Point3f,
+    v00: Point3f,
+    eu: Vec3f,
+    ev: Vec3f,
+    p_rect: Point3f,
+) -> Point2f {
+    todo!()
+}
+
 #[derive(Debug)]
 pub struct PiecewiseConstant2D {}

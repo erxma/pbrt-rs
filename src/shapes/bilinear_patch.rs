@@ -5,12 +5,12 @@ use itertools::iproduct;
 use crate::{
     geometry::{Bounds3f, DirectionCone, Ray, SampleInteraction, SurfaceInteraction, Transform},
     math::{
-        difference_of_products, gamma, lerp, solve_quadratic, Normal3f, Point2f, Point3f, Point3fi,
-        SquareMatrix, Tuple, Vec3f,
+        difference_of_products, gamma, lerp, solve_quadratic, spherical_quad_area, Normal3f,
+        Point2f, Point3f, Point3fi, SquareMatrix, Tuple, Vec3f,
     },
     sampling::routines::{
-        bilinear_pdf, invert_bilinear, sample_bilinear, sample_spherical_rectangle,
-        PiecewiseConstant2D,
+        bilinear_pdf, invert_bilinear, invert_spherical_rectangle_sample, sample_bilinear,
+        sample_spherical_rectangle, PiecewiseConstant2D,
     },
     Float,
 };
@@ -295,7 +295,10 @@ impl Shape for BilinearPatch {
         let v10 = (p10 - ctx.pi.midpoints_only()).normalized();
         let v01 = (p01 - ctx.pi.midpoints_only()).normalized();
         let v11 = (p11 - ctx.pi.midpoints_only()).normalized();
-        if !self.mesh().is_rectangle() || self.mesh().image_distribution.is_some() {
+        if !self.mesh().is_rectangle()
+            || self.mesh().image_distribution.is_some()
+            || spherical_quad_area(v00, v10, v11, v01) <= Self::MIN_SPHERICAL_SAMPLE_AREA
+        {
             let mut ss = self.sample(u)?;
             ss.intr.time = ctx.time;
             let mut wi = ss.intr.pi.midpoints_only() - ctx.pi.midpoints_only();
@@ -403,7 +406,71 @@ impl Shape for BilinearPatch {
     }
 
     fn pdf_with_context(&self, ctx: &ShapeSampleContext, wi: Vec3f) -> Float {
-        todo!()
+        // Get positons
+        let (p00, p10, p01, p11) = self.mesh_positions();
+
+        // Compute solid angle PDF for patch from reference point
+        // Intersect sample ray with shape geometry
+        let ray = ctx.spawn_ray(wi);
+        let isect = match self.intersect(&ray, None) {
+            Some(isect) => isect,
+            None => {
+                return 0.0;
+            }
+        };
+
+        let v00 = (p00 - ctx.pi.midpoints_only()).normalized();
+        let v10 = (p10 - ctx.pi.midpoints_only()).normalized();
+        let v01 = (p01 - ctx.pi.midpoints_only()).normalized();
+        let v11 = (p11 - ctx.pi.midpoints_only()).normalized();
+        if !self.mesh().is_rectangle()
+            || self.mesh().image_distribution.is_some()
+            || spherical_quad_area(v00, v10, v11, v01) <= Self::MIN_SPHERICAL_SAMPLE_AREA
+        {
+            let intr = SampleInteraction::new(
+                isect.intr.pi,
+                Some(isect.intr.time),
+                isect.intr.n,
+                isect.intr.uv,
+            );
+            // Return solid angle PDF for area-sampled patch
+            let pdf = self.pdf(&intr)
+                * (ctx
+                    .pi
+                    .midpoints_only()
+                    .distance_squared(isect.intr.pi.midpoints_only())
+                    / isect.intr.n.absdot(Normal3f::from(wi)));
+
+            if pdf.is_finite() {
+                pdf
+            } else {
+                0.0
+            }
+        } else {
+            // Return PDF for sample in spherical rectangle
+            let pdf = 1.0 / spherical_quad_area(v00, v10, v11, v01);
+            if let Some(ns) = ctx.ns {
+                let ns = ns.into();
+                // Compute cos theta weights for rectangle seen from ref point
+                let w = [
+                    v00.absdot(ns).max(0.01),
+                    v10.absdot(ns).max(0.01),
+                    v01.absdot(ns).max(0.01),
+                    v11.absdot(ns).max(0.01),
+                ];
+
+                let u = invert_spherical_rectangle_sample(
+                    ctx.pi.midpoints_only(),
+                    p00,
+                    p10 - p00,
+                    p01 - p00,
+                    isect.intr.pi.midpoints_only(),
+                );
+                pdf * bilinear_pdf(u, &w)
+            } else {
+                pdf
+            }
+        }
     }
 }
 

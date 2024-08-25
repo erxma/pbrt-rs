@@ -63,7 +63,7 @@ impl Light for DirectionalLight {
             .get()
             .expect("Must call preprocess() with scene bounds info for DirectionalLight first");
         let incident = (&self.render_from_light * Vec3f::UP).normalized();
-        let p_outside = ctx.p() + incident * (2.0 * scene_radius);
+        let p_outside = ctx.pi_mids() + incident * (2.0 * scene_radius);
 
         Some(LightLiSample {
             l: self.scale * self.emitted_radiance.sample(wavelengths),

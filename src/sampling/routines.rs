@@ -1,5 +1,5 @@
 use crate::{
-    float::{FRAC_PI_2, FRAC_PI_4, PI, SQRT_2},
+    float::{FRAC_PI_2, FRAC_PI_4, INV_4_PI, PI, SQRT_2},
     geometry::Bounds2f,
     math::{
         self, gaussian, lerp, next_float_down, safe_sqrt, Point2f, Point2i, Point3f, Vec2f, Vec3f,
@@ -252,6 +252,8 @@ pub fn invert_bilinear_sample(p: Point2f, w: &[Float]) -> Point2f {
 pub fn invert_bilinear(p: Point2f, v: &[Point2f]) -> Point2f {
     todo!()
 }
+
+pub const UNIFORM_SPHERE_PDF: Float = INV_4_PI;
 
 #[inline]
 pub fn sample_uniform_sphere(u: Point2f) -> Vec3f {

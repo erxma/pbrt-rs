@@ -8,6 +8,7 @@ use crate::{
         difference_of_products, gamma, lerp, solve_quadratic, Normal3f, Point2f, Point3f, Point3fi,
         SquareMatrix, Tuple, Vec3f,
     },
+    sampling::routines::{bilinear_pdf, sample_bilinear, PiecewiseConstant2D},
     Float,
 };
 
@@ -61,12 +62,16 @@ impl BilinearPatch {
         BilinearPatchMesh::get(self.mesh_idx).unwrap()
     }
 
-    pub fn positions(&self) -> (Point3f, Point3f, Point3f, Point3f) {
+    pub fn mesh_positions(&self) -> (Point3f, Point3f, Point3f, Point3f) {
         self.mesh().positions(self.blp_idx)
     }
 
-    pub fn vertex_normals(&self) -> Option<(Normal3f, Normal3f, Normal3f, Normal3f)> {
+    pub fn mesh_vertex_normals(&self) -> Option<(Normal3f, Normal3f, Normal3f, Normal3f)> {
         self.mesh().vertex_normals(self.blp_idx)
+    }
+
+    pub fn mesh_uvs(&self) -> Option<(Point2f, Point2f, Point2f, Point2f)> {
+        self.mesh().uvs(self.blp_idx)
     }
 
     pub fn interaction_from_intersection(
@@ -156,21 +161,21 @@ impl BilinearPatch {
 impl Shape for BilinearPatch {
     fn bounds(&self) -> Bounds3f {
         // Get patch vertices
-        let (p00, p10, p01, p11) = self.positions();
+        let (p00, p10, p01, p11) = self.mesh_positions();
         // Bounds is bounding box of the four corners
         Bounds3f::new(p00, p01).union(Bounds3f::new(p10, p11))
     }
 
     fn normal_bounds(&self) -> DirectionCone {
         // Get patch vertices
-        let (p00, p10, p01, p11) = self.positions();
+        let (p00, p10, p01, p11) = self.mesh_positions();
         // If patch is a triangle, return bounds for single surface normal
         if p00 == p10 || p10 == p11 || p01 == p11 || p00 == p11 {
             let dpdu = lerp(p10, p11, 0.5) - lerp(p00, p01, 0.5);
             let dpdv = lerp(p01, p11, 0.5) - lerp(p00, p10, 0.5);
             let mut n: Normal3f = dpdu.cross(dpdv).normalized().into();
 
-            if let Some((vn00, vn10, vn01, vn11)) = self.vertex_normals() {
+            if let Some((vn00, vn10, vn01, vn11)) = self.mesh_vertex_normals() {
                 let ns = (vn00 + vn01 + vn10 + vn11) / 4.0;
                 n = n.face_forward(ns.into());
             } else if self.mesh().reverse_orientation ^ self.mesh().transform_swaps_handedness {
@@ -184,7 +189,7 @@ impl Shape for BilinearPatch {
         let mut n10: Normal3f = (p11 - p10).cross(p00 - p10).normalized().into();
         let mut n01: Normal3f = (p00 - p01).cross(p11 - p01).normalized().into();
         let mut n11: Normal3f = (p01 - p11).cross(p10 - p11).normalized().into();
-        if let Some((vn00, vn10, vn01, vn11)) = self.vertex_normals() {
+        if let Some((vn00, vn10, vn01, vn11)) = self.mesh_vertex_normals() {
             n00 = n00.face_forward(vn00.into());
             n10 = n10.face_forward(vn10.into());
             n01 = n01.face_forward(vn01.into());
@@ -216,7 +221,64 @@ impl Shape for BilinearPatch {
     }
 
     fn sample(&self, u: Point2f) -> Option<ShapeSample> {
-        todo!()
+        // Get positions
+        let (p00, p10, p01, p11) = self.mesh_positions();
+
+        let (uv, mut pdf) = if let Some(distrib) = &self.mesh().image_distribution {
+            todo!()
+        } else if !self.mesh().is_rectangle() {
+            // Sample patch (u, v) with approx uniform area sampling
+
+            // Init w array with differential area at patch corners
+            let w = [
+                (p10 - p00).cross(p01 - p00).length(),
+                (p10 - p00).cross(p11 - p10).length(),
+                (p01 - p00).cross(p11 - p01).length(),
+                (p11 - p10).cross(p11 - p01).length(),
+            ];
+
+            let uv = sample_bilinear(u, &w);
+            let pdf = bilinear_pdf(uv, &w);
+            (uv, pdf)
+        } else {
+            (u, 1.0)
+        };
+
+        // Compute patch geometric quantities at sampled (u, v)
+
+        // Compute p, dp/du, dp/dv
+        let pu0 = lerp(p00, p01, uv[1]);
+        let pu1 = lerp(p10, p11, uv[1]);
+        let p = lerp(pu0, pu1, uv[0]);
+        let dpdu = pu1 - pu0;
+        let dpdv = lerp(p01, p11, uv[0]) - lerp(p00, p10, uv[0]);
+        if dpdu.length_squared() == 0.0 || dpdv.length_squared() == 0.0 {
+            return None;
+        }
+
+        let st = uv;
+        if let Some(uv) = self.mesh_uvs() {
+            todo!()
+        }
+
+        // Compute surface normal for sampled (u, v)
+        let mut n: Normal3f = dpdu.cross(dpdv).normalized().into();
+        // Flip normal if necessary
+        if let Some((n00, n10, n01, n11)) = self.mesh_vertex_normals() {
+            let ns = lerp(lerp(n00, n01, uv[1]), lerp(n10, n11, uv[1]), uv[0]);
+            n = n.face_forward(ns.into());
+        } else if self.mesh().reverse_orientation ^ self.mesh().transform_swaps_handedness {
+            n = -n;
+        }
+
+        // Compute error for (u, v)
+        let p_abs_sum = p00.abs() + p01.abs() + p10.abs() + p11.abs();
+        let p_err = gamma(6) * Vec3f::from(p_abs_sum);
+
+        // Return sample
+        let intr = SampleInteraction::new(Point3fi::new_fi(p, p_err), None, n, st);
+        pdf /= dpdu.cross(dpdv).length();
+        Some(ShapeSample { intr, pdf })
     }
 
     fn sample_with_context(&self, ctx: &ShapeSampleContext, u: Point2f) -> Option<ShapeSample> {
@@ -345,8 +407,10 @@ pub struct BilinearPatchMesh {
     pub vertices: &'static [usize],
     pub positions: &'static [Point3f],
     pub normals: Option<&'static [Normal3f]>,
+    pub uv: Option<&'static [Point2f]>,
     pub reverse_orientation: bool,
     pub transform_swaps_handedness: bool,
+    pub image_distribution: Option<PiecewiseConstant2D>,
 }
 
 static MESH_DATA: OnceLock<Vec<BilinearPatchMesh>> = OnceLock::new();
@@ -385,6 +449,19 @@ impl BilinearPatchMesh {
             let n01 = vert_n[verts[2]];
             let n11 = vert_n[verts[3]];
             Some((n00, n10, n01, n11))
+        } else {
+            None
+        }
+    }
+
+    pub fn uvs(&self, blp_idx: usize) -> Option<(Point2f, Point2f, Point2f, Point2f)> {
+        if let Some(uv) = self.uv {
+            let verts = &self.vertices[4 * blp_idx..4 * blp_idx + 4];
+            let uv00 = uv[verts[0]];
+            let uv10 = uv[verts[1]];
+            let uv01 = uv[verts[2]];
+            let uv11 = uv[verts[3]];
+            Some((uv00, uv10, uv01, uv11))
         } else {
             None
         }

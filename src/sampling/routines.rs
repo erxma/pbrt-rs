@@ -2,7 +2,7 @@ use crate::{
     float::{FRAC_PI_2, FRAC_PI_4, PI, SQRT_2},
     geometry::Bounds2f,
     math::{
-        self, gaussian, lerp, next_float_down, safe_sqrt, Point2f, Point2i, Vec2f, Vec3f,
+        self, gaussian, lerp, next_float_down, safe_sqrt, Point2f, Point2i, Point3f, Vec2f, Vec3f,
         ONE_MINUS_EPSILON,
     },
     Float,
@@ -283,6 +283,17 @@ pub fn sample_uniform_disk_polar(u: Point2f) -> Point2f {
     let r = u[0].sqrt();
     let theta = 2.0 * PI * u[1];
     Point2f::new(r * theta.cos(), r * theta.sin())
+}
+
+#[inline]
+pub fn sample_spherical_rectangle(
+    p: Point3f,
+    v00: Point3f,
+    eu: Vec3f,
+    ev: Vec3f,
+    u: Point2f,
+) -> (Point3f, Float) {
+    todo!()
 }
 
 #[derive(Debug)]

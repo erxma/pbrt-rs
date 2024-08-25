@@ -1,15 +1,18 @@
+use std::sync::Arc;
+
 use delegate::delegate;
 
 use crate::{
     camera::{CameraEnum, VisibleSurface},
     float::PI,
     geometry::{Ray, RayDifferential},
+    lights::LightEnum,
     math::Point2i,
     memory::ScratchBuffer,
-    primitives::Primitive,
+    primitives::{Primitive, PrimitiveEnum},
     reflection::TransportMode,
-    sampling::routines::sample_uniform_sphere,
     sampling::{
+        routines::sample_uniform_sphere,
         spectrum::{SampledSpectrum, SampledWavelengths},
         Sampler, SamplerEnum,
     },
@@ -86,6 +89,21 @@ impl RayIntegrate for RandomWalkIntegrator {
 }
 
 impl RandomWalkIntegrator {
+    pub fn new(
+        max_depth: usize,
+        camera: CameraEnum,
+        sampler: SamplerEnum,
+        aggregate: PrimitiveEnum,
+        lights: Vec<Arc<LightEnum>>,
+    ) -> Self {
+        Self {
+            scene_data: SceneData::new(aggregate, lights),
+            camera,
+            sampler,
+            max_depth,
+        }
+    }
+
     fn incident_radiance_random_walk(
         &self,
         ray_diff: RayDifferential,

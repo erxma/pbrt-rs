@@ -2,7 +2,7 @@ use std::sync::OnceLock;
 
 use crate::{
     float::PI,
-    geometry::{Bounds3f, Ray},
+    geometry::{Bounds3f, Ray, Transform},
     lights::LightType,
     math::{Normal3f, Point2f, Point3f, Vec3f},
     media::MediumInterface,
@@ -24,6 +24,16 @@ pub struct UniformInfiniteLight {
     // To be set late via preprocess()
     scene_center: OnceLock<Point3f>,
     scene_radius: OnceLock<Float>,
+}
+
+impl UniformInfiniteLight {
+    pub fn new(
+        render_from_light: Transform,
+        emitted_radiance: &impl Spectrum,
+        scale: Float,
+    ) -> Self {
+        todo!()
+    }
 }
 
 impl Light for UniformInfiniteLight {

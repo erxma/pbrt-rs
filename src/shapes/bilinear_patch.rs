@@ -17,6 +17,7 @@ use crate::{
 
 use super::{Shape, ShapeIntersection, ShapeSample, ShapeSampleContext};
 
+#[derive(Clone, Debug)]
 pub struct BilinearPatch {
     mesh_idx: usize,
     blp_idx: usize,

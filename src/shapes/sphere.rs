@@ -1,5 +1,7 @@
 use std::mem;
 
+use derive_builder::Builder;
+
 use crate::{
     float::PI,
     geometry::{
@@ -26,7 +28,52 @@ pub struct Sphere {
     render_from_object: Transform,
     object_from_render: Transform,
     reverse_orientation: bool,
-    transform_swaps_handedness: bool,
+}
+
+#[derive(Builder)]
+#[builder(
+    name = "SphereBuilder",
+    public,
+    build_fn(private, name = "build_params")
+)]
+struct SphereParams {
+    radius: Float,
+    z_min: Float,
+    z_max: Float,
+    phi_max: Float,
+    render_from_object: Transform,
+    object_from_render: Transform,
+    reverse_orientation: bool,
+}
+
+impl SphereBuilder {
+    pub fn build(&self) -> Result<Sphere, SphereBuilderError> {
+        let params = self.build_params()?;
+
+        let radius = params.radius;
+
+        let z_min = params.z_min.min(params.z_max).clamp(-radius, radius);
+        let z_max = params.z_min.max(params.z_max).clamp(-radius, radius);
+        let theta_z_min = (params.z_min.min(params.z_max) / radius)
+            .clamp(-1.0, 1.0)
+            .acos();
+        let theta_z_max = (params.z_max.min(params.z_max) / radius)
+            .clamp(-1.0, 1.0)
+            .acos();
+        let phi_max = params.phi_max.clamp(0.0, 360.0).to_radians();
+
+        Ok(Sphere {
+            radius: params.radius,
+            z_min,
+            z_max,
+            theta_z_min,
+            theta_z_max,
+            phi_max,
+            render_from_object: params.render_from_object,
+            object_from_render: params.object_from_render,
+            reverse_orientation: params.reverse_orientation,
+        })
+    }
 }
 
 impl Shape for Sphere {
@@ -225,6 +272,10 @@ impl Shape for Sphere {
 }
 
 impl Sphere {
+    pub fn builder() -> SphereBuilder {
+        SphereBuilder::create_empty()
+    }
+
     /// Perform a basic ray-sphere intersection test, and return basic info about the point if found.
     pub fn basic_intersect(&self, ray: &Ray, t_max: Float) -> Option<QuadricIntersection> {
         // Transform ray's origin, direction to object space
@@ -387,7 +438,7 @@ impl Sphere {
         let dndv =
             Normal3f::from((g * F - f * G) * inv_EGF2 * dpdu + (f * F - g * E) * inv_EGF2 * dpdv);
 
-        let flip_normal = self.reverse_orientation ^ self.transform_swaps_handedness;
+        let flip_normal = self.reverse_orientation ^ self.render_from_object.swaps_handedness();
         let wo_object = &self.object_from_render * wo;
         SurfaceInteraction::builder()
             .pi(Point3fi::new_fi(p_hit, p_error))

@@ -71,8 +71,8 @@ impl Light for PointLight {
         _allow_incomplete_pdf: bool,
     ) -> Option<LightLiSample> {
         let p = &self.render_from_light * Point3f::ZERO;
-        let wi = (p - ctx.p()).normalized();
-        let li = self.scale * self.i.sample(wavelengths) / p.distance_squared(ctx.p());
+        let wi = (p - ctx.pi_mids()).normalized();
+        let li = self.scale * self.i.sample(wavelengths) / p.distance_squared(ctx.pi_mids());
 
         Some(LightLiSample {
             l: li,

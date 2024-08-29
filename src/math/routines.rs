@@ -223,6 +223,40 @@ fn left_shift_3(mut x: u32) -> u32 {
     x
 }
 
+pub fn find_interval(size: usize, pred: impl Fn(usize) -> bool) -> Option<usize> {
+    // FIXME
+    // If < 2, no valid result
+    if size < 2 {
+        return None;
+    }
+
+    // Perform a binary search
+    let mut left = 0;
+    let mut right = size - 1;
+
+    while left < right {
+        let mid = left + (right - left) / 2;
+
+        // If pred is true, move left bound up
+        if pred(mid) {
+            left = mid + 1;
+        } else {
+            // Otherwise, move right bound down
+            right = mid;
+        }
+    }
+
+    if left == 0 {
+        // No index satisfies pred, return 0
+        Some(0)
+    } else if left >= size - 1 {
+        // All indices satisfy pred, return sz - 2 to stay in bounds
+        Some(size - 2)
+    } else {
+        Some(left - 1)
+    }
+}
+
 pub(crate) use inner_product;
 
 #[cfg(test)]

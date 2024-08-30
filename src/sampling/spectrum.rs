@@ -1,7 +1,7 @@
 use crate::{
     color::{RGBColorSpace, RGBSigmoidPolynomial, RGB, XYZ},
-    math::lerp,
-    util::data::{CIE_LAMBDA, CIE_X, CIE_Y, CIE_Z, N_CIE_SAMPLES},
+    math::{find_interval, lerp},
+    util::data::{CIE_ILLUM_D6500, CIE_LAMBDA, CIE_X, CIE_Y, CIE_Z, N_CIE_SPECTRUM_SAMPLES},
     Float,
 };
 use delegate::delegate;
@@ -21,31 +21,37 @@ pub const LAMBDA_MAX: Float = 830.0;
 const N_SPECTRUM_SAMPLES: usize = 4;
 
 pub static X: LazyLock<SpectrumEnum> = LazyLock::new(|| {
-    let samples: [SpectrumSample; N_CIE_SAMPLES] = core::array::from_fn(|i| SpectrumSample {
-        lambda: CIE_LAMBDA[i],
-        value: CIE_X[i],
-    });
+    let samples: [SpectrumSample; N_CIE_SPECTRUM_SAMPLES] =
+        core::array::from_fn(|i| SpectrumSample {
+            lambda: CIE_LAMBDA[i],
+            value: CIE_X[i],
+        });
     let pls = PiecewiseLinearSpectrum::new(&samples);
     DenselySampledSpectrum::new(&pls, None, None).into()
 });
 
 pub static Y: LazyLock<SpectrumEnum> = LazyLock::new(|| {
-    let samples: [SpectrumSample; N_CIE_SAMPLES] = core::array::from_fn(|i| SpectrumSample {
-        lambda: CIE_LAMBDA[i],
-        value: CIE_Y[i],
-    });
+    let samples: [SpectrumSample; N_CIE_SPECTRUM_SAMPLES] =
+        core::array::from_fn(|i| SpectrumSample {
+            lambda: CIE_LAMBDA[i],
+            value: CIE_Y[i],
+        });
     let pls = PiecewiseLinearSpectrum::new(&samples);
     DenselySampledSpectrum::new(&pls, None, None).into()
 });
 
 pub static Z: LazyLock<SpectrumEnum> = LazyLock::new(|| {
-    let samples: [SpectrumSample; N_CIE_SAMPLES] = core::array::from_fn(|i| SpectrumSample {
-        lambda: CIE_LAMBDA[i],
-        value: CIE_Z[i],
-    });
+    let samples: [SpectrumSample; N_CIE_SPECTRUM_SAMPLES] =
+        core::array::from_fn(|i| SpectrumSample {
+            lambda: CIE_LAMBDA[i],
+            value: CIE_Z[i],
+        });
     let pls = PiecewiseLinearSpectrum::new(&samples);
     DenselySampledSpectrum::new(&pls, None, None).into()
 });
+
+pub static ILLUMD65: LazyLock<SpectrumEnum> =
+    LazyLock::new(|| PiecewiseLinearSpectrum::from_interleaved(&CIE_ILLUM_D6500, true).into());
 
 pub const CIE_Y_INTEGRAL: Float = 106.856895;
 
@@ -257,26 +263,6 @@ impl PiecewiseLinearSpectrum {
         }
         self
     }
-
-    fn find_interval(&self, lambda: Float) -> usize {
-        // Binary search for
-        match self
-            .samples
-            .binary_search_by(|&sample| sample.lambda.partial_cmp(&lambda).unwrap())
-        {
-            // Exact match
-            Ok(i) => i,
-            Err(i) => {
-                if i > 0 && i < self.samples.len() - 1 {
-                    // Subtract 1 to get index of largest less than lambda
-                    // (In case of no match, binary search's return would be 1 over this)
-                    i - 1
-                } else {
-                    panic!("lambda should be within the covered range of samples")
-                }
-            }
-        }
-    }
 }
 
 #[macro_export]
@@ -302,7 +288,8 @@ impl Spectrum for PiecewiseLinearSpectrum {
 
         // Find lambda offsets to samples and interpolate
         // Sample with largest lambda <=lambda
-        let lower_i = self.find_interval(lambda);
+        let lower_i =
+            find_interval(self.samples.len(), |i| self.samples[i].lambda <= lambda).unwrap();
         let lower_sample = &self.samples[lower_i];
 
         if lambda == lower_sample.lambda {

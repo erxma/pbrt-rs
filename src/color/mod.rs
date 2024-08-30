@@ -1,7 +1,9 @@
 mod color_space;
 mod colors;
 
-pub use color_space::{RGBColorSpace, RGBSigmoidPolynomial, RGBToSpectrumTable};
+pub use color_space::{
+    CoefficientTable, RGBColorSpace, RGBSigmoidPolynomial, RGBToSpectrumTable, SRGB,
+};
 pub use colors::{RGB, XYZ};
 
 use crate::math::{Point2f, SquareMatrix};

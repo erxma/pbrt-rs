@@ -1,12 +1,13 @@
 use std::{
     cmp::min,
     ops::{Index, IndexMut},
-    sync::Arc,
+    sync::{Arc, LazyLock},
 };
 
 use crate::{
     math::{evaluate_polynomial, lerp, Point2f, SquareMatrix},
-    sampling::spectrum::{spectrum_to_xyz, DenselySampledSpectrum, SpectrumEnum},
+    sampling::spectrum::{spectrum_to_xyz, DenselySampledSpectrum, Spectrum, ILLUMD65},
+    util::data::SRGB_TABLE,
     Float,
 };
 
@@ -25,17 +26,27 @@ pub struct RGBColorSpace {
     rgb_to_spectrum_table: Arc<RGBToSpectrumTable>,
 }
 
+pub static SRGB: LazyLock<RGBColorSpace> = LazyLock::new(|| {
+    RGBColorSpace::new(
+        Point2f::new(0.64, 0.33),
+        Point2f::new(0.3, 0.6),
+        Point2f::new(0.15, 0.06),
+        &*ILLUMD65,
+        SRGB_TABLE.clone(),
+    )
+});
+
 impl RGBColorSpace {
     #[allow(non_snake_case)]
     pub fn new(
         r: Point2f,
         g: Point2f,
         b: Point2f,
-        illuminant: SpectrumEnum,
+        illuminant: &impl Spectrum,
         rgb_to_spectrum_table: Arc<RGBToSpectrumTable>,
     ) -> Self {
         // Compute whitepoint primaries and XYZ coordinates
-        let W = spectrum_to_xyz(&illuminant);
+        let W = spectrum_to_xyz(illuminant);
         let w = W.xy();
         let R = XYZ::from_xyy(r, None);
         let G = XYZ::from_xyy(g, None);
@@ -56,7 +67,7 @@ impl RGBColorSpace {
             g,
             b,
             w,
-            illuminant: DenselySampledSpectrum::new(&illuminant, None, None),
+            illuminant: DenselySampledSpectrum::new(illuminant, None, None),
             xyz_from_rgb,
             rgb_from_xyz,
             rgb_to_spectrum_table,
@@ -95,6 +106,10 @@ pub struct RGBToSpectrumTable {
 
 impl RGBToSpectrumTable {
     pub const RESOLUTION: usize = 64;
+
+    pub fn new(z_nodes: [Float; Self::RESOLUTION], coeffs: CoefficientTable) -> Self {
+        Self { z_nodes, coeffs }
+    }
 
     pub fn convert(&self, rgb: RGB) -> RGBSigmoidPolynomial {
         // Handle uniform RGB values
@@ -157,27 +172,44 @@ impl RGBToSpectrumTable {
     }
 }
 
+const RESOLUTION: usize = RGBToSpectrumTable::RESOLUTION;
+
+#[derive(Clone, Debug)]
+pub struct CoefficientTable {
+    vals: Vec<Float>,
+}
+
+impl CoefficientTable {
+    pub fn new(vals: Vec<Float>) -> Self {
+        assert_eq!(vals.len(), 3 * RESOLUTION * RESOLUTION * RESOLUTION * 3);
+        Self { vals }
+    }
+}
+
 impl Index<(usize, usize, usize, usize, usize)> for CoefficientTable {
     type Output = Float;
 
     fn index(&self, index: (usize, usize, usize, usize, usize)) -> &Self::Output {
         let (rgb_max_i, z, y, x, c_i) = index;
-        &self.vals[rgb_max_i][z][y][x][c_i]
+        let mut vec_idx = rgb_max_i;
+        vec_idx = vec_idx * RESOLUTION + z;
+        vec_idx = vec_idx * RESOLUTION + y;
+        vec_idx = vec_idx * RESOLUTION + x;
+        vec_idx = vec_idx * 3 + c_i;
+        &self.vals[vec_idx]
     }
 }
 
 impl IndexMut<(usize, usize, usize, usize, usize)> for CoefficientTable {
     fn index_mut(&mut self, index: (usize, usize, usize, usize, usize)) -> &mut Self::Output {
         let (rgb_max_i, z, y, x, c_i) = index;
-        &mut self.vals[rgb_max_i][z][y][x][c_i]
+        let mut vec_idx = rgb_max_i;
+        vec_idx = vec_idx * RESOLUTION + z;
+        vec_idx = vec_idx * RESOLUTION + y;
+        vec_idx = vec_idx * RESOLUTION + x;
+        vec_idx = vec_idx * 3 + c_i;
+        &mut self.vals[vec_idx]
     }
-}
-
-const RESOLUTION: usize = RGBToSpectrumTable::RESOLUTION;
-
-#[derive(Clone, Debug)]
-struct CoefficientTable {
-    vals: Box<[[[[[Float; 3]; RESOLUTION]; RESOLUTION]; RESOLUTION]; 3]>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

@@ -34,7 +34,7 @@ struct OrthographicCameraParams {
     shutter_open: Float,
     shutter_close: Float,
     film: Arc<Film>,
-    medium: Arc<MediumEnum>,
+    medium: Option<Arc<MediumEnum>>,
 
     screen_from_camera: Transform,
     screen_window: Bounds2f,

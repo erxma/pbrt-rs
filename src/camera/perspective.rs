@@ -36,7 +36,8 @@ struct PerspectiveCameraParams {
     shutter_open: Float,
     shutter_close: Float,
     film: Arc<Film>,
-    medium: Arc<MediumEnum>,
+    #[builder(default)]
+    medium: Option<Arc<MediumEnum>>,
 
     // For setting ProjectiveCamera fields
     fov: Float,
@@ -112,7 +113,7 @@ impl Camera for PerspectiveCamera {
             o,
             dir,
             self.sample_time(sample.time),
-            Some(&self.projective.medium),
+            self.projective.medium.as_deref(),
         );
 
         // Modify ray for depth of field
@@ -151,7 +152,7 @@ impl Camera for PerspectiveCamera {
             o,
             dir,
             self.sample_time(sample.time),
-            Some(&self.projective.medium),
+            self.projective.medium.as_deref(),
         );
 
         // Modify ray for depth of field,

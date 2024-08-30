@@ -149,7 +149,7 @@ pub(super) struct ProjectiveCamera {
     pub shutter_open: Float,
     pub shutter_close: Float,
     pub film: Arc<Film>,
-    pub medium: Arc<MediumEnum>,
+    pub medium: Option<Arc<MediumEnum>>,
 
     pub _screen_from_camera: Transform,
     pub camera_from_raster: Transform,
@@ -164,7 +164,7 @@ pub(super) struct ProjectiveCameraParams {
     pub shutter_open: Float,
     pub shutter_close: Float,
     pub film: Arc<Film>,
-    pub medium: Arc<MediumEnum>,
+    pub medium: Option<Arc<MediumEnum>>,
 
     pub screen_from_camera: Transform,
     pub screen_window: Bounds2f,

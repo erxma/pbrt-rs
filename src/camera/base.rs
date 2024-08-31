@@ -3,7 +3,7 @@ use std::{ops::Mul, sync::Arc};
 use super::{film::Film, perspective::PerspectiveCamera, OrthographicCamera};
 use crate::{
     geometry::{Bounds2f, Ray, RayDifferential, Transform},
-    math::{lerp, Point2f, Vec3f},
+    math::{lerp, Point2f, Point3f, Vec3f},
     media::MediumEnum,
     sampling::spectrum::{SampledSpectrum, SampledWavelengths},
     Float,
@@ -127,12 +127,24 @@ impl<'a> CameraRayDifferential<'a> {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CameraTransform {
+    pub render_from_camera: Transform,
     pub world_from_render: Transform,
 }
 
 impl CameraTransform {
     pub fn new(world_from_camera: Transform) -> Self {
-        todo!()
+        // Compute world from render
+        let p_camera = &world_from_camera * Point3f::ZERO;
+        let world_from_render = Transform::translate(p_camera.into());
+
+        // Compute render from camera
+        let render_from_world = world_from_render.inverse();
+        let render_from_camera = render_from_world * world_from_camera;
+
+        Self {
+            render_from_camera,
+            world_from_render,
+        }
     }
 
     pub fn render_from_camera<T>(&self, item: T) -> T

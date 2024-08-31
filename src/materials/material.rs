@@ -1,11 +1,15 @@
+use std::{borrow::Cow, sync::Arc};
+
 use crate::{
     math::{Normal3f, Vec3f},
-    reflection::DiffuseBxDF,
-    sampling::spectrum::{SampledSpectrum, SampledWavelengths},
+    reflection::{DielectricBxDF, DiffuseBxDF, TrowbridgeReitz},
+    sampling::spectrum::{SampledSpectrum, SampledWavelengths, SpectrumEnum},
     Float,
 };
 
-use super::{FloatTexture, SpectrumTexture, SpectrumTextureEnum, TextureEvalContext};
+use super::{
+    FloatTexture, FloatTextureEnum, SpectrumTexture, SpectrumTextureEnum, TextureEvalContext,
+};
 
 pub enum MaterialEnum {
     Diffuse(DiffuseBxDF),
@@ -18,7 +22,7 @@ pub trait Material {
         &self,
         tex_eval: &impl TextureEvaluator,
         ctx: &MaterialEvalContext,
-        lambda: &SampledWavelengths,
+        lambda: Cow<SampledWavelengths>,
     ) -> Self::BxDF;
 }
 
@@ -58,11 +62,11 @@ impl TextureEvaluator for UniversalTextureEvaluator {
 }
 
 pub struct DiffuseMaterial<'a> {
-    reflectance: SpectrumTextureEnum<'a>,
+    reflectance: Arc<SpectrumTextureEnum<'a>>,
 }
 
 impl<'a> DiffuseMaterial<'a> {
-    pub fn new(reflectance: SpectrumTextureEnum<'a>) -> Self {
+    pub fn new(reflectance: Arc<SpectrumTextureEnum<'a>>) -> Self {
         Self { reflectance }
     }
 }
@@ -74,11 +78,63 @@ impl Material for DiffuseMaterial<'_> {
         &self,
         tex_eval: &impl TextureEvaluator,
         ctx: &MaterialEvalContext,
-        lambda: &SampledWavelengths,
+        lambda: Cow<SampledWavelengths>,
     ) -> Self::BxDF {
         let reflectance = tex_eval
-            .eval_spectrum(&self.reflectance, &ctx.tex_eval_ctx, lambda)
+            .eval_spectrum(&*self.reflectance, &ctx.tex_eval_ctx, &lambda)
             .clamp(0.0, 1.0);
         DiffuseBxDF::new(reflectance)
+    }
+}
+
+pub struct DielectricMaterial<'a> {
+    u_roughness: Arc<FloatTextureEnum>,
+    v_roughness: Arc<FloatTextureEnum>,
+    remap_roughness: bool,
+    eta: Arc<SpectrumEnum<'a>>,
+}
+
+impl<'a> DielectricMaterial<'a> {
+    pub fn new(
+        u_roughness: Arc<FloatTextureEnum>,
+        v_roughness: Arc<FloatTextureEnum>,
+        remap_roughness: bool,
+        eta: Arc<SpectrumEnum<'a>>,
+    ) -> Self {
+        Self {
+            u_roughness,
+            v_roughness,
+            remap_roughness,
+            eta,
+        }
+    }
+}
+
+impl Material for DielectricMaterial<'_> {
+    type BxDF = DielectricBxDF;
+
+    fn bxdf(
+        &self,
+        tex_eval: &impl TextureEvaluator,
+        ctx: &MaterialEvalContext,
+        mut lambda: Cow<SampledWavelengths>,
+    ) -> Self::BxDF {
+        // Compute index of refraction
+        let sampled_eta = self.eta.at(lambda[0]);
+        if !self.eta.is_constant() {
+            lambda.to_mut().terminate_secondary();
+        }
+
+        // Create microfacet distribution
+        let mut u_rough = tex_eval.eval(&*self.u_roughness, &ctx.tex_eval_ctx);
+        let mut v_rough = tex_eval.eval(&*self.v_roughness, &ctx.tex_eval_ctx);
+        if self.remap_roughness {
+            u_rough = TrowbridgeReitz::roughness_to_alpha(u_rough);
+            v_rough = TrowbridgeReitz::roughness_to_alpha(v_rough);
+        }
+        let distrib = TrowbridgeReitz::new(u_rough, v_rough);
+
+        // Final BxDF
+        DielectricBxDF::new(sampled_eta, distrib)
     }
 }

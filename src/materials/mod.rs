@@ -7,8 +7,8 @@ pub use mappings::{
     TextureMapping3D, UvMapping,
 };
 pub use material::{
-    DiffuseMaterial, Material, MaterialEnum, MaterialEvalContext, TextureEvaluator,
-    UniversalTextureEvaluator,
+    DielectricMaterial, DiffuseMaterial, Material, MaterialEnum, MaterialEvalContext,
+    TextureEvaluator, UniversalTextureEvaluator,
 };
 pub use textures::{
     ConstantFloatTexture, ConstantSpectrumTexture, FloatTexture, FloatTextureEnum, SpectrumTexture,

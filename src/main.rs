@@ -6,7 +6,10 @@ use pbrt_rs::{
     geometry::{Bounds2f, Bounds2i, Transform},
     image::BoxFilter,
     lights::{DirectionalLight, UniformInfiniteLight},
-    materials::{ConstantSpectrumTexture, DiffuseMaterial},
+    materials::{
+        ConstantFloatTexture, ConstantSpectrumTexture, DielectricMaterial, DiffuseMaterial,
+        FloatTextureEnum,
+    },
     math::{Point2f, Point2i, Point3f, Vec2f, Vec3f},
     sampling::{
         spectrum::{BlackbodySpectrum, ConstantSpectrum, RgbAlbedoSpectrum},
@@ -37,6 +40,9 @@ fn render_cpu() {
         .render_from_object(Transform::IDENTITY)
         .object_from_render(Transform::IDENTITY)
         .reverse_orientation(false);
+    let rough_tex: Arc<FloatTextureEnum> = Arc::new(ConstantFloatTexture::new(0.0).into());
+    let eta = Arc::new(ConstantSpectrum::new(1.5).into());
+    let sphere_mat = DielectricMaterial::new(rough_tex.clone(), rough_tex, false, eta);
 
     let filter = Arc::new(BoxFilter::new(Vec2f::new(0.5, 0.5)).into());
 
@@ -112,7 +118,7 @@ fn render_cpu() {
         image_distribution: None,
     }]);
     let patch = BilinearPatch::new(BilinearPatchMesh::get(0).unwrap(), 0, 0);
-    let floor_mat = DiffuseMaterial::new(
-        ConstantSpectrumTexture::new(ConstantSpectrum::new(0.9).into()).into(),
-    );
+    let floor_mat_tex =
+        Arc::new(ConstantSpectrumTexture::new(ConstantSpectrum::new(0.5).into()).into());
+    let floor_mat = DiffuseMaterial::new(floor_mat_tex);
 }

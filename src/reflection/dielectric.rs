@@ -430,6 +430,10 @@ impl TrowbridgeReitz {
             0.0
         }
     }
+
+    pub fn roughness_to_alpha(roughness: Float) -> Float {
+        roughness.sqrt()
+    }
 }
 
 fn fresnel_dielectric(mut cos_theta_i: Float, mut eta: Float) -> Float {

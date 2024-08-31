@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    math::{evaluate_polynomial, lerp, Point2f, SquareMatrix},
+    math::{evaluate_polynomial, find_interval, lerp, Point2f, SquareMatrix},
     sampling::spectrum::{spectrum_to_xyz, DenselySampledSpectrum, Spectrum, ILLUMD65},
     util::data::SRGB_TABLE,
     Float,
@@ -141,10 +141,7 @@ impl RGBToSpectrumTable {
         // Compute integer indices and offsets for coefficient interpolation
         let xi = min(x as usize, Self::RESOLUTION - 2);
         let yi = min(y as usize, Self::RESOLUTION - 2);
-        let zi = self
-            .z_nodes
-            .binary_search_by(|&node| node.partial_cmp(&z).unwrap())
-            .unwrap();
+        let zi = find_interval(RESOLUTION, |i| self.z_nodes[i] < z).unwrap();
 
         let dx = x - xi as Float;
         let dy = y - yi as Float;

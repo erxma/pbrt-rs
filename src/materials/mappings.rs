@@ -1,16 +1,8 @@
-use enum_dispatch::enum_dispatch;
-
 use crate::{
-    math::{Point2f, Point3f, Vec3f},
+    math::{Normal3f, Point2f, Point3f, Vec3f},
     Float,
 };
 
-#[enum_dispatch]
-pub enum TextureMapping2DEnum {
-    Uv(UvMapping),
-}
-
-#[enum_dispatch(TextureMapping2DEnum)]
 pub trait TextureMapping2D {
     fn map(&self, ctx: TextureEvalContext) -> TexCoord2D;
 }
@@ -31,22 +23,52 @@ pub struct TexCoord3D {
     dpdy: Vec3f,
 }
 
-pub struct TextureEvalContext {}
+#[derive(Clone, Debug)]
+pub struct TextureEvalContext {
+    pub p: Point3f,
+    pub dpdx: Vec3f,
+    pub dpdy: Vec3f,
+    pub n: Normal3f,
+    pub uv: Point2f,
+    pub dudx: Float,
+    pub dudy: Float,
+    pub dvdx: Float,
+    pub dvdy: Float,
+}
 
-pub struct UvMapping {}
+#[derive(Clone, Debug)]
+pub struct UvMapping {
+    pub su: Float,
+    pub sv: Float,
+    pub du: Float,
+    pub dv: Float,
+}
 
-impl TextureMapping2D for UvMapping {
-    fn map(&self, _ctx: TextureEvalContext) -> TexCoord2D {
-        todo!()
+impl UvMapping {
+    pub fn new(su: Float, sv: Float, du: Float, dv: Float) -> Self {
+        Self { su, sv, du, dv }
     }
 }
 
-#[enum_dispatch]
-pub enum TextureMapping3DEnum {
-    PointTransform(PointTransformMapping),
+impl TextureMapping2D for UvMapping {
+    fn map(&self, ctx: TextureEvalContext) -> TexCoord2D {
+        // Compute texture differentials for 2D UV mapping
+        let dsdx = self.su * ctx.dudx;
+        let dsdy = self.su * ctx.dudy;
+        let dtdx = self.sv * ctx.dvdx;
+        let dtdy = self.sv * ctx.dvdy;
+
+        let st = Point2f::new(self.su * ctx.uv[0] + self.du, self.sv * ctx.uv[1] + self.dv);
+        TexCoord2D {
+            st,
+            dsdx,
+            dsdy,
+            dtdx,
+            dtdy,
+        }
+    }
 }
 
-#[enum_dispatch(TextureMapping3DEnum)]
 pub trait TextureMapping3D {
     fn map(&self, ctx: TextureEvalContext) -> TexCoord3D;
 }

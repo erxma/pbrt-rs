@@ -94,7 +94,6 @@ fn render_cpu() {
 
     let inf_light = Arc::new(
         UniformInfiniteLight::new(
-            Transform::IDENTITY,
             &RgbAlbedoSpectrum::new(&SRGB, RGB::new(0.4, 0.45, 0.5)),
             1.0,
         )

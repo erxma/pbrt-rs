@@ -2,10 +2,9 @@ use std::sync::OnceLock;
 
 use crate::{
     float::PI,
-    geometry::{Bounds3f, Ray, Transform},
+    geometry::{Bounds3f, Ray},
     lights::LightType,
     math::{Normal3f, Point2f, Point3f, Vec3f},
-    media::MediumInterface,
     memory::cache::ArcIntern,
     sampling::{
         routines::{sample_uniform_sphere, UNIFORM_SPHERE_PDF},
@@ -14,11 +13,9 @@ use crate::{
     Float,
 };
 
-use super::{Light, LightLiSample, LightSampleContext};
+use super::{base::SpectrumCache, Light, LightLiSample, LightSampleContext};
 
 pub struct UniformInfiniteLight {
-    medium_interface: MediumInterface,
-
     emitted_radiance: ArcIntern<DenselySampledSpectrum>,
     scale: Float,
     // To be set late via preprocess()
@@ -27,12 +24,13 @@ pub struct UniformInfiniteLight {
 }
 
 impl UniformInfiniteLight {
-    pub fn new(
-        render_from_light: Transform,
-        emitted_radiance: &impl Spectrum,
-        scale: Float,
-    ) -> Self {
-        todo!()
+    pub fn new(emitted_radiance: &impl Spectrum, scale: Float) -> Self {
+        Self {
+            emitted_radiance: SpectrumCache::lookup_spectrum(emitted_radiance),
+            scale,
+            scene_center: OnceLock::new(),
+            scene_radius: OnceLock::new(),
+        }
     }
 }
 
@@ -79,7 +77,7 @@ impl Light for UniformInfiniteLight {
             wi: incident,
             pdf,
             p_light: ctx.pi_mids() + incident * (2.0 * scene_radius),
-            medium_interface: Some(&self.medium_interface),
+            medium_interface: None,
         })
     }
 

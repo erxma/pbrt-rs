@@ -1,4 +1,4 @@
-use std::ops::{Index, IndexMut, RangeInclusive};
+use std::ops::{Index, IndexMut, Range};
 
 use itertools::iproduct;
 
@@ -826,13 +826,13 @@ impl IntoIterator for Bounds2i {
     }
 }
 
-pub struct Bounds2iIterator(itertools::Product<RangeInclusive<i32>, RangeInclusive<i32>>);
+pub struct Bounds2iIterator(itertools::Product<Range<i32>, Range<i32>>);
 
 impl Bounds2iIterator {
     pub fn new(bounds: Bounds2i) -> Self {
         Self(iproduct!(
-            bounds.p_min.x()..=bounds.p_max.x(),
-            bounds.p_min.y()..=bounds.p_max.y()
+            bounds.p_min.x()..bounds.p_max.x(),
+            bounds.p_min.y()..bounds.p_max.y()
         ))
     }
 }

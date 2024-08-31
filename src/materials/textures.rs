@@ -28,11 +28,11 @@ pub trait FloatTexture {
 }
 
 #[enum_dispatch]
-pub enum SpectrumTextureEnum<'a> {
-    Constant(ConstantSpectrumTexture<'a>),
+pub enum SpectrumTextureEnum {
+    Constant(ConstantSpectrumTexture),
 }
 
-impl<'a> SpectrumTextureEnum<'a> {
+impl SpectrumTextureEnum {
     delegate! {
         #[through(SpectrumTexture)]
         to self {
@@ -62,18 +62,18 @@ impl ConstantFloatTexture {
     }
 }
 
-pub struct ConstantSpectrumTexture<'a> {
-    value: SpectrumEnum<'a>,
+pub struct ConstantSpectrumTexture {
+    value: SpectrumEnum,
 }
 
-impl SpectrumTexture for ConstantSpectrumTexture<'_> {
+impl SpectrumTexture for ConstantSpectrumTexture {
     fn eval(&self, _ctx: &TextureEvalContext, lambda: &SampledWavelengths) -> SampledSpectrum {
         self.value.sample(lambda)
     }
 }
 
-impl<'a> ConstantSpectrumTexture<'a> {
-    pub fn new(value: SpectrumEnum<'a>) -> Self {
+impl ConstantSpectrumTexture {
+    pub fn new(value: SpectrumEnum) -> Self {
         Self { value }
     }
 }

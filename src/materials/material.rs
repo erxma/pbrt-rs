@@ -61,17 +61,17 @@ impl TextureEvaluator for UniversalTextureEvaluator {
     }
 }
 
-pub struct DiffuseMaterial<'a> {
-    reflectance: Arc<SpectrumTextureEnum<'a>>,
+pub struct DiffuseMaterial {
+    reflectance: Arc<SpectrumTextureEnum>,
 }
 
-impl<'a> DiffuseMaterial<'a> {
-    pub fn new(reflectance: Arc<SpectrumTextureEnum<'a>>) -> Self {
+impl DiffuseMaterial {
+    pub fn new(reflectance: Arc<SpectrumTextureEnum>) -> Self {
         Self { reflectance }
     }
 }
 
-impl Material for DiffuseMaterial<'_> {
+impl Material for DiffuseMaterial {
     type BxDF = DiffuseBxDF;
 
     fn bxdf(
@@ -87,19 +87,19 @@ impl Material for DiffuseMaterial<'_> {
     }
 }
 
-pub struct DielectricMaterial<'a> {
+pub struct DielectricMaterial {
     u_roughness: Arc<FloatTextureEnum>,
     v_roughness: Arc<FloatTextureEnum>,
     remap_roughness: bool,
-    eta: Arc<SpectrumEnum<'a>>,
+    eta: Arc<SpectrumEnum>,
 }
 
-impl<'a> DielectricMaterial<'a> {
+impl DielectricMaterial {
     pub fn new(
         u_roughness: Arc<FloatTextureEnum>,
         v_roughness: Arc<FloatTextureEnum>,
         remap_roughness: bool,
-        eta: Arc<SpectrumEnum<'a>>,
+        eta: Arc<SpectrumEnum>,
     ) -> Self {
         Self {
             u_roughness,
@@ -110,7 +110,7 @@ impl<'a> DielectricMaterial<'a> {
     }
 }
 
-impl Material for DielectricMaterial<'_> {
+impl Material for DielectricMaterial {
     type BxDF = DielectricBxDF;
 
     fn bxdf(

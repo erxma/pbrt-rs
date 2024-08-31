@@ -31,7 +31,7 @@ struct PointLightParams<'a> {
     render_from_light: Transform,
     medium_interface: MediumInterface,
 
-    i: &'a SpectrumEnum<'a>,
+    i: &'a SpectrumEnum,
     scale: Float,
 }
 

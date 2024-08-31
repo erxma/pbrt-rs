@@ -77,17 +77,17 @@ pub fn sample_visible_wavelengths(u: Float) -> Float {
 
 #[enum_dispatch]
 #[derive(Clone, EnumAsInner)]
-pub enum SpectrumEnum<'a> {
+pub enum SpectrumEnum {
     Constant(ConstantSpectrum),
     DenselySampled(DenselySampledSpectrum),
     PiecewiseLinear(PiecewiseLinearSpectrum),
     Blackbody(BlackbodySpectrum),
     RgbAlbedo(RgbAlbedoSpectrum),
     RgbUnbounded(RgbUnboundedSpectrum),
-    RgbIlluminant(RgbIlluminantSpectrum<'a>),
+    RgbIlluminant(RgbIlluminantSpectrum),
 }
 
-impl<'a> SpectrumEnum<'a> {
+impl SpectrumEnum {
     delegate! {
         #[through(Spectrum)]
         to self {
@@ -927,14 +927,14 @@ impl Spectrum for RgbUnboundedSpectrum {
 }
 
 #[derive(Clone, Copy)]
-pub struct RgbIlluminantSpectrum<'a> {
+pub struct RgbIlluminantSpectrum {
     scale: Float,
     rsp: RGBSigmoidPolynomial,
-    illuminant: &'a DenselySampledSpectrum,
+    illuminant: &'static DenselySampledSpectrum,
 }
 
-impl<'a> RgbIlluminantSpectrum<'a> {
-    pub fn new(cs: &'a RGBColorSpace, rgb: RGB) -> Self {
+impl RgbIlluminantSpectrum {
+    pub fn new(cs: &'static RGBColorSpace, rgb: RGB) -> Self {
         let m = rgb.r.max(rgb.g).max(rgb.b);
 
         let scale = 2.0 * m;
@@ -952,7 +952,7 @@ impl<'a> RgbIlluminantSpectrum<'a> {
     }
 }
 
-impl Spectrum for RgbIlluminantSpectrum<'_> {
+impl Spectrum for RgbIlluminantSpectrum {
     fn at(&self, lambda: Float) -> Float {
         self.scale * self.rsp.at(lambda) * self.illuminant.at(lambda)
     }

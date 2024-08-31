@@ -6,9 +6,10 @@ use pbrt_rs::{
     geometry::{Bounds2f, Bounds2i, Transform},
     image::BoxFilter,
     lights::{DirectionalLight, UniformInfiniteLight},
+    materials::{ConstantSpectrumTexture, DiffuseMaterial},
     math::{Point2f, Point2i, Point3f, Vec2f, Vec3f},
     sampling::{
-        spectrum::{BlackbodySpectrum, RgbAlbedoSpectrum},
+        spectrum::{BlackbodySpectrum, ConstantSpectrum, RgbAlbedoSpectrum},
         IndependentSampler,
     },
     shapes::{BilinearPatch, BilinearPatchMesh, Sphere},
@@ -111,4 +112,7 @@ fn render_cpu() {
         image_distribution: None,
     }]);
     let patch = BilinearPatch::new(BilinearPatchMesh::get(0).unwrap(), 0, 0);
+    let floor_mat = DiffuseMaterial::new(
+        ConstantSpectrumTexture::new(ConstantSpectrum::new(0.9).into()).into(),
+    );
 }

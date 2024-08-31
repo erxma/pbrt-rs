@@ -1,7 +1,7 @@
 use crate::{
     camera::Camera,
     lights::LightEnum,
-    materials::Material,
+    materials::MaterialEnum,
     math::{next_float_down, next_float_up, Normal3f, Point2f, Point3f, Point3fi, Tuple, Vec3f},
     media::{MediumEnum, MediumInterface, PhaseFunctionEnum},
     memory::ScratchBuffer,
@@ -77,7 +77,7 @@ pub struct SurfaceInteraction<'a> {
     pub dndv: Normal3f,
     pub shading: Shading,
     // TODO: Restructure these?
-    pub material: Option<&'a Material>,
+    pub material: Option<&'a MaterialEnum>,
     pub area_light: Option<&'a LightEnum>,
     pub medium_interface: Option<&'a MediumInterface>,
     pub medium: Option<&'a MediumEnum>,
@@ -145,7 +145,7 @@ impl<'a> SurfaceInteraction<'a> {
 
     pub fn set_properties(
         &mut self,
-        material: Option<&'a Material>,
+        material: Option<&'a MaterialEnum>,
         area_light: Option<&'a LightEnum>,
         prim_medium_interface: Option<&'a MediumInterface>,
         ray_medium: Option<&'a MediumEnum>,

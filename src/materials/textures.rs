@@ -17,14 +17,14 @@ impl FloatTextureEnum {
     delegate! {
         #[through(FloatTexture)]
         to self {
-            pub fn eval(&self, ctx: TextureEvalContext) -> Float;
+            pub fn eval(&self, ctx: &TextureEvalContext) -> Float;
         }
     }
 }
 
 #[enum_dispatch(FloatTextureEnum)]
 pub trait FloatTexture {
-    fn eval(&self, ctx: TextureEvalContext) -> Float;
+    fn eval(&self, ctx: &TextureEvalContext) -> Float;
 }
 
 #[enum_dispatch]
@@ -36,14 +36,14 @@ impl<'a> SpectrumTextureEnum<'a> {
     delegate! {
         #[through(SpectrumTexture)]
         to self {
-            pub fn eval(&self, ctx: TextureEvalContext, lambda: &SampledWavelengths) -> SampledSpectrum;
+            pub fn eval(&self, ctx: &TextureEvalContext, lambda: &SampledWavelengths) -> SampledSpectrum;
         }
     }
 }
 
 #[enum_dispatch(SpectrumTextureEnum)]
 pub trait SpectrumTexture {
-    fn eval(&self, ctx: TextureEvalContext, lambda: &SampledWavelengths) -> SampledSpectrum;
+    fn eval(&self, ctx: &TextureEvalContext, lambda: &SampledWavelengths) -> SampledSpectrum;
 }
 
 pub struct ConstantFloatTexture {
@@ -51,7 +51,7 @@ pub struct ConstantFloatTexture {
 }
 
 impl FloatTexture for ConstantFloatTexture {
-    fn eval(&self, _ctx: TextureEvalContext) -> Float {
+    fn eval(&self, _ctx: &TextureEvalContext) -> Float {
         self.value
     }
 }
@@ -67,7 +67,7 @@ pub struct ConstantSpectrumTexture<'a> {
 }
 
 impl SpectrumTexture for ConstantSpectrumTexture<'_> {
-    fn eval(&self, _ctx: TextureEvalContext, lambda: &SampledWavelengths) -> SampledSpectrum {
+    fn eval(&self, _ctx: &TextureEvalContext, lambda: &SampledWavelengths) -> SampledSpectrum {
         self.value.sample(lambda)
     }
 }

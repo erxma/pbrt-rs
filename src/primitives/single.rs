@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     geometry::{Bounds3f, Ray},
-    materials::Material,
+    materials::MaterialEnum,
     shapes::{Shape, ShapeEnum, ShapeIntersection},
     Float,
 };
@@ -13,11 +13,11 @@ use super::Primitive;
 pub struct SimplePrimitive {
     // TODO: Cost of Arcs acceptable?
     shape: Arc<ShapeEnum>,
-    material: Arc<Material>,
+    material: Arc<MaterialEnum>,
 }
 
 impl SimplePrimitive {
-    pub fn new(shape: Arc<ShapeEnum>, material: Arc<Material>) -> Self {
+    pub fn new(shape: Arc<ShapeEnum>, material: Arc<MaterialEnum>) -> Self {
         Self { shape, material }
     }
 }

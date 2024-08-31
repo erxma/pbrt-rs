@@ -15,6 +15,7 @@ pub use single::SimplePrimitive;
 #[enum_dispatch]
 pub enum PrimitiveEnum {
     Simple(SimplePrimitive),
+    BVH(BVHAggregate),
 }
 
 #[enum_dispatch(PrimitiveEnum)]

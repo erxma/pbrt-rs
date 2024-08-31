@@ -12,7 +12,8 @@ use super::{
 };
 
 pub enum MaterialEnum {
-    Diffuse(DiffuseBxDF),
+    Diffuse(DiffuseMaterial),
+    Dielectric(DielectricMaterial),
 }
 
 pub trait Material {
@@ -87,6 +88,12 @@ impl Material for DiffuseMaterial {
     }
 }
 
+impl From<DiffuseMaterial> for MaterialEnum {
+    fn from(value: DiffuseMaterial) -> Self {
+        Self::Diffuse(value)
+    }
+}
+
 pub struct DielectricMaterial {
     u_roughness: Arc<FloatTextureEnum>,
     v_roughness: Arc<FloatTextureEnum>,
@@ -136,5 +143,11 @@ impl Material for DielectricMaterial {
 
         // Final BxDF
         DielectricBxDF::new(sampled_eta, distrib)
+    }
+}
+
+impl From<DielectricMaterial> for MaterialEnum {
+    fn from(value: DielectricMaterial) -> Self {
+        Self::Dielectric(value)
     }
 }

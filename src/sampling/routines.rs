@@ -1,8 +1,7 @@
 use crate::{
     float::{FRAC_1_PI, FRAC_PI_2, FRAC_PI_4, INV_4_PI, PI, SQRT_2},
-    geometry::Bounds2f,
     math::{
-        self, gaussian, lerp, next_float_down, safe_sqrt, Point2f, Point2i, Point3f, Vec2f, Vec3f,
+        self, gaussian, lerp, next_float_down, safe_sqrt, Point2f, Point3f, Vec2f, Vec3f,
         ONE_MINUS_EPSILON,
     },
     Float,

@@ -10,12 +10,13 @@ use delegate::delegate;
 use enum_dispatch::enum_dispatch;
 use std::sync::LazyLock;
 
-use super::{directional::DirectionalLight, PointLight};
+use super::{directional::DirectionalLight, PointLight, UniformInfiniteLight};
 
 #[enum_dispatch]
 pub enum LightEnum {
     Point(PointLight),
     Directional(DirectionalLight),
+    UniformInfinite(UniformInfiniteLight),
 }
 
 impl LightEnum {

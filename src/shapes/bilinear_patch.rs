@@ -34,7 +34,7 @@ impl BilinearPatch {
         let (p00, p10, p01, p11) = mesh.positions(blp_idx);
 
         let area;
-        if mesh.is_rectangle() {
+        if mesh.patch_is_rectangle(blp_idx) {
             area = p00.distance(p01) * p00.distance(p10);
         } else {
             // Compute approx area of patch using Riemann sum evaled at NA x NA points
@@ -162,6 +162,11 @@ impl BilinearPatch {
 
         isect
     }
+
+    /// Returns `true` if `self`'s vertices form a rectangle.
+    fn is_rectangle(&self) -> bool {
+        self.mesh().patch_is_rectangle(self.blp_idx)
+    }
 }
 
 impl Shape for BilinearPatch {
@@ -255,7 +260,7 @@ impl Shape for BilinearPatch {
 
         let (uv, mut pdf) = if let Some(distrib) = &self.mesh().image_distribution {
             todo!()
-        } else if !self.mesh().is_rectangle() {
+        } else if !self.is_rectangle() {
             // Sample patch (u, v) with approx uniform area sampling
 
             // Init w array with differential area at patch corners
@@ -319,7 +324,7 @@ impl Shape for BilinearPatch {
         let v10 = (p10 - ctx.pi.midpoints_only()).normalized();
         let v01 = (p01 - ctx.pi.midpoints_only()).normalized();
         let v11 = (p11 - ctx.pi.midpoints_only()).normalized();
-        if !self.mesh().is_rectangle()
+        if !self.is_rectangle()
             || self.mesh().image_distribution.is_some()
             || spherical_quad_area(v00, v10, v11, v01) <= Self::MIN_SPHERICAL_SAMPLE_AREA
         {
@@ -405,7 +410,7 @@ impl Shape for BilinearPatch {
         // Compute PDF for sampling (u, v)
         let pdf = if let Some(distrib) = &self.mesh().image_distribution {
             todo!()
-        } else if !self.mesh().is_rectangle() {
+        } else if !self.is_rectangle() {
             // Init w array with differential area at patch corners
             let w = [
                 (p10 - p00).cross(p01 - p00).length(),
@@ -447,7 +452,7 @@ impl Shape for BilinearPatch {
         let v10 = (p10 - ctx.pi.midpoints_only()).normalized();
         let v01 = (p01 - ctx.pi.midpoints_only()).normalized();
         let v11 = (p11 - ctx.pi.midpoints_only()).normalized();
-        if !self.mesh().is_rectangle()
+        if !self.is_rectangle()
             || self.mesh().image_distribution.is_some()
             || spherical_quad_area(v00, v10, v11, v01) <= Self::MIN_SPHERICAL_SAMPLE_AREA
         {
@@ -671,8 +676,41 @@ impl BilinearPatchMesh {
         }
     }
 
-    pub fn is_rectangle(&self) -> bool {
-        todo!()
+    /// Returns `true` if the vertices of the patch at `blp_idx` form a rectangle.
+    pub fn patch_is_rectangle(&self, blp_idx: usize) -> bool {
+        let (p00, p10, p01, p11) = self.positions(blp_idx);
+        // Test for coincident vertices (handled early to prevent invalid ops below)
+        if p00 == p01 || p01 == p11 || p11 == p10 || p10 == p00 {
+            return false;
+        }
+
+        // Check if verts are coplanar,
+        // Compute the surface normal formed by three of the verts,
+        // and test if the vector from one of them to the fourth is nearly
+        // perpendicular to it
+        let normal = (p10 - p00).cross(p01 - p00).normalized();
+        if (p11 - p00).normalized().absdot(normal) > 1e-5 {
+            return false;
+        }
+
+        // Check if verts form a rectangle.
+        // If any vert's dist squared to mean position has relative error > 1e-4
+        // to that of p00 consider as not a rectangle
+        let p_center = (p00 + p10 + p01 + p11) / 4.0;
+        let dist_sq = [
+            p00.distance_squared(p_center),
+            p10.distance_squared(p_center),
+            p01.distance_squared(p_center),
+            p11.distance_squared(p_center),
+        ];
+        if dist_sq
+            .iter()
+            .any(|d2| (d2 - dist_sq[0]).abs() / dist_sq[0] > 1e-4)
+        {
+            return false;
+        }
+
+        true
     }
 }
 

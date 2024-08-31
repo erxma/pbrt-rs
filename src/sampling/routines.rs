@@ -1,5 +1,5 @@
 use crate::{
-    float::{FRAC_PI_2, FRAC_PI_4, INV_4_PI, PI, SQRT_2},
+    float::{FRAC_1_PI, FRAC_PI_2, FRAC_PI_4, INV_4_PI, PI, SQRT_2},
     geometry::Bounds2f,
     math::{
         self, gaussian, lerp, next_float_down, safe_sqrt, Point2f, Point2i, Point3f, Vec2f, Vec3f,
@@ -312,6 +312,18 @@ pub fn invert_spherical_rectangle_sample(
     p_rect: Point3f,
 ) -> Point2f {
     todo!()
+}
+
+#[inline]
+pub fn sample_cosine_hemisphere(u: Point2f) -> Vec3f {
+    let d = sample_uniform_disk_concentric(u);
+    let z = safe_sqrt(1.0 - d.x() * d.x() - d.y() * d.y());
+    Vec3f::new(d.x(), d.y(), z)
+}
+
+#[inline]
+pub fn cosine_hemisphere_pdf(cos_theta: Float) -> Float {
+    cos_theta * FRAC_1_PI
 }
 
 #[derive(Debug)]

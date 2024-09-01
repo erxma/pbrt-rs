@@ -1,4 +1,7 @@
-use std::ops::{Index, IndexMut};
+use std::{
+    fmt,
+    ops::{Index, IndexMut},
+};
 
 use delegate::delegate;
 
@@ -8,9 +11,7 @@ use super::{impl_tuple_math_ops, Point3f, Tuple, Vec3f};
 
 /// A 3-element normal of `f32`, or `f64` if feature `use-f64` is enabled.
 // Wrapper around the vector equivalent.
-#[derive(
-    Clone, Copy, Debug, Default, PartialEq, derive_more::Neg, derive_more::Add, derive_more::Sub,
-)]
+#[derive(Clone, Copy, Default, PartialEq, derive_more::Neg, derive_more::Add, derive_more::Sub)]
 #[repr(transparent)]
 pub struct Normal3f(Vec3f);
 
@@ -111,5 +112,34 @@ impl From<Point3f> for Normal3f {
     #[inline]
     fn from(value: Point3f) -> Self {
         Self(Vec3f::from(value))
+    }
+}
+
+impl fmt::Debug for Normal3f {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Normal3f")
+            .field("x", &self.x())
+            .field("y", &self.y())
+            .field("z", &self.z())
+            .finish()
+    }
+}
+
+impl fmt::Display for Normal3f {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(p) = f.precision() {
+            write!(
+                f,
+                "[{:.*}, {:.*}, {:.*}]",
+                p,
+                self.x(),
+                p,
+                self.y(),
+                p,
+                self.z()
+            )
+        } else {
+            write!(f, "[{}, {}, {}]", self.x(), self.y(), self.z())
+        }
     }
 }

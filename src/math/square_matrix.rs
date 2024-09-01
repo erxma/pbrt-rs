@@ -1,4 +1,7 @@
-use std::ops::{Add, AddAssign, Index, IndexMut, Mul, Sub, SubAssign};
+use std::{
+    fmt,
+    ops::{Add, AddAssign, Index, IndexMut, Mul, Sub, SubAssign},
+};
 
 use inherent::inherent;
 use itertools::iproduct;
@@ -359,6 +362,34 @@ impl<const N: usize> Index<usize> for SquareMatrix<N> {
 impl<const N: usize> IndexMut<usize> for SquareMatrix<N> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.m[index]
+    }
+}
+
+impl<const N: usize> fmt::Display for SquareMatrix<N> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Use precision, if specified, for the float values
+        let fmt_val = |val| {
+            if let Some(p) = f.precision() {
+                format!("{:.*}", p, val)
+            } else {
+                format!("{}", val)
+            }
+        };
+        let fmt_row = |row: [Float; N]| format!("[{}]", row.map(fmt_val).join(", "));
+        let rows = self.m.map(fmt_row);
+
+        // If alternate (#) specified, pretty-print on separate rows.
+        // Otherwise print on one row.
+        if f.alternate() {
+            // e.g.
+            // [[0.0, 1.0],
+            //  [2.0, 3.0]]
+            write!(f, "[{}]", rows.join(",\n "))
+        } else {
+            // e.g.
+            // [[0.0, 1.0], [2.0, 3.0]]
+            write!(f, "[{}]", rows.join(", "))
+        }
     }
 }
 

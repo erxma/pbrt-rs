@@ -1,9 +1,12 @@
 use std::{
     cell::UnsafeCell,
     cmp::min,
+    fmt::{self, Display},
     ops::{Index, IndexMut},
     vec,
 };
+
+use itertools::Itertools;
 
 use crate::geometry::Bounds2i;
 
@@ -88,6 +91,16 @@ impl<T> Array2D<T> {
             tile_height,
         }
     }
+
+    fn index_linear(&self, index: usize) -> &T {
+        debug_assert!(index < self.num_values(), "Index out of bounds for Array2D");
+        unsafe { &(*self.values.get())[index] }
+    }
+
+    fn index_linear_mut(&mut self, index: usize) -> &mut T {
+        debug_assert!(index < self.num_values(), "Index out of bounds for Array2D");
+        unsafe { &mut (*self.values.get())[index] }
+    }
 }
 
 impl<T> Index<Point2i> for Array2D<T> {
@@ -100,7 +113,7 @@ impl<T> Index<Point2i> for Array2D<T> {
         let y = (p.y() - self.extent.p_min.y()) as usize;
         let idx = y * self.x_size() + x;
 
-        &self[idx]
+        self.index_linear(idx)
     }
 }
 
@@ -112,23 +125,53 @@ impl<T> IndexMut<Point2i> for Array2D<T> {
         let y = (p.y() - self.extent.p_min.y()) as usize;
         let idx = y * self.x_size() + x;
 
-        &mut self[idx]
+        self.index_linear_mut(idx)
     }
 }
 
 impl<T> Index<usize> for Array2D<T> {
-    type Output = T;
+    type Output = [T];
 
-    fn index(&self, index: usize) -> &Self::Output {
-        debug_assert!(index < self.num_values(), "Index out of bounds for Array2D");
-        unsafe { &(*self.values.get())[index] }
+    fn index(&self, row: usize) -> &Self::Output {
+        debug_assert!(row < self.y_size(), "Row index out of bounds for Array2D");
+        let row_start = row * self.x_size();
+        unsafe { &(*self.values.get())[row_start..row_start + self.x_size()] }
     }
 }
 
 impl<T> IndexMut<usize> for Array2D<T> {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        debug_assert!(index < self.num_values(), "Index out of bounds for Array2D");
-        unsafe { &mut (*self.values.get())[index] }
+    fn index_mut(&mut self, row: usize) -> &mut Self::Output {
+        debug_assert!(row < self.y_size(), "Row index out of bounds for Array2D");
+        let row_start = row * self.x_size();
+        unsafe { &mut (*self.values.get())[row_start..row_start + self.x_size()] }
+    }
+}
+
+impl<T: Display> fmt::Display for Array2D<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Use precision, if specified, for the values
+        let fmt_val = |val| {
+            if let Some(p) = f.precision() {
+                format!("{:.*}", p, val)
+            } else {
+                format!("{}", val)
+            }
+        };
+        let fmt_row = |row: usize| format!("[{}]", self[row].iter().map(fmt_val).join(", "));
+        let mut rows = (0..self.y_size()).map(fmt_row);
+
+        // If alternate (#) specified, pretty-print on separate rows.
+        // Otherwise print on one row.
+        if f.alternate() {
+            // e.g.
+            // [[0.0, 1.0, 2.0],
+            //  [3.0, 4.0, 5.0]]
+            write!(f, "[{}]", rows.join(",\n "))
+        } else {
+            // e.g.
+            // [[0.0, 1.0, 2.0], [3.0, 4.0, 5.0]]
+            write!(f, "[{}]", rows.join(", "))
+        }
     }
 }
 
@@ -144,7 +187,7 @@ impl<'a, T> Iterator for Iter<'a, T> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_index < self.arr.num_values() {
-            let item = &self.arr[self.current_index];
+            let item = self.arr.index_linear(self.current_index);
             self.current_index += 1;
             Some(item)
         } else {

@@ -1,4 +1,7 @@
-use std::ops::{Add, Mul, Sub};
+use std::{
+    fmt,
+    ops::{Add, Mul, Sub},
+};
 
 use bytemuck::NoUninit;
 use delegate::delegate;
@@ -151,6 +154,12 @@ impl Sub for Vec3i {
     }
 }
 
+impl fmt::Display for Vec3i {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[{}, {}, {}]", self.x(), self.y(), self.z())
+    }
+}
+
 // f version is largely the same idea as i
 
 /// A 3-element vector of `f32`, or `f64` if feature `use-f64` is enabled.
@@ -292,6 +301,25 @@ impl Sub for Vec3f {
     }
 }
 
+impl fmt::Display for Vec3f {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(p) = f.precision() {
+            write!(
+                f,
+                "[{:.*}, {:.*}, {:.*}]",
+                p,
+                self.x(),
+                p,
+                self.y(),
+                p,
+                self.z()
+            )
+        } else {
+            write!(f, "[{}, {}, {}]", self.x(), self.y(), self.z())
+        }
+    }
+}
+
 // ==================== HELPER TRAIT FOR VEC3 INNER TYPES ====================
 pub(in crate::math) trait Vec3<T: TupleElement>: Tuple<3, T> {
     /// The type to be used for vecs of float where necessary.
@@ -429,6 +457,12 @@ impl Sub for Vec2i {
     }
 }
 
+impl fmt::Display for Vec2i {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[{}, {}]", self.x(), self.y())
+    }
+}
+
 // f version is largely the same idea as i
 
 /// A 2-element vector of `f32`, or `f64` if feature `use-f64` is enabled.
@@ -528,6 +562,16 @@ impl Sub for Vec2f {
     }
 }
 
+impl fmt::Display for Vec2f {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(p) = f.precision() {
+            write!(f, "[{:.*}, {:.*}]", p, self.x(), p, self.y(),)
+        } else {
+            write!(f, "[{}, {}]", self.x(), self.y())
+        }
+    }
+}
+
 // ==================== HELPER TRAIT FOR VEC2 INNER TYPES ====================
 pub(in crate::math) trait Vec2<T: TupleElement>: Tuple<2, T> {
     /// The type to be used for vecs of float where necessary.
@@ -567,7 +611,10 @@ mod inner {
 
 // ==================== IMPL FROM SCRATCH (CUSTOM) ====================
 pub(crate) mod custom_impl {
-    use std::ops::{Add, AddAssign, Index, IndexMut, Sub, SubAssign};
+    use std::{
+        fmt,
+        ops::{Add, AddAssign, Index, IndexMut, Sub, SubAssign},
+    };
 
     use bytemuck::NoUninit;
     use num_traits::{NumCast, Signed, ToPrimitive};
@@ -758,6 +805,16 @@ pub(crate) mod custom_impl {
         }
     }
 
+    impl<T: fmt::Display> fmt::Display for Vec3<T> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            if let Some(p) = f.precision() {
+                write!(f, "[{:.*}, {:.*}, {:.*}]", p, self.x, p, self.y, p, self.z)
+            } else {
+                write!(f, "[{}, {}, {}]", self.x, self.y, self.z)
+            }
+        }
+    }
+
     // Vec2
     /// A 2D vector.
     #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -881,6 +938,16 @@ pub(crate) mod custom_impl {
         fn sub(mut self, rhs: Self) -> Self::Output {
             self -= rhs;
             self
+        }
+    }
+
+    impl<T: fmt::Display> fmt::Display for Vec2<T> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            if let Some(p) = f.precision() {
+                write!(f, "[{:.*}, {:.*}]", p, self.x, p, self.y)
+            } else {
+                write!(f, "[{}, {}]", self.x, self.y)
+            }
         }
     }
 }
@@ -1157,6 +1224,25 @@ impl From<Vec3f> for Vec3fi {
 impl From<Point3fi> for Vec3fi {
     fn from(p: Point3fi) -> Self {
         Self::new(p.x(), p.y(), p.z())
+    }
+}
+
+impl fmt::Display for Vec3fi {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(p) = f.precision() {
+            write!(
+                f,
+                "[{:.*}, {:.*}, {:.*}]",
+                p,
+                self.x(),
+                p,
+                self.y(),
+                p,
+                self.z()
+            )
+        } else {
+            write!(f, "[{}, {}, {}]", self.x(), self.y(), self.z())
+        }
     }
 }
 

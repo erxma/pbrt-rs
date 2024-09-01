@@ -1,4 +1,7 @@
-use std::ops::{Add, AddAssign};
+use std::{
+    fmt,
+    ops::{Add, AddAssign},
+};
 
 use crate::Float;
 
@@ -109,6 +112,16 @@ impl AddAssign<Float> for CompensatedFloat {
         let sum = self.val + delta;
         self.err = sum - self.val - delta;
         self.val = sum;
+    }
+}
+
+impl fmt::Display for CompensatedFloat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(p) = f.precision() {
+            write!(f, "{:.*} (+{:.*})", p, self.val, p, self.err)
+        } else {
+            write!(f, "{} (+{})", self.val, self.err)
+        }
     }
 }
 

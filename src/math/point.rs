@@ -1,4 +1,7 @@
-use std::ops::{Add, AddAssign, Index, IndexMut, Mul, Sub, SubAssign};
+use std::{
+    fmt,
+    ops::{Add, AddAssign, Index, IndexMut, Mul, Sub, SubAssign},
+};
 
 use bytemuck::NoUninit;
 use delegate::delegate;
@@ -16,7 +19,7 @@ use super::{
 /// A 3D point of i32.
 // Wrapper around the vector equivalent.
 #[derive(
-    Clone, Copy, Debug, Default, PartialEq, derive_more::Neg, derive_more::Add, derive_more::From,
+    Clone, Copy, Default, PartialEq, derive_more::Neg, derive_more::Add, derive_more::From,
 )]
 #[repr(transparent)]
 pub struct Point3i(Vec3i);
@@ -149,10 +152,26 @@ impl SubAssign<Vec3i> for Point3i {
     }
 }
 
+impl fmt::Debug for Point3i {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Point3i")
+            .field("x", &self.x())
+            .field("y", &self.y())
+            .field("z", &self.z())
+            .finish()
+    }
+}
+
+impl fmt::Display for Point3i {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Point3i [{}, {}, {}]", self.x(), self.y(), self.z())
+    }
+}
+
 /// A 3D point of `f32`, or `f64` if feature `use-f64` is enabled.
 // Wrapper around the vector equivalent.
 #[derive(
-    Clone, Copy, Debug, Default, PartialEq, derive_more::Neg, derive_more::Add, derive_more::From,
+    Clone, Copy, Default, PartialEq, derive_more::Neg, derive_more::Add, derive_more::From,
 )]
 #[repr(transparent)]
 pub struct Point3f(Vec3f);
@@ -296,18 +315,39 @@ impl SubAssign<Vec3f> for Point3f {
     }
 }
 
+impl fmt::Debug for Point3f {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Point3f")
+            .field("x", &self.x())
+            .field("y", &self.y())
+            .field("z", &self.z())
+            .finish()
+    }
+}
+
+impl fmt::Display for Point3f {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(p) = f.precision() {
+            write!(
+                f,
+                "[{:.*}, {:.*}, {:.*}]",
+                p,
+                self.x(),
+                p,
+                self.y(),
+                p,
+                self.z()
+            )
+        } else {
+            write!(f, "[{}, {}, {}]", self.x(), self.y(), self.z())
+        }
+    }
+}
+
 /// A 2D point of i32.
 // Wrapper around the vector equivalent.
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    PartialEq,
-    derive_more::Neg,
-    derive_more::Add,
-    derive_more::From,
-    NoUninit,
+    Clone, Copy, Default, PartialEq, derive_more::Neg, derive_more::Add, derive_more::From, NoUninit,
 )]
 #[repr(transparent)]
 pub struct Point2i(Vec2i);
@@ -436,10 +476,25 @@ impl SubAssign<Vec2i> for Point2i {
     }
 }
 
+impl fmt::Debug for Point2i {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Point2i")
+            .field("x", &self.x())
+            .field("y", &self.y())
+            .finish()
+    }
+}
+
+impl fmt::Display for Point2i {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[{}, {}]", self.x(), self.y())
+    }
+}
+
 /// A 3D point of `f32`, or `f64` if feature `use-f64` is enabled.
 // Wrapper around the vector equivalent.
 #[derive(
-    Clone, Copy, Debug, Default, PartialEq, derive_more::Neg, derive_more::Add, derive_more::From,
+    Clone, Copy, Default, PartialEq, derive_more::Neg, derive_more::Add, derive_more::From,
 )]
 #[repr(transparent)]
 pub struct Point2f(Vec2f);
@@ -577,9 +632,28 @@ impl SubAssign<Vec2f> for Point2f {
     }
 }
 
+impl fmt::Debug for Point2f {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Point2f")
+            .field("x", &self.x())
+            .field("y", &self.y())
+            .finish()
+    }
+}
+
+impl fmt::Display for Point2f {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(p) = f.precision() {
+            write!(f, "[{:.*}, {:.*}]", p, self.x(), p, self.y(),)
+        } else {
+            write!(f, "[{}, {}]", self.x(), self.y())
+        }
+    }
+}
+
 /// A 2D point of usize.
 // Wrapper around the vector equivalent.
-#[derive(Clone, Copy, Debug, Default, PartialEq, derive_more::Add, derive_more::From)]
+#[derive(Clone, Copy, Default, PartialEq, derive_more::Add, derive_more::From)]
 #[repr(transparent)]
 pub struct Point2Usize(Vec2Usize);
 
@@ -660,10 +734,25 @@ impl SubAssign<Vec2Usize> for Point2Usize {
     }
 }
 
+impl fmt::Debug for Point2Usize {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Point2Usize")
+            .field("x", &self.x())
+            .field("y", &self.y())
+            .finish()
+    }
+}
+
+impl fmt::Display for Point2Usize {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[{}, {}]", self.x(), self.y())
+    }
+}
+
 /// A 2D point of isize.
 // Wrapper around the vector equivalent.
 #[derive(
-    Clone, Copy, Debug, Default, PartialEq, derive_more::Neg, derive_more::Add, derive_more::From,
+    Clone, Copy, Default, PartialEq, derive_more::Neg, derive_more::Add, derive_more::From,
 )]
 #[repr(transparent)]
 pub struct Point2Isize(Vec2Isize);
@@ -749,10 +838,24 @@ impl SubAssign<Vec2Isize> for Point2Isize {
     }
 }
 
+impl fmt::Debug for Point2Isize {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Point2Isize")
+            .field("x", &self.x())
+            .field("y", &self.y())
+            .finish()
+    }
+}
+
+impl fmt::Display for Point2Isize {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[{}, {}]", self.x(), self.y())
+    }
+}
+
 #[derive(
     Clone,
     Copy,
-    Debug,
     PartialEq,
     derive_more::Sub,
     derive_more::Mul,
@@ -847,5 +950,34 @@ impl SubAssign<Vec3fi> for Point3fi {
     /// Subtract assign a vector from `self`.
     fn sub_assign(&mut self, rhs: Vec3fi) {
         *self = *self - rhs
+    }
+}
+
+impl fmt::Debug for Point3fi {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Point3fi")
+            .field("x", &self.x())
+            .field("y", &self.y())
+            .field("z", &self.z())
+            .finish()
+    }
+}
+
+impl fmt::Display for Point3fi {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(p) = f.precision() {
+            write!(
+                f,
+                "[{:.*}, {:.*}, {:.*}]",
+                p,
+                self.x(),
+                p,
+                self.y(),
+                p,
+                self.z()
+            )
+        } else {
+            write!(f, "[{}, {}, {}]", self.x(), self.y(), self.z())
+        }
     }
 }

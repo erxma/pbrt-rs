@@ -1,4 +1,7 @@
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
+use std::{
+    fmt,
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign},
+};
 
 use crate::Float;
 
@@ -268,5 +271,15 @@ impl MulAssign for Interval {
 impl DivAssign for Interval {
     fn div_assign(&mut self, rhs: Self) {
         *self = *self / rhs
+    }
+}
+
+impl fmt::Display for Interval {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(p) = f.precision() {
+            write!(f, "{:.*}..{:.*}", p, self.low, p, self.high)
+        } else {
+            write!(f, "{}..{}", self.low, self.high)
+        }
     }
 }

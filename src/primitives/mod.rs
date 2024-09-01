@@ -10,10 +10,11 @@ mod aggregates;
 mod single;
 
 pub use aggregates::{BVHAggregate, BVHSplitMethod};
-pub use single::SimplePrimitive;
+pub use single::{GeometricPrimitive, SimplePrimitive};
 
 #[enum_dispatch]
 pub enum PrimitiveEnum {
+    Geometric(GeometricPrimitive),
     Simple(SimplePrimitive),
     BVH(BVHAggregate),
 }

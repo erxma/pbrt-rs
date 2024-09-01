@@ -180,7 +180,7 @@ pub struct Iter<'a, T> {
     current_index: usize,
 }
 
-// Iterator is effective same as the vec's,
+// Iterator is effectively same as the vec's,
 // equivalent to going through each row, "left to right" within each row
 impl<'a, T> Iterator for Iter<'a, T> {
     type Item = &'a T;

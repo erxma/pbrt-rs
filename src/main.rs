@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 use pbrt_rs::{
     camera::{CameraTransform, PerspectiveCamera, PixelSensor, RGBFilm},
@@ -70,6 +70,7 @@ fn render_cpu() {
             .diagonal(35.0)
             .filter(filter)
             .sensor(sensor)
+            .filename(PathBuf::from("./render.exr"))
             .color_space(&SRGB)
             .max_component_value(Float::INFINITY)
             .build()

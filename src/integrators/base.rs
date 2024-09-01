@@ -5,10 +5,11 @@ use indicatif::ProgressBar;
 use crate::{
     camera::{CameraEnum, VisibleSurface},
     geometry::{Ray, RayDifferential},
+    image::ImageMetadata,
     lights::{LightEnum, LightType},
     math::Point2i,
     memory::ScratchBuffer,
-    parallel::parallel_for_2d_with,
+    parallel::parallel_for_2d_tiled_with,
     primitives::{Primitive, PrimitiveEnum},
     sampling::{
         spectrum::{SampledSpectrum, SampledWavelengths},
@@ -65,8 +66,6 @@ pub(super) trait ImageTileIntegrate: Send + Sync {
 
         let pixel_bounds = self.camera().film().pixel_bounds();
 
-        // TODO: Progress reporter
-
         // Render image in waves
         let mut wave_start = 0;
         let mut wave_end = 1;
@@ -81,7 +80,7 @@ pub(super) trait ImageTileIntegrate: Send + Sync {
             // Render current wave's image tiles in parallel
             // For the sake of simple safety, operation will not directly write.
             // Instead, collect all the results and do all adding after
-            parallel_for_2d_with(
+            parallel_for_2d_tiled_with(
                 pixel_bounds,
                 (self.sampler().to_owned(), progress_bar.clone()),
                 |(sampler, progress_bar), tile_bounds| {
@@ -117,6 +116,11 @@ pub(super) trait ImageTileIntegrate: Send + Sync {
                 .min(wave_end + next_wave_size);
             next_wave_size = (2 * next_wave_size).min(64);
         }
+
+        self.camera().film().write_image(
+            &ImageMetadata {},
+            1.0 / self.sampler().samples_per_pixel() as Float,
+        );
     }
 
     fn camera(&self) -> &CameraEnum;

@@ -1,5 +1,6 @@
 use std::{
     array,
+    path::PathBuf,
     sync::{atomic::Ordering, Arc},
 };
 
@@ -11,7 +12,7 @@ use num_traits::{AsPrimitive, NumCast};
 use crate::{
     color::{RGBColorSpace, RGB},
     geometry::Bounds2i,
-    image::FilterEnum,
+    image::{FilterEnum, Image, ImageMetadata},
     math::{Array2D, Point2f, Point2i, SquareMatrix, Tuple, Vec2f, Vec2i},
     parallel::AtomicF64,
     sampling::spectrum::{SampledSpectrum, SampledWavelengths},
@@ -51,6 +52,8 @@ impl Film {
             #[allow(non_snake_case)]
             pub fn add_splat(&mut self, p: Point2f, L: &SampledSpectrum, lambda: &SampledWavelengths);
             pub fn sample_wavelengths(&self, u: Float) -> SampledWavelengths;
+            pub fn get_image(&self, metadata: &ImageMetadata, splat_scale: Float) -> Image;
+            pub fn write_image(&self, metadata: &ImageMetadata, splat_scale: Float);
             pub fn get_pixel_rgb(&self, p: Point2i, splat_scale: Float) -> RGB;
             pub fn full_resolution(&self) -> Point2i;
             pub fn pixel_bounds(&self) -> Bounds2i;
@@ -88,6 +91,10 @@ trait FilmTrait {
 
     fn sample_wavelengths(&self, u: Float) -> SampledWavelengths;
 
+    fn get_image(&self, metadata: &ImageMetadata, splat_scale: Float) -> Image;
+
+    fn write_image(&self, metadata: &ImageMetadata, splat_scale: Float);
+
     fn get_pixel_rgb(&self, p: Point2i, splat_scale: Float) -> RGB;
 
     fn full_resolution(&self) -> Point2i;
@@ -104,6 +111,7 @@ pub struct RGBFilm {
     filter: Arc<FilterEnum>,
     diagonal: Float,
     sensor: Arc<PixelSensor>,
+    filename: PathBuf,
 
     max_component_value: Float,
     filter_integral: Float,
@@ -129,6 +137,7 @@ struct RGBFilmParams<'a> {
     filter: Arc<FilterEnum>,
     diagonal: Float,
     sensor: Arc<PixelSensor>,
+    filename: PathBuf,
 
     color_space: &'a RGBColorSpace,
     max_component_value: Float,
@@ -150,6 +159,7 @@ impl<'a> RGBFilmBuilder<'a> {
             filter: params.filter,
             diagonal: params.diagonal,
             sensor: params.sensor,
+            filename: params.filename,
             max_component_value: params.max_component_value,
             filter_integral,
             output_rgb_from_sensor_rgb,
@@ -232,6 +242,23 @@ impl FilmTrait for RGBFilm {
 
     fn sample_wavelengths(&self, u: Float) -> SampledWavelengths {
         SampledWavelengths::sample_visible(u)
+    }
+
+    fn get_image(&self, _metadata: &ImageMetadata, splat_scale: Float) -> Image {
+        let mut image = Image::new(self.pixel_bounds.diagonal().into(), vec!["r", "g", "b"]);
+        // TODO: Parallelize
+        for p in self.pixel_bounds {
+            let rgb = self.get_pixel_rgb(p, splat_scale);
+            image.set_channels(p, &[rgb[0], rgb[1], rgb[2]]);
+        }
+
+        image
+    }
+
+    fn write_image(&self, metadata: &ImageMetadata, splat_scale: Float) {
+        let img = self.get_image(metadata, splat_scale);
+        // FIXME: May be error
+        img.write(&self.filename).unwrap();
     }
 
     fn get_pixel_rgb(&self, p: Point2i, splat_scale: Float) -> RGB {

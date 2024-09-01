@@ -3,7 +3,7 @@ use rayon::prelude::*;
 
 use crate::{geometry::Bounds2i, math::Point2i, Float};
 
-pub fn parallel_for_2d_with<T>(
+pub fn parallel_for_2d_tiled_with<T>(
     extent: Bounds2i,
     init: T,
     op: impl (Fn(&mut T, Bounds2i)) + Send + Sync,

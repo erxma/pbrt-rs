@@ -4,18 +4,18 @@ use std::path::Path;
 
 pub use filter::{BoxFilter, Filter, FilterEnum};
 
-use crate::{math::Point2i, Float};
+use crate::{math::Point2Usize, Float};
 use exr::prelude::write_rgb_file;
 
 pub struct Image {
-    resolution: Point2i,
+    resolution: Point2Usize,
     channel_names: Vec<String>,
     // TODO: Support other formats
     values: Vec<f32>,
 }
 
 impl Image {
-    pub fn new<S, IntoIter>(resolution: Point2i, channel_names: IntoIter) -> Self
+    pub fn new<S, IntoIter>(resolution: Point2Usize, channel_names: IntoIter) -> Self
     where
         S: Into<String>,
         IntoIter: IntoIterator<Item = S>,
@@ -25,16 +25,16 @@ impl Image {
         Self {
             resolution,
             channel_names,
-            values: vec![0.0; num_channels * resolution.x() as usize * resolution.y() as usize],
+            values: vec![0.0; num_channels * resolution.x() * resolution.y()],
         }
     }
 
-    pub fn set_channel(&mut self, p: Point2i, channel: usize, value: Float) {
+    pub fn set_channel(&mut self, p: Point2Usize, channel: usize, value: Float) {
         let idx = self.pixel_offset(p) + channel;
         self.values[idx] = value;
     }
 
-    pub fn set_channels(&mut self, p: Point2i, values: &[Float]) {
+    pub fn set_channels(&mut self, p: Point2Usize, values: &[Float]) {
         assert_eq!(values.len(), self.num_channels());
         for (chan, val) in values.iter().enumerate() {
             self.set_channel(p, chan, *val);
@@ -47,27 +47,22 @@ impl Image {
     }
 
     pub fn write_exr(&self, path: &Path) -> exr::error::UnitResult {
-        write_rgb_file(
-            path,
-            self.resolution.x() as usize,
-            self.resolution.y() as usize,
-            |x, y| {
-                let pixel_idx = self.pixel_offset(Point2i::new(x as i32, y as i32));
-                (
-                    self.values[pixel_idx],
-                    self.values[pixel_idx + 1],
-                    self.values[pixel_idx + 2],
-                )
-            },
-        )
+        write_rgb_file(path, self.resolution.x(), self.resolution.y(), |x, y| {
+            let pixel_idx = self.pixel_offset(Point2Usize::new(x, y));
+            (
+                self.values[pixel_idx],
+                self.values[pixel_idx + 1],
+                self.values[pixel_idx + 2],
+            )
+        })
     }
 
     pub fn num_channels(&self) -> usize {
         self.channel_names.len()
     }
 
-    fn pixel_offset(&self, p: Point2i) -> usize {
-        self.num_channels() * (p.y() + self.resolution.x() + p.x()) as usize
+    fn pixel_offset(&self, p: Point2Usize) -> usize {
+        self.num_channels() * (p.y() + self.resolution.x() + p.x())
     }
 }
 

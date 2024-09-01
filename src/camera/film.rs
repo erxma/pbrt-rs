@@ -13,7 +13,9 @@ use crate::{
     color::{RGBColorSpace, RGB},
     geometry::Bounds2i,
     image::{FilterEnum, Image, ImageMetadata},
-    math::{Array2D, Point2f, Point2i, SquareMatrix, Tuple, Vec2f, Vec2i},
+    math::{
+        Array2D, Point2Isize, Point2Usize, Point2f, Point2i, SquareMatrix, Tuple, Vec2f, Vec2i,
+    },
     parallel::AtomicF64,
     sampling::spectrum::{SampledSpectrum, SampledWavelengths},
     Float,
@@ -245,11 +247,17 @@ impl FilmTrait for RGBFilm {
     }
 
     fn get_image(&self, _metadata: &ImageMetadata, splat_scale: Float) -> Image {
-        let mut image = Image::new(self.pixel_bounds.diagonal().into(), vec!["r", "g", "b"]);
+        // FIXME: Make Bounds2Usize?
+        let diagonal = self.pixel_bounds.diagonal();
+        let dims = Point2Usize::new(diagonal.x() as usize, diagonal.y() as usize);
+        let mut image = Image::new(dims, vec!["r", "g", "b"]);
         // TODO: Parallelize
         for p in self.pixel_bounds {
             let rgb = self.get_pixel_rgb(p, splat_scale);
-            image.set_channels(p, &[rgb[0], rgb[1], rgb[2]]);
+            image.set_channels(
+                Point2Isize::from(p).as_point2usize(),
+                &[rgb[0], rgb[1], rgb[2]],
+            );
         }
 
         image

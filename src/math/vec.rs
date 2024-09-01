@@ -600,6 +600,38 @@ pub(crate) mod custom_impl {
         }
     }
 
+    impl<T: Copy> Vec3<T> {
+        #[inline(always)]
+        pub const fn x(&self) -> T {
+            self.x
+        }
+
+        #[inline(always)]
+        pub const fn y(&self) -> T {
+            self.y
+        }
+
+        #[inline(always)]
+        pub const fn z(&self) -> T {
+            self.z
+        }
+
+        #[inline(always)]
+        pub fn x_mut(&mut self) -> &mut T {
+            &mut self.x
+        }
+
+        #[inline(always)]
+        pub fn y_mut(&mut self) -> &mut T {
+            &mut self.y
+        }
+
+        #[inline(always)]
+        pub fn z_mut(&mut self) -> &mut T {
+            &mut self.z
+        }
+    }
+
     impl<T: TupleElement> Vec3Trait<T> for Vec3<T> {
         type VecFloat = Vec3<pbrt::Float>;
 
@@ -745,6 +777,28 @@ pub(crate) mod custom_impl {
         /// Construct a new vector with given elements.
         pub const fn new(x: T, y: T) -> Self {
             Self { x, y }
+        }
+    }
+
+    impl<T: Copy> Vec2<T> {
+        #[inline(always)]
+        pub const fn x(&self) -> T {
+            self.x
+        }
+
+        #[inline(always)]
+        pub const fn y(&self) -> T {
+            self.y
+        }
+
+        #[inline(always)]
+        pub fn x_mut(&mut self) -> &mut T {
+            &mut self.x
+        }
+
+        #[inline(always)]
+        pub fn y_mut(&mut self) -> &mut T {
+            &mut self.y
         }
     }
 
@@ -1120,3 +1174,7 @@ impl Mul<Vec3fi> for Interval {
 // as used ops are all simple
 pub type Vec3B = custom_impl::Vec3<bool>;
 pub type Vec3Usize = custom_impl::Vec3<usize>;
+pub type Vec3Isize = custom_impl::Vec3<isize>;
+pub type Vec2B = custom_impl::Vec2<bool>;
+pub type Vec2Usize = custom_impl::Vec2<usize>;
+pub type Vec2Isize = custom_impl::Vec2<isize>;

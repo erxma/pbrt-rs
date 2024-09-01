@@ -9,7 +9,9 @@ use crate::{
     Float,
 };
 
-use super::{impl_tuple_math_ops, Interval, Tuple, Vec2f, Vec2i, Vec3f, Vec3fi, Vec3i};
+use super::{
+    impl_tuple_math_ops, Interval, Tuple, Vec2Isize, Vec2Usize, Vec2f, Vec2i, Vec3f, Vec3fi, Vec3i,
+};
 
 /// A 3D point of i32.
 // Wrapper around the vector equivalent.
@@ -571,6 +573,178 @@ impl Sub<Vec2f> for Point2f {
 impl SubAssign<Vec2f> for Point2f {
     /// Subtract assign a vector from `self`.
     fn sub_assign(&mut self, rhs: Vec2f) {
+        *self = *self - rhs
+    }
+}
+
+/// A 2D point of usize.
+// Wrapper around the vector equivalent.
+#[derive(Clone, Copy, Debug, Default, PartialEq, derive_more::Add, derive_more::From)]
+#[repr(transparent)]
+pub struct Point2Usize(Vec2Usize);
+
+impl Tuple<2, usize> for Point2Usize {}
+impl_tuple_math_ops!(Point2Usize; 2; usize);
+
+impl From<[usize; 2]> for Point2Usize {
+    fn from(arr: [usize; 2]) -> Self {
+        let [x, y] = arr;
+        Self::new(x, y)
+    }
+}
+
+impl Point2Usize {
+    /// Construct a new point with given elements.
+    pub const fn new(x: usize, y: usize) -> Self {
+        Self(Vec2Usize::new(x, y))
+    }
+
+    delegate! {
+        to self.0 {
+            #[inline(always)] pub fn x(&self) -> usize;
+            #[inline(always)] pub fn y(&self) -> usize;
+            #[inline(always)] pub fn x_mut(&mut self) -> &mut usize;
+            #[inline(always)] pub fn y_mut(&mut self) -> &mut usize;
+        }
+    }
+
+    pub fn as_point2isize(self) -> Point2Isize {
+        Point2Isize::new(self.x() as isize, self.y() as isize)
+    }
+}
+
+impl Index<usize> for Point2Usize {
+    type Output = usize;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        match index {
+            0..=1 => &self.0[index],
+            _ => panic!("Index out of bounds for Point2"),
+        }
+    }
+}
+
+impl IndexMut<usize> for Point2Usize {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        match index {
+            0..=1 => &mut self.0[index],
+            _ => panic!("Index out of bounds for Point2"),
+        }
+    }
+}
+
+impl Sub for Point2Usize {
+    type Output = Vec2Isize;
+
+    /// Subtract two points to get the vector between them.
+    fn sub(self, rhs: Self) -> Self::Output {
+        let self_i = self.as_point2isize();
+        let rhs = rhs.as_point2isize();
+        Vec2Isize::new(self_i.x() - rhs.x(), self_i.y() - rhs.y())
+    }
+}
+
+impl Sub<Vec2Usize> for Point2Usize {
+    type Output = Self;
+
+    /// Subtract a vector from `self` to get a new point.
+    fn sub(self, rhs: Vec2Usize) -> Self {
+        Self(self.0 - rhs)
+    }
+}
+
+impl SubAssign<Vec2Usize> for Point2Usize {
+    /// Subtract assign a vector from `self`.
+    fn sub_assign(&mut self, rhs: Vec2Usize) {
+        *self = *self - rhs
+    }
+}
+
+/// A 2D point of isize.
+// Wrapper around the vector equivalent.
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, derive_more::Neg, derive_more::Add, derive_more::From,
+)]
+#[repr(transparent)]
+pub struct Point2Isize(Vec2Isize);
+
+impl Tuple<2, isize> for Point2Isize {}
+impl_tuple_math_ops!(Point2Isize; 2; isize);
+
+impl From<[isize; 2]> for Point2Isize {
+    fn from(arr: [isize; 2]) -> Self {
+        let [x, y] = arr;
+        Self::new(x, y)
+    }
+}
+
+impl Point2Isize {
+    /// Construct a new point with given elements.
+    pub const fn new(x: isize, y: isize) -> Self {
+        Self(Vec2Isize::new(x, y))
+    }
+
+    delegate! {
+        to self.0 {
+            #[inline(always)] pub fn x(&self) -> isize;
+            #[inline(always)] pub fn y(&self) -> isize;
+            #[inline(always)] pub fn x_mut(&mut self) -> &mut isize;
+            #[inline(always)] pub fn y_mut(&mut self) -> &mut isize;
+        }
+    }
+
+    pub fn as_point2usize(self) -> Point2Usize {
+        Point2Usize::new(self.x() as usize, self.y() as usize)
+    }
+}
+
+impl From<Point2i> for Point2Isize {
+    fn from(value: Point2i) -> Self {
+        Self::new(value.x() as isize, value.y() as isize)
+    }
+}
+
+impl Index<usize> for Point2Isize {
+    type Output = isize;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        match index {
+            0..=1 => &self.0[index],
+            _ => panic!("Index out of bounds for Point2"),
+        }
+    }
+}
+
+impl IndexMut<usize> for Point2Isize {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        match index {
+            0..=1 => &mut self.0[index],
+            _ => panic!("Index out of bounds for Point2"),
+        }
+    }
+}
+
+impl Sub for Point2Isize {
+    type Output = Vec2Isize;
+
+    /// Subtract two points to get the vector between them.
+    fn sub(self, rhs: Self) -> Self::Output {
+        Vec2Isize::new(self.x() - rhs.x(), self.y() - rhs.y())
+    }
+}
+
+impl Sub<Vec2Isize> for Point2Isize {
+    type Output = Self;
+
+    /// Subtract a vector from `self` to get a new point.
+    fn sub(self, rhs: Vec2Isize) -> Self {
+        Self(self.0 - rhs)
+    }
+}
+
+impl SubAssign<Vec2Isize> for Point2Isize {
+    /// Subtract assign a vector from `self`.
+    fn sub_assign(&mut self, rhs: Vec2Isize) {
         *self = *self - rhs
     }
 }

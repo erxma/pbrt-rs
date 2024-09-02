@@ -3,7 +3,7 @@ use std::{
     ops::{Add, Mul, Sub},
 };
 
-use bytemuck::NoUninit;
+use bytemuck::{Pod, Zeroable};
 use delegate::delegate;
 use num_traits::{NumCast, Signed, ToPrimitive};
 
@@ -42,6 +42,8 @@ use super::{
     derive_more::IndexMut,
     derive_more::Neg,
     derive_more::From,
+    Zeroable,
+    Pod,
 )]
 #[repr(transparent)]
 pub struct Vec3i(inner::Vec3i);
@@ -174,6 +176,8 @@ impl fmt::Display for Vec3i {
     derive_more::IndexMut,
     derive_more::Neg,
     derive_more::From,
+    Zeroable,
+    Pod,
 )]
 #[repr(transparent)]
 pub struct Vec3f(inner::Vec3f);
@@ -380,7 +384,8 @@ pub(in crate::math) trait Vec3<T: TupleElement>: Tuple<3, T> {
     derive_more::IndexMut,
     derive_more::Neg,
     derive_more::From,
-    NoUninit,
+    Zeroable,
+    Pod,
 )]
 #[repr(transparent)]
 pub struct Vec2i(inner::Vec2i);
@@ -482,6 +487,8 @@ impl fmt::Display for Vec2i {
     derive_more::IndexMut,
     derive_more::Neg,
     derive_more::From,
+    Zeroable,
+    Pod,
 )]
 #[repr(transparent)]
 pub struct Vec2f(inner::Vec2f);
@@ -621,7 +628,7 @@ pub(crate) mod custom_impl {
         ops::{Add, AddAssign, Index, IndexMut, Sub, SubAssign},
     };
 
-    use bytemuck::NoUninit;
+    use bytemuck::{NoUninit, Pod, Zeroable};
     use num_traits::{NumCast, Signed, ToPrimitive};
 
     use crate::{
@@ -634,7 +641,8 @@ pub(crate) mod custom_impl {
     use super::Vec3 as Vec3Trait;
 
     /// A 3D vector.
-    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Zeroable)]
+    #[repr(C)]
     pub struct Vec3<T> {
         pub x: T,
         pub y: T,
@@ -644,6 +652,9 @@ pub(crate) mod custom_impl {
     #[allow(dead_code)]
     pub type Vec3i = Vec3<i32>;
     pub type Vec3f = Vec3<pbrt::Float>;
+
+    unsafe impl Pod for Vec3i {}
+    unsafe impl Pod for Vec3f {}
 
     impl<T> Vec3<T> {
         /// Construct a new vector with given elements.
@@ -822,7 +833,7 @@ pub(crate) mod custom_impl {
 
     // Vec2
     /// A 2D vector.
-    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Zeroable)]
     #[repr(C)]
     pub struct Vec2<T> {
         pub x: T,
@@ -833,7 +844,8 @@ pub(crate) mod custom_impl {
     pub type Vec2i = Vec2<i32>;
     pub type Vec2f = Vec2<pbrt::Float>;
 
-    unsafe impl NoUninit for Vec2i {}
+    unsafe impl Pod for Vec2i {}
+    unsafe impl Pod for Vec2f {}
 
     impl<T> Vec2<T> {
         /// Construct a new vector with given elements.

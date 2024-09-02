@@ -18,6 +18,7 @@ enum_dispatch = "0.3.13"
 env_logger = "0.11.5"
 exr = "1.72.0"
 glam = { version = "0.28.0", optional = true, features = ["bytemuck"] }
+hashbrown = "0.14.5"
 indicatif = { version = "0.17.8", features = ["rayon"] }
 inherent = "1.0.11"
 internment = { version = "0.8.4", optional = true, features = ["arc"] }

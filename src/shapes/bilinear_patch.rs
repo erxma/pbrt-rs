@@ -1,4 +1,4 @@
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 use itertools::iproduct;
 
@@ -613,10 +613,10 @@ pub fn intersect_bilinear_patch(
 
 #[derive(Debug)]
 pub struct BilinearPatchMesh {
-    pub vertices: &'static [usize],
-    pub positions: &'static [Point3f],
-    pub normals: Option<&'static [Normal3f]>,
-    pub uv: Option<&'static [Point2f]>,
+    pub indices: Arc<Vec<usize>>,
+    pub positions: Arc<Vec<Point3f>>,
+    pub normals: Option<Vec<Normal3f>>,
+    pub uv: Option<Vec<Point2f>>,
     pub reverse_orientation: bool,
     pub transform_swaps_handedness: bool,
     pub image_distribution: Option<PiecewiseConstant2D>,
@@ -625,6 +625,34 @@ pub struct BilinearPatchMesh {
 static MESH_DATA: OnceLock<Vec<BilinearPatchMesh>> = OnceLock::new();
 
 impl BilinearPatchMesh {
+    pub fn new(
+        render_from_obj: &Transform,
+        reverse_orientation: bool,
+        indices: Vec<usize>,
+        positions: Vec<Point3f>,
+        normals: Option<Vec<Normal3f>>,
+        uv: Option<Vec<Point2f>>,
+    ) -> Self {
+        assert_eq!(
+            indices.len() % 4,
+            0,
+            "Number of vertex indices for a bilinear patch mesh must be multiple of 4, but got {}",
+            indices.len()
+        );
+
+        let 
+
+        Self {
+            indices: todo!(),
+            positions: todo!(),
+            normals,
+            uv: todo!(),
+            reverse_orientation,
+            transform_swaps_handedness: render_from_obj.swaps_handedness(),
+            image_distribution: None,
+        }
+    }
+
     pub fn get(idx: usize) -> Option<&'static Self> {
         MESH_DATA
             .get()
@@ -639,7 +667,7 @@ impl BilinearPatchMesh {
     }
 
     pub fn positions(&self, blp_idx: usize) -> (Point3f, Point3f, Point3f, Point3f) {
-        let verts = &self.vertices[4 * blp_idx..4 * blp_idx + 4];
+        let verts = &self.indices[4 * blp_idx..4 * blp_idx + 4];
         let p00 = self.positions[verts[0]];
         let p10 = self.positions[verts[1]];
         let p01 = self.positions[verts[2]];
@@ -652,7 +680,7 @@ impl BilinearPatchMesh {
         blp_idx: usize,
     ) -> Option<(Normal3f, Normal3f, Normal3f, Normal3f)> {
         if let Some(vert_n) = self.normals {
-            let verts = &self.vertices[4 * blp_idx..4 * blp_idx + 4];
+            let verts = &self.indices[4 * blp_idx..4 * blp_idx + 4];
             let n00 = vert_n[verts[0]];
             let n10 = vert_n[verts[1]];
             let n01 = vert_n[verts[2]];
@@ -665,7 +693,7 @@ impl BilinearPatchMesh {
 
     pub fn uvs(&self, blp_idx: usize) -> Option<(Point2f, Point2f, Point2f, Point2f)> {
         if let Some(uv) = self.uv {
-            let verts = &self.vertices[4 * blp_idx..4 * blp_idx + 4];
+            let verts = &self.indices[4 * blp_idx..4 * blp_idx + 4];
             let uv00 = uv[verts[0]];
             let uv10 = uv[verts[1]];
             let uv01 = uv[verts[2]];

@@ -3,7 +3,7 @@ use std::{
     ops::{Add, AddAssign, Index, IndexMut, Mul, Sub, SubAssign},
 };
 
-use bytemuck::NoUninit;
+use bytemuck::{Pod, Zeroable};
 use delegate::delegate;
 
 use crate::{
@@ -19,7 +19,15 @@ use super::{
 /// A 3D point of i32.
 // Wrapper around the vector equivalent.
 #[derive(
-    Clone, Copy, Default, PartialEq, derive_more::Neg, derive_more::Add, derive_more::From,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    derive_more::Neg,
+    derive_more::Add,
+    derive_more::From,
+    Zeroable,
+    Pod,
 )]
 #[repr(transparent)]
 pub struct Point3i(Vec3i);
@@ -171,7 +179,15 @@ impl fmt::Display for Point3i {
 /// A 3D point of `f32`, or `f64` if feature `use-f64` is enabled.
 // Wrapper around the vector equivalent.
 #[derive(
-    Clone, Copy, Default, PartialEq, derive_more::Neg, derive_more::Add, derive_more::From,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    derive_more::Neg,
+    derive_more::Add,
+    derive_more::From,
+    Zeroable,
+    Pod,
 )]
 #[repr(transparent)]
 pub struct Point3f(Vec3f);
@@ -347,7 +363,15 @@ impl fmt::Display for Point3f {
 /// A 2D point of i32.
 // Wrapper around the vector equivalent.
 #[derive(
-    Clone, Copy, Default, PartialEq, derive_more::Neg, derive_more::Add, derive_more::From, NoUninit,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    derive_more::Neg,
+    derive_more::Add,
+    derive_more::From,
+    Zeroable,
+    Pod,
 )]
 #[repr(transparent)]
 pub struct Point2i(Vec2i);
@@ -494,7 +518,15 @@ impl fmt::Display for Point2i {
 /// A 3D point of `f32`, or `f64` if feature `use-f64` is enabled.
 // Wrapper around the vector equivalent.
 #[derive(
-    Clone, Copy, Default, PartialEq, derive_more::Neg, derive_more::Add, derive_more::From,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    derive_more::Neg,
+    derive_more::Add,
+    derive_more::From,
+    Zeroable,
+    Pod,
 )]
 #[repr(transparent)]
 pub struct Point2f(Vec2f);

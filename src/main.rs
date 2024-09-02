@@ -141,7 +141,7 @@ fn render_cpu() {
         Point2f::new(0.0, 1.0),
     ];
     BilinearPatchMesh::init_mesh_data(vec![BilinearPatchMesh {
-        vertices: &FLOOR_VERTS,
+        indices: &FLOOR_VERTS,
         positions: &FLOOR_POS,
         normals: None,
         uv: Some(&FLOOR_UV),

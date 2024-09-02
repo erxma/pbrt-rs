@@ -658,6 +658,7 @@ dependencies = [
  "env_logger",
  "exr",
  "glam",
+ "hashbrown",
  "indicatif",
  "inherent",
  "internment",

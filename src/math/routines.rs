@@ -38,7 +38,11 @@ pub fn safe_acos(x: Float) -> Float {
 
 #[inline]
 pub fn safe_sqrt(x: Float) -> Float {
-    assert!(x >= -1e-3);
+    assert!(
+        x >= -1e-3,
+        "Argument for safe_sqrt must be (roughly) non-negative, but got {}",
+        x
+    );
     x.max(0.0).sqrt()
 }
 

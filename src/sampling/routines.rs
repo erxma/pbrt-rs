@@ -257,7 +257,7 @@ pub const UNIFORM_SPHERE_PDF: Float = INV_4_PI;
 #[inline]
 pub fn sample_uniform_sphere(u: Point2f) -> Vec3f {
     let z = 1.0 - 2.0 * u.x();
-    let r = safe_sqrt(1.0 - z.sqrt());
+    let r = safe_sqrt(1.0 - z * z);
     let phi = 2.0 * PI * u.y();
     Vec3f::new(r * phi.cos(), r * phi.sin(), z)
 }

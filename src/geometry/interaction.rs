@@ -225,8 +225,9 @@ impl<'a> SurfaceInteraction<'a> {
         Some(bsdf)
     }
 
-    pub fn spawn_ray(&self, _dir: Vec3f) -> RayDifferential {
-        todo!()
+    pub fn spawn_ray(&self, dir: Vec3f) -> RayDifferential {
+        let ray = Ray::new(self.offset_ray_origin(dir), dir, self.time, self.medium());
+        RayDifferential::new_without_diff(ray)
     }
 
     pub fn compute_differentials(
@@ -312,6 +313,14 @@ impl<'a> SurfaceInteraction<'a> {
         } else {
             0.0
         };
+    }
+
+    pub fn offset_ray_origin(&self, w: Vec3f) -> Point3f {
+        Ray::offset_ray_origin(self.pi, self.n, w)
+    }
+
+    pub fn medium(&self) -> Option<&MediumEnum> {
+        self.medium_interface.map(|mi| &*mi.inside).or(self.medium)
     }
 }
 

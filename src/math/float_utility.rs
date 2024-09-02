@@ -9,19 +9,22 @@ pub const ONE_MINUS_EPSILON: Float = 1.0 - Float::EPSILON;
 
 // Returns the least number greater than `v`.
 #[inline]
-pub fn next_float_up(v: Float) -> Float {
+pub fn next_float_up(mut v: Float) -> Float {
     // TODO: Available in nightly. Impl is near identical.
     // Return same for +Infinity or NaN
     if v.is_infinite() && v > 0.0 || v.is_nan() {
         return v;
     }
 
+    // Change -0.0 to 0.0
+    // (Really, the neg sign makes no diff here)
+    if v == -0.0 {
+        v = 0.0;
+    }
+
     let bits = v.to_bits();
-    // Return 0x1 for -0.0 or +0.0.
-    // Otherwise, bump the bits
-    let next_bits = if v == 0.0 {
-        0x1
-    } else if v.is_sign_positive() {
+    // Bump the bits
+    let next_bits = if v.is_sign_positive() {
         bits + 1
     } else {
         bits - 1
@@ -38,9 +41,9 @@ pub fn next_float_down(mut v: Float) -> Float {
     if v.is_infinite() && v < 0.0 || v.is_nan() {
         return v;
     }
-    // Change -0.0 to just 0.0
-    if v == -0.0 {
-        v = 0.0;
+    // Change 0.0 to -0.0
+    if v == 0.0 {
+        v = -0.0;
     }
 
     let bits = v.to_bits();

@@ -62,7 +62,7 @@ impl Light for DirectionalLight {
             .scene_radius
             .get()
             .expect("Must call preprocess() with scene bounds info for DirectionalLight first");
-        let incident = (&self.render_from_light * Vec3f::UP).normalized();
+        let incident = (&self.render_from_light * Vec3f::new(0.0, 0.0, 1.0)).normalized();
         let p_outside = ctx.pi_mids() + incident * (2.0 * scene_radius);
 
         Some(LightLiSample {

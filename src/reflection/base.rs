@@ -79,11 +79,26 @@ impl<'a, BxDF: super::BxDF> BSDF<'a, BxDF> {
 
     pub fn eval(
         &self,
-        _wo_render: Vec3f,
-        _wi_render: Vec3f,
-        _mode: TransportMode,
+        outgoing_render: Vec3f,
+        incident_render: Vec3f,
+        mode: TransportMode,
     ) -> Option<SampledSpectrum> {
-        todo!()
+        let incident = self.render_to_local(incident_render);
+        let outgoing = self.render_to_local(outgoing_render);
+
+        if outgoing.z() != 0.0 {
+            Some(self.bxdf.func(outgoing, incident, mode))
+        } else {
+            None
+        }
+    }
+
+    pub fn render_to_local(&self, v: Vec3f) -> Vec3f {
+        self.shading_frame.to_local(v)
+    }
+
+    pub fn local_to_render(&self, v: Vec3f) -> Vec3f {
+        self.shading_frame.from_local(v)
     }
 }
 

@@ -10,7 +10,7 @@ use crate::{
     },
     media::{MediumEnum, MediumInterface, PhaseFunctionEnum},
     memory::ScratchBuffer,
-    reflection::{BxDF, BxDFEnum, BSDF},
+    reflection::{BxDFEnum, BSDF},
     sampling::{
         spectrum::{SampledSpectrum, SampledWavelengths},
         Sampler,
@@ -120,11 +120,17 @@ struct SurfaceInteractionParams {
     dndv: Normal3f,
     time: Float,
     flip_normal: bool,
+    #[builder(default)]
     dpdx: Vec3f,
+    #[builder(default)]
     dpdy: Vec3f,
+    #[builder(default)]
     dudx: Float,
+    #[builder(default)]
     dvdx: Float,
+    #[builder(default)]
     dudy: Float,
+    #[builder(default)]
     dvdy: Float,
 }
 
@@ -179,8 +185,11 @@ impl<'a> SurfaceInteraction<'a> {
         }
     }
 
-    pub fn emitted_radiance(&self, _w: Vec3f, _lambda: &SampledWavelengths) -> SampledSpectrum {
-        todo!()
+    pub fn emitted_radiance(&self, w: Vec3f, lambda: &SampledWavelengths) -> SampledSpectrum {
+        match self.area_light {
+            Some(light) => light.radiance(self.pi.midpoints_only(), self.n, self.uv, w, lambda),
+            None => SampledSpectrum::with_single_value(0.0),
+        }
     }
 
     pub fn get_bsdf<'b>(

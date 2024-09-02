@@ -540,7 +540,6 @@ impl Primitive for BVHAggregate {
         while let Some(idx) = nodes_to_visit_indices.pop() {
             let node = &self.nodes[idx];
             // Check against BVH node
-            // TODO: This expects moving ray but trait takes borrow
             if node.bounds().intersect_p(ray, t_max).is_some() {
                 match node {
                     LinearBVHNode::Leaf {

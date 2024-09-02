@@ -701,7 +701,7 @@ pub(crate) mod custom_impl {
             let (v2x, v2y, v2z): (f64, f64, f64) = (rhs.x.into(), rhs.y.into(), rhs.z.into());
 
             Self {
-                x: NumCast::from(v1y * v2x - v1z * v2y).unwrap(),
+                x: NumCast::from(v1y * v2z - v1z * v2y).unwrap(),
                 y: NumCast::from(v1z * v2x - v1x * v2z).unwrap(),
                 z: NumCast::from(v1x * v2y - v1y * v2x).unwrap(),
             }

@@ -22,9 +22,21 @@ impl Frame {
     /// The vectors must be orthonormal.
     pub fn new(x: Vec3f, y: Vec3f, z: Vec3f) -> Self {
         // Debug check that vecs are orthonormal
-        debug_assert!((x.length_squared() - 1.0).abs() < 1e-4);
-        debug_assert!((y.length_squared() - 1.0).abs() < 1e-4);
-        debug_assert!((z.length_squared() - 1.0).abs() < 1e-4);
+        debug_assert!(
+            (x.length_squared() - 1.0).abs() < 1e-4,
+            "Basis vector x must be normalized, but got sqlen {}",
+            x.length_squared()
+        );
+        debug_assert!(
+            (y.length_squared() - 1.0).abs() < 1e-4,
+            "Basis vector y must be normalized, but got sqlen {}",
+            y.length_squared()
+        );
+        debug_assert!(
+            (z.length_squared() - 1.0).abs() < 1e-4,
+            "Basis vector z must be normalized, but got sqlen {}",
+            z.length_squared()
+        );
         debug_assert!(x.dot(y).abs() < 1e-4);
         debug_assert!(y.dot(z).abs() < 1e-4);
         debug_assert!(z.dot(x).abs() < 1e-4);

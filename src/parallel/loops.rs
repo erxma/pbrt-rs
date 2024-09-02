@@ -22,8 +22,8 @@ pub fn parallel_for_2d_tiled_with<T>(
         let tile_size = tile_size as i32;
         let tile_start = Point2i::new(x_start, y_start);
         let tile_end = Point2i::new(
-            (x_start + tile_size - 1).min(extent.p_max.x()),
-            (y_start + tile_size - 1).min(extent.p_max.y()),
+            (x_start + tile_size).min(extent.p_max.x()),
+            (y_start + tile_size).min(extent.p_max.y()),
         );
 
         Bounds2i::new(tile_start, tile_end)

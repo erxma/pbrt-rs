@@ -594,7 +594,7 @@ impl AddAssign<&Self> for SampledSpectrum {
 
 impl Sum for SampledSpectrum {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
-        iter.reduce(|sum, item| sum + item).unwrap()
+        iter.fold(Self::with_single_value(0.0), |sum, item| sum + item)
     }
 }
 

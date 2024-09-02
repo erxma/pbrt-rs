@@ -62,7 +62,7 @@ impl Image {
     }
 
     fn pixel_offset(&self, p: Point2Usize) -> usize {
-        self.num_channels() * (p.y() + self.resolution.x() + p.x())
+        self.num_channels() * (p.y() * self.resolution.x() + p.x())
     }
 }
 

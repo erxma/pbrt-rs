@@ -5,7 +5,7 @@ use crate::{
     geometry::{Bounds3f, Ray},
     lights::LightType,
     math::{Normal3f, Point2f, Point3f, Vec3f},
-    memory::cache::ArcIntern,
+    memory::ArcIntern,
     sampling::{
         routines::{sample_uniform_sphere, UNIFORM_SPHERE_PDF},
         spectrum::{DenselySampledSpectrum, SampledSpectrum, SampledWavelengths, Spectrum},

@@ -3,7 +3,7 @@ use crate::{
     geometry::{Bounds3f, Ray, Transform},
     math::{Normal3f, Point2f, Point3f, Vec3f},
     media::MediumInterface,
-    memory::cache::ArcIntern,
+    memory::ArcIntern,
     sampling::spectrum::{
         DenselySampledSpectrum, SampledSpectrum, SampledWavelengths, Spectrum, SpectrumEnum,
     },

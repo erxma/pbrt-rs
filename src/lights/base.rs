@@ -2,7 +2,7 @@ use crate::{
     geometry::{Bounds3f, MediumInteraction, Ray, SurfaceInteraction},
     math::{Normal3f, Point2f, Point3f, Point3fi, Vec3f},
     media::MediumInterface,
-    memory::cache::{ArcIntern, ArcInternCache},
+    memory::{ArcIntern, ArcInternCache},
     sampling::spectrum::{DenselySampledSpectrum, SampledSpectrum, SampledWavelengths, Spectrum},
     Float,
 };

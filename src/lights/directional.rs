@@ -4,7 +4,7 @@ use crate::{
     float::PI,
     geometry::{Bounds3f, Ray, Transform},
     math::{Normal3f, Point2f, Point3f, Vec3f},
-    memory::cache::ArcIntern,
+    memory::ArcIntern,
     sampling::spectrum::{DenselySampledSpectrum, SampledSpectrum, SampledWavelengths, Spectrum},
     Float,
 };

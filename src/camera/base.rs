@@ -3,7 +3,7 @@ use std::{ops::Mul, sync::Arc};
 use super::{film::Film, perspective::PerspectiveCamera, OrthographicCamera};
 use crate::{
     geometry::{Bounds2f, Ray, RayDifferential, Transform},
-    math::{lerp, Point2f, Point3f, Vec3f},
+    math::{lerp, Normal3f, Point2f, Point3f, Vec3f},
     media::MediumEnum,
     sampling::spectrum::{SampledSpectrum, SampledWavelengths},
     Float,
@@ -83,6 +83,17 @@ pub trait Camera {
 
     fn shutter_open(&self) -> Float;
     fn shutter_close(&self) -> Float;
+
+    fn approximate_dp_dxy(
+        &self,
+        p: Point3f,
+        n: Normal3f,
+        time: Float,
+        samples_per_pixel: usize,
+    ) -> (Vec3f, Vec3f) {
+        // Compute tangent plane equation for ray diff intersections
+        todo!()
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

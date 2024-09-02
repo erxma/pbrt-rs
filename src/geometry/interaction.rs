@@ -4,7 +4,10 @@ use crate::{
     camera::Camera,
     lights::LightEnum,
     materials::{Material, MaterialEnum, MaterialEvalContext, UniversalTextureEvaluator},
-    math::{next_float_down, next_float_up, Normal3f, Point2f, Point3f, Point3fi, Tuple, Vec3f},
+    math::{
+        difference_of_products, next_float_down, next_float_up, Normal3f, Point2f, Point3f,
+        Point3fi, Tuple, Vec3f,
+    },
     media::{MediumEnum, MediumInterface, PhaseFunctionEnum},
     memory::ScratchBuffer,
     reflection::{BxDF, BxDFEnum, BSDF},
@@ -219,11 +222,87 @@ impl<'a> SurfaceInteraction<'a> {
 
     pub fn compute_differentials(
         &mut self,
-        ray: &RayDifferential,
+        ray_diffs: &RayDifferential,
         camera: &impl Camera,
         samples_per_pixel: usize,
     ) {
-        todo!()
+        match &ray_diffs.differentials {
+            Some(diffs)
+                if self.n.dot_v(diffs.rx_dir) != 0.0 && self.n.dot_v(diffs.ry_dir) != 0.0 =>
+            {
+                // Estimate screen-space change in p using differentials:
+                // Compute auxillary intersection points with plane, px and py
+                let d = -self.n.dot(self.pi.midpoints_only().into());
+                let tx = (-self.n.dot(diffs.rx_origin.into()) - d) / self.n.dot_v(diffs.rx_dir);
+                let px = diffs.rx_origin + tx * diffs.rx_dir;
+                let ty = (-self.n.dot(diffs.ry_origin.into()) - d) / self.n.dot_v(diffs.ry_dir);
+                let py = diffs.ry_origin + ty * diffs.ry_dir;
+
+                self.dpdx = px - self.pi.midpoints_only();
+                self.dpdy = py - self.pi.midpoints_only();
+            }
+
+            Some(_) | None => {
+                // Estiamte screen-space change in p based on cam projection
+                (self.dpdx, self.dpdy) = camera.approximate_dp_dxy(
+                    self.pi.midpoints_only(),
+                    self.n,
+                    self.time,
+                    samples_per_pixel,
+                );
+            }
+        }
+
+        // Estimate screen-space change in (u, v):
+
+        // Compute A^T*A and its determinant
+        // TODO: Move into seperate func?
+        let ata00 = self.dpdu.dot(self.dpdu);
+        let ata01 = self.dpdu.dot(self.dpdv);
+        let ata11 = self.dpdv.dot(self.dpdv);
+        let inv_det = {
+            let inv_det = 1.0 / difference_of_products(ata00, ata11, ata01, ata01);
+            if inv_det.is_finite() {
+                inv_det
+            } else {
+                0.0
+            }
+        };
+
+        // Compute A^T*b for x and y
+        let atb0x = self.dpdu.dot(self.dpdx);
+        let atb1x = self.dpdv.dot(self.dpdx);
+        let atb0y = self.dpdu.dot(self.dpdy);
+        let atb1y = self.dpdv.dot(self.dpdy);
+
+        // Compute u, v deriatives with respect to x, y
+        self.dudx = difference_of_products(ata11, atb0x, ata01, atb1x) * inv_det;
+        self.dvdx = difference_of_products(ata00, atb1x, ata01, atb0x) * inv_det;
+        self.dudy = difference_of_products(ata11, atb0y, ata01, atb1y) * inv_det;
+        self.dvdy = difference_of_products(ata00, atb1y, ata01, atb0y) * inv_det;
+
+        // Clamp derivatives to reasonable values, in case of very large values or inf,
+        // e.g. with highly distorted (u, v) or at silhouette edges
+        self.dudx = if self.dudx.is_finite() {
+            self.dudx.clamp(-1e8, 1e8)
+        } else {
+            0.0
+        };
+        self.dvdx = if self.dvdx.is_finite() {
+            self.dvdx.clamp(-1e8, 1e8)
+        } else {
+            0.0
+        };
+        self.dudy = if self.dudy.is_finite() {
+            self.dudy.clamp(-1e8, 1e8)
+        } else {
+            0.0
+        };
+        self.dvdy = if self.dvdy.is_finite() {
+            self.dvdy.clamp(-1e8, 1e8)
+        } else {
+            0.0
+        };
     }
 }
 

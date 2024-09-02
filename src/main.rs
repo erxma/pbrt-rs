@@ -1,5 +1,6 @@
 use std::{path::PathBuf, sync::Arc};
 
+use log::info;
 use pbrt_rs::{
     camera::{Camera, CameraTransform, PerspectiveCamera, PixelSensor, RGBFilm},
     color::{RGB, SRGB},
@@ -22,6 +23,10 @@ use pbrt_rs::{
 };
 
 fn main() {
+    let log_env = env_logger::Env::default().default_filter_or("info");
+    env_logger::init_from_env(log_env);
+    info!("Initialized logger.");
+
     render_cpu();
 }
 
@@ -82,7 +87,7 @@ fn render_cpu() {
         .into(),
     );
 
-    let sun_light = Arc::new(
+    let sun_light: Arc<LightEnum> = Arc::new(
         DirectionalLight::new(
             Transform::look_at(
                 Point3f::new(-30.0, 40.0, 100.0),
@@ -151,7 +156,8 @@ fn render_cpu() {
     let floor_prim = Arc::new(SimplePrimitive::new(floor_patch, floor_mat).into());
 
     let aggregate = BVHAggregate::new(vec![sphere_prim, floor_prim], 255, BVHSplitMethod::Middle);
-    let lights = vec![inf_light, sun_light];
+    //let lights = vec![inf_light, sun_light];
+    let lights = vec![inf_light];
     let mut integrator =
         RandomWalkIntegrator::new(5, camera.into(), sampler.into(), aggregate.into(), lights);
 

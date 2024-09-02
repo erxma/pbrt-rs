@@ -76,7 +76,7 @@ pub fn sample_visible_wavelengths(u: Float) -> Float {
 }
 
 #[enum_dispatch]
-#[derive(Clone, EnumAsInner)]
+#[derive(Clone, Debug, EnumAsInner)]
 pub enum SpectrumEnum {
     Constant(ConstantSpectrum),
     DenselySampled(DenselySampledSpectrum),
@@ -197,7 +197,7 @@ pub struct SpectrumSample {
     pub value: Float,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PiecewiseLinearSpectrum {
     samples: Vec<SpectrumSample>,
 }
@@ -926,7 +926,7 @@ impl Spectrum for RgbUnboundedSpectrum {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Debug, Copy)]
 pub struct RgbIlluminantSpectrum {
     scale: Float,
     rsp: RGBSigmoidPolynomial,

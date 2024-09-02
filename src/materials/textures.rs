@@ -9,6 +9,7 @@ use crate::{
 use super::TextureEvalContext;
 
 #[enum_dispatch]
+#[derive(Debug)]
 pub enum FloatTextureEnum {
     Constant(ConstantFloatTexture),
 }
@@ -28,6 +29,7 @@ pub trait FloatTexture {
 }
 
 #[enum_dispatch]
+#[derive(Debug)]
 pub enum SpectrumTextureEnum {
     Constant(ConstantSpectrumTexture),
 }
@@ -46,6 +48,7 @@ pub trait SpectrumTexture {
     fn eval(&self, ctx: &TextureEvalContext, lambda: &SampledWavelengths) -> SampledSpectrum;
 }
 
+#[derive(Debug)]
 pub struct ConstantFloatTexture {
     value: Float,
 }
@@ -62,6 +65,7 @@ impl ConstantFloatTexture {
     }
 }
 
+#[derive(Debug)]
 pub struct ConstantSpectrumTexture {
     value: SpectrumEnum,
 }

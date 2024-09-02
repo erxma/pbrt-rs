@@ -13,6 +13,7 @@ use super::{
     FloatTexture, FloatTextureEnum, SpectrumTexture, SpectrumTextureEnum, TextureEvalContext,
 };
 
+#[derive(Debug)]
 pub enum MaterialEnum {
     Diffuse(DiffuseMaterial),
     Dielectric(DielectricMaterial),
@@ -108,6 +109,7 @@ impl TextureEvaluator for UniversalTextureEvaluator {
     }
 }
 
+#[derive(Debug)]
 pub struct DiffuseMaterial {
     reflectance: Arc<SpectrumTextureEnum>,
 }
@@ -140,6 +142,7 @@ impl From<DiffuseMaterial> for MaterialEnum {
     }
 }
 
+#[derive(Debug)]
 pub struct DielectricMaterial {
     u_roughness: Arc<FloatTextureEnum>,
     v_roughness: Arc<FloatTextureEnum>,

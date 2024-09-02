@@ -62,7 +62,7 @@ pub(super) trait ImageTileIntegrate: Send + Sync {
     );
 
     fn image_tile_render(&self) {
-        // Declare common vars for rendering iamge in tiles
+        // Declare common vars for rendering image in tiles
 
         let pixel_bounds = self.camera().film().pixel_bounds();
 

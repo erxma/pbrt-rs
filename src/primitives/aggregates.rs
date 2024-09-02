@@ -527,6 +527,10 @@ impl Primitive for BVHAggregate {
         ray: &'a Ray,
         t_max: Option<Float>,
     ) -> Option<ShapeIntersection<'a>> {
+        if self.nodes.is_empty() {
+            return None;
+        }
+
         let mut t_max = t_max.unwrap_or(Float::INFINITY);
 
         let inv_dir = [1.0 / ray.dir.x(), 1.0 / ray.dir.y(), 1.0 / ray.dir.z()];

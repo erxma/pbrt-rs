@@ -44,7 +44,8 @@ impl<T: Pod> BufferCache<T> {
 
         let shard_idx = hash as usize >> (64 - Self::LOG_SHARDS);
         let shard = &self.shards[shard_idx];
-        match shard.read().unwrap().get(&lookup_buffer) {
+        let result = shard.read().unwrap().get(&lookup_buffer);
+        match result {
             Some(existing) => existing,
             // This is get or insert because it's possible another thread
             // already inserted right after the above read guard was dropped

@@ -127,28 +127,29 @@ fn render_cpu() {
         Arc::new(DielectricMaterial::new(rough_tex.clone(), rough_tex, false, eta).into());
     let sphere_prim = Arc::new(SimplePrimitive::new(sphere, sphere_mat).into());
 
-    const FLOOR_VERTS: [usize; 4] = [0, 1, 2, 3];
-    const FLOOR_POS: [Point3f; 4] = [
+    let floor_indices = vec![0, 1, 2, 3];
+    let floor_pos = vec![
         Point3f::new(-20.0, -20.0, 0.0),
         Point3f::new(20.0, -20.0, 0.0),
         Point3f::new(-20.0, 20.0, 0.0),
         Point3f::new(20.0, 20.0, 0.0),
     ];
-    const FLOOR_UV: [Point2f; 4] = [
+    let floor_uv = vec![
         Point2f::new(0.0, 1.0),
         Point2f::new(1.0, 0.0),
         Point2f::new(1.0, 1.0),
         Point2f::new(0.0, 1.0),
     ];
-    BilinearPatchMesh::init_mesh_data(vec![BilinearPatchMesh {
-        indices: &FLOOR_VERTS,
-        positions: &FLOOR_POS,
-        normals: None,
-        uv: Some(&FLOOR_UV),
-        reverse_orientation: false,
-        transform_swaps_handedness: false,
-        image_distribution: None,
-    }]);
+    BilinearPatchMesh::init_mesh_data(vec![BilinearPatchMesh::new(
+        &camera
+            .camera_transform()
+            .render_from_world(Transform::translate(Vec3f::new(0.0, 0.0, -1.0))),
+        false,
+        floor_indices,
+        floor_pos,
+        None,
+        Some(floor_uv),
+    )]);
     let floor_patch = Arc::new(BilinearPatch::new(BilinearPatchMesh::get(0).unwrap(), 0, 0).into());
     let floor_mat_tex =
         Arc::new(ConstantSpectrumTexture::new(ConstantSpectrum::new(0.5).into()).into());

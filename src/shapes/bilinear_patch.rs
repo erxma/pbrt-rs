@@ -8,6 +8,9 @@ use crate::{
         difference_of_products, gamma, lerp, solve_quadratic, spherical_quad_area, Normal3f,
         Point2f, Point3f, Point3fi, SquareMatrix, Tuple, Vec3f,
     },
+    memory::{
+        NORMAL3F_BUFFER_CACHE, POINT2F_BUFFER_CACHE, POINT3F_BUFFER_CACHE, USIZE_BUFFER_CACHE,
+    },
     sampling::routines::{
         bilinear_pdf, invert_bilinear, invert_spherical_rectangle_sample, sample_bilinear,
         sample_spherical_rectangle, PiecewiseConstant2D,
@@ -137,6 +140,7 @@ impl BilinearPatch {
         let mut isect = SurfaceInteraction::builder()
             .pi(Point3fi::new_fi(p, p_err))
             .wo(outgoing)
+            .uv(uv)
             .dpdu(dpdu)
             .dpdv(dpdv)
             .dndu(dndu)
@@ -614,22 +618,25 @@ pub fn intersect_bilinear_patch(
 #[derive(Debug)]
 pub struct BilinearPatchMesh {
     pub indices: Arc<Vec<usize>>,
+    /// Vertex positions in render space.
     pub positions: Arc<Vec<Point3f>>,
-    pub normals: Option<Vec<Normal3f>>,
-    pub uv: Option<Vec<Point2f>>,
+    /// Per-vertex normals in render space, if any.
+    pub normals: Option<Arc<Vec<Normal3f>>>,
+    /// Vertex UVs, if any.
+    pub uv: Option<Arc<Vec<Point2f>>>,
     pub reverse_orientation: bool,
     pub transform_swaps_handedness: bool,
     pub image_distribution: Option<PiecewiseConstant2D>,
 }
 
-static MESH_DATA: OnceLock<Vec<BilinearPatchMesh>> = OnceLock::new();
+static MESHES: OnceLock<Vec<BilinearPatchMesh>> = OnceLock::new();
 
 impl BilinearPatchMesh {
     pub fn new(
         render_from_obj: &Transform,
         reverse_orientation: bool,
         indices: Vec<usize>,
-        positions: Vec<Point3f>,
+        mut positions: Vec<Point3f>,
         normals: Option<Vec<Normal3f>>,
         uv: Option<Vec<Point2f>>,
     ) -> Self {
@@ -640,13 +647,41 @@ impl BilinearPatchMesh {
             indices.len()
         );
 
-        let 
+        // Lookup indices in cache
+        let indices = USIZE_BUFFER_CACHE.lookup_or_add(indices);
+
+        let positions = {
+            // Transform positions to render space
+            for p in positions.iter_mut() {
+                *p = render_from_obj * *p;
+            }
+            POINT3F_BUFFER_CACHE.lookup_or_add(positions)
+        };
+
+        let normals = normals.map(|mut vec| {
+            // Num must match num of indices
+            assert_eq!(vec.len(), indices.len());
+            // Transform normals to render space
+            for n in vec.iter_mut() {
+                *n = render_from_obj * *n;
+                if reverse_orientation {
+                    *n = -*n;
+                }
+            }
+            NORMAL3F_BUFFER_CACHE.lookup_or_add(vec)
+        });
+
+        let uv = uv.map(|vec| {
+            // Num must match num of indices
+            assert_eq!(vec.len(), indices.len());
+            POINT2F_BUFFER_CACHE.lookup_or_add(vec)
+        });
 
         Self {
-            indices: todo!(),
-            positions: todo!(),
+            indices,
+            positions,
             normals,
-            uv: todo!(),
+            uv,
             reverse_orientation,
             transform_swaps_handedness: render_from_obj.swaps_handedness(),
             image_distribution: None,
@@ -654,16 +689,16 @@ impl BilinearPatchMesh {
     }
 
     pub fn get(idx: usize) -> Option<&'static Self> {
-        MESH_DATA
+        MESHES
             .get()
             .expect("Should not try to get() a mesh from storage before storage's been initialized")
             .get(idx)
     }
 
     pub fn init_mesh_data(all_meshes: Vec<BilinearPatchMesh>) {
-        MESH_DATA
+        MESHES
             .set(all_meshes)
-            .expect("Mesh storage shouldn't be ")
+            .expect("Mesh storage shouldn't be set more than once")
     }
 
     pub fn positions(&self, blp_idx: usize) -> (Point3f, Point3f, Point3f, Point3f) {
@@ -679,7 +714,7 @@ impl BilinearPatchMesh {
         &self,
         blp_idx: usize,
     ) -> Option<(Normal3f, Normal3f, Normal3f, Normal3f)> {
-        if let Some(vert_n) = self.normals {
+        if let Some(vert_n) = &self.normals {
             let verts = &self.indices[4 * blp_idx..4 * blp_idx + 4];
             let n00 = vert_n[verts[0]];
             let n10 = vert_n[verts[1]];
@@ -692,7 +727,7 @@ impl BilinearPatchMesh {
     }
 
     pub fn uvs(&self, blp_idx: usize) -> Option<(Point2f, Point2f, Point2f, Point2f)> {
-        if let Some(uv) = self.uv {
+        if let Some(uv) = &self.uv {
             let verts = &self.indices[4 * blp_idx..4 * blp_idx + 4];
             let uv00 = uv[verts[0]];
             let uv10 = uv[verts[1]];

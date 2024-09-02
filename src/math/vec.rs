@@ -628,7 +628,7 @@ pub(crate) mod custom_impl {
         ops::{Add, AddAssign, Index, IndexMut, Sub, SubAssign},
     };
 
-    use bytemuck::{NoUninit, Pod, Zeroable};
+    use bytemuck::{Pod, Zeroable};
     use num_traits::{NumCast, Signed, ToPrimitive};
 
     use crate::{

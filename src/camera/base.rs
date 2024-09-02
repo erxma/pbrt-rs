@@ -2,7 +2,7 @@ use std::{ops::Mul, sync::Arc};
 
 use super::{film::Film, perspective::PerspectiveCamera, OrthographicCamera};
 use crate::{
-    geometry::{Bounds2f, Ray, RayDifferential, Transform},
+    geometry::{Bounds2f, Frame, Ray, RayDifferential, Transform},
     math::{lerp, Normal3f, Point2f, Point3f, Vec3f},
     media::MediumEnum,
     sampling::spectrum::{SampledSpectrum, SampledWavelengths},
@@ -83,6 +83,10 @@ pub trait Camera {
 
     fn shutter_open(&self) -> Float;
     fn shutter_close(&self) -> Float;
+    fn min_pos_differential_x(&self) -> Vec3f;
+    fn min_pos_differential_y(&self) -> Vec3f;
+    fn min_dir_differential_x(&self) -> Vec3f;
+    fn min_dir_differential_y(&self) -> Vec3f;
 
     fn approximate_dp_dxy(
         &self,
@@ -92,8 +96,112 @@ pub trait Camera {
         samples_per_pixel: usize,
     ) -> (Vec3f, Vec3f) {
         // Compute tangent plane equation for ray diff intersections
-        todo!()
+        let p_cam = self.camera_transform().camera_from_render(p);
+        let down_z_from_cam =
+            Transform::rotate_from_to(Vec3f::from(p_cam).normalized(), Vec3f::FORWARD);
+        let p_down_z = &down_z_from_cam * p_cam;
+        let n_down_z = &down_z_from_cam * self.camera_transform().camera_from_render(n);
+        let d = n_down_z.z() * p_down_z.z();
+
+        // Find intersection points for approximated cam differential rays
+        let x_ray = Ray::new(
+            Point3f::ZERO + self.min_pos_differential_x(),
+            Vec3f::FORWARD + self.min_dir_differential_x(),
+            0.0,
+            None,
+        );
+        let tx = -(n_down_z.dot(x_ray.o.into()) - d) / n_down_z.dot(x_ray.dir.into());
+        let y_ray = Ray::new(
+            Point3f::ZERO + self.min_pos_differential_y(),
+            Vec3f::FORWARD + self.min_dir_differential_y(),
+            0.0,
+            None,
+        );
+        let ty = -(n_down_z.dot(y_ray.o.into()) - d) / n_down_z.dot(y_ray.dir.into());
+        let px = x_ray.at(tx);
+        let py = y_ray.at(ty);
+
+        // Estimate dp/dx and dp/dy in tangent plane at intersection point
+        let spp_scale = (1.0 / (samples_per_pixel as Float).sqrt()).max(0.125);
+        let dpdx = spp_scale
+            * self
+                .camera_transform()
+                .render_from_camera(down_z_from_cam.inverse() * (px - p_down_z));
+        let dpdy = spp_scale
+            * self
+                .camera_transform()
+                .render_from_camera(down_z_from_cam.inverse() * (py - p_down_z));
+
+        (dpdx, dpdy)
     }
+}
+
+pub(super) fn find_minimum_differentials(cam: &impl Camera) -> (Vec3f, Vec3f, Vec3f, Vec3f) {
+    let mut min_pos_differential_x = Vec3f::INFINITY;
+    let mut min_pos_differential_y = Vec3f::INFINITY;
+    let mut min_dir_differential_x = Vec3f::INFINITY;
+    let mut min_dir_differential_y = Vec3f::INFINITY;
+
+    let wavelengths = SampledWavelengths::sample_visible(0.5);
+
+    const N: usize = 512;
+    for i in 0..N {
+        let p_film = Point2f::new(
+            i as Float / (N - 1) as Float * cam.film().full_resolution().x() as Float,
+            i as Float / (N - 1) as Float * cam.film().full_resolution().y() as Float,
+        );
+        let sample = CameraSample {
+            p_film,
+            p_lens: Point2f::new(0.5, 0.5),
+            time: 0.5,
+            filter_weight: 1.0,
+        };
+
+        let cam_ray_diff = cam.generate_ray_differential(sample, &wavelengths);
+        if cam_ray_diff.is_none() {
+            break;
+        }
+        let cam_ray_diff = cam_ray_diff.unwrap();
+
+        let ray = cam_ray_diff.ray.ray;
+        let diffs = cam_ray_diff.ray.differentials.unwrap();
+
+        let diff_o_x = cam
+            .camera_transform()
+            .camera_from_render(diffs.rx_origin - ray.o);
+        if diff_o_x.length_squared() < min_pos_differential_x.length_squared() {
+            min_pos_differential_x = diff_o_x;
+        }
+        let diff_o_y = cam
+            .camera_transform()
+            .camera_from_render(diffs.ry_origin - ray.o);
+        if diff_o_y.length_squared() < min_pos_differential_y.length_squared() {
+            min_pos_differential_y = diff_o_y;
+        }
+
+        let dir = ray.dir.normalized();
+        let rx_dir = diffs.rx_dir.normalized();
+        let ry_dir = diffs.ry_dir.normalized();
+
+        let frame = Frame::from_z(dir);
+        let dir_f = frame.to_local(dir);
+        let dx_f = frame.to_local(rx_dir).normalized();
+        let dy_f = frame.to_local(ry_dir).normalized();
+
+        if (dx_f - dir_f).length_squared() < min_dir_differential_x.length_squared() {
+            min_dir_differential_x = dx_f - dir_f;
+        }
+        if (dy_f - dir_f).length_squared() < min_dir_differential_y.length_squared() {
+            min_dir_differential_y = dy_f - dir_f;
+        }
+    }
+
+    (
+        min_pos_differential_x,
+        min_pos_differential_y,
+        min_dir_differential_x,
+        min_dir_differential_y,
+    )
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -194,6 +302,10 @@ pub(super) struct ProjectiveCamera {
     pub shutter_close: Float,
     pub film: Arc<Film>,
     pub medium: Option<Arc<MediumEnum>>,
+    pub min_pos_differential_x: Vec3f,
+    pub min_pos_differential_y: Vec3f,
+    pub min_dir_differential_x: Vec3f,
+    pub min_dir_differential_y: Vec3f,
 
     pub _screen_from_camera: Transform,
     pub camera_from_raster: Transform,
@@ -244,6 +356,10 @@ impl ProjectiveCamera {
             shutter_close: params.shutter_close,
             film: params.film,
             medium: params.medium,
+            min_pos_differential_x: Default::default(),
+            min_pos_differential_y: Default::default(),
+            min_dir_differential_x: Default::default(),
+            min_dir_differential_y: Default::default(),
 
             _screen_from_camera: params.screen_from_camera,
             camera_from_raster,

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use derive_builder::Builder;
 
 use super::{
-    base::{ProjectiveCamera, ProjectiveCameraParams},
+    base::{find_minimum_differentials, ProjectiveCamera, ProjectiveCameraParams},
     film::Film,
     Camera, CameraRay, CameraRayDifferential, CameraSample, CameraTransform,
 };
@@ -79,12 +79,22 @@ impl PerspectiveCameraBuilder {
         let w_corner_camera = Vec3f::from(&projective.camera_from_raster * p_corner).normalized();
         let cos_total_width = w_corner_camera.z();
 
-        Ok(PerspectiveCamera {
+        // TODO: Messy
+        let mut result = PerspectiveCamera {
             projective,
             dx_camera,
             dy_camera,
             cos_total_width,
-        })
+        };
+
+        let (min_pos_diff_x, min_pos_diff_y, min_dir_diff_x, min_dir_diff_y) =
+            find_minimum_differentials(&result);
+        result.projective.min_pos_differential_x = min_pos_diff_x;
+        result.projective.min_pos_differential_y = min_pos_diff_y;
+        result.projective.min_dir_differential_x = min_dir_diff_x;
+        result.projective.min_dir_differential_y = min_dir_diff_y;
+
+        Ok(result)
     }
 }
 
@@ -208,5 +218,21 @@ impl Camera for PerspectiveCamera {
 
     fn shutter_close(&self) -> Float {
         self.projective.shutter_close
+    }
+
+    fn min_pos_differential_x(&self) -> Vec3f {
+        self.projective.min_pos_differential_x
+    }
+
+    fn min_pos_differential_y(&self) -> Vec3f {
+        self.projective.min_pos_differential_y
+    }
+
+    fn min_dir_differential_x(&self) -> Vec3f {
+        self.projective.min_dir_differential_x
+    }
+
+    fn min_dir_differential_y(&self) -> Vec3f {
+        self.projective.min_dir_differential_y
     }
 }

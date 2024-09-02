@@ -6,7 +6,7 @@ use pbrt_rs::{
     geometry::{Bounds2f, Bounds2i, Transform},
     image::BoxFilter,
     integrators::{Integrate, RandomWalkIntegrator},
-    lights::{DirectionalLight, UniformInfiniteLight},
+    lights::{DirectionalLight, LightEnum, UniformInfiniteLight},
     materials::{
         ConstantFloatTexture, ConstantSpectrumTexture, DielectricMaterial, DiffuseMaterial,
         FloatTextureEnum,

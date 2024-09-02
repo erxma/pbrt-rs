@@ -63,11 +63,19 @@ impl OrthographicCameraBuilder {
         let dx_camera = &projective.camera_from_raster * Vec3f::new(1.0, 0.0, 0.0);
         let dy_camera = &projective.camera_from_raster * Vec3f::new(0.0, 1.0, 0.0);
 
-        Ok(OrthographicCamera {
+        let mut result = OrthographicCamera {
             projective,
             _dx_camera: dx_camera,
             _dy_camera: dy_camera,
-        })
+        };
+
+        // Compute min differentials
+        result.projective.min_pos_differential_x = dx_camera;
+        result.projective.min_pos_differential_y = dy_camera;
+        result.projective.min_dir_differential_x = Vec3f::ZERO;
+        result.projective.min_dir_differential_y = Vec3f::ZERO;
+
+        Ok(result)
     }
 }
 
@@ -108,5 +116,21 @@ impl Camera for OrthographicCamera {
 
     fn shutter_close(&self) -> Float {
         self.projective.shutter_close
+    }
+
+    fn min_pos_differential_x(&self) -> Vec3f {
+        self.projective.min_pos_differential_x
+    }
+
+    fn min_pos_differential_y(&self) -> Vec3f {
+        self.projective.min_pos_differential_y
+    }
+
+    fn min_dir_differential_x(&self) -> Vec3f {
+        self.projective.min_dir_differential_x
+    }
+
+    fn min_dir_differential_y(&self) -> Vec3f {
+        self.projective.min_dir_differential_y
     }
 }

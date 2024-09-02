@@ -180,6 +180,11 @@ pub struct Vec3f(inner::Vec3f);
 
 impl Vec3f {
     pub const ZERO: Self = Self::new(0.0, 0.0, 0.0);
+    pub const INFINITY: Self = Self::new(
+        pbrt::Float::INFINITY,
+        pbrt::Float::INFINITY,
+        pbrt::Float::INFINITY,
+    );
     pub const FORWARD: Self = Self::new(0.0, 0.0, 1.0);
     pub const UP: Self = Self::new(0.0, 1.0, 0.0);
     pub const RIGHT: Self = Self::new(1.0, 0.0, 0.0);

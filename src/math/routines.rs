@@ -28,7 +28,11 @@ pub fn safe_asin(x: Float) -> Float {
 
 #[inline]
 pub fn safe_acos(x: Float) -> Float {
-    assert!((-1.0001..=1.0001).contains(&x));
+    assert!(
+        (-1.0001..=1.0001).contains(&x),
+        "Argument to safe_acos must be in -1.0001..=1.0001, but got {}",
+        x
+    );
     x.clamp(-1.0, 1.0).acos()
 }
 

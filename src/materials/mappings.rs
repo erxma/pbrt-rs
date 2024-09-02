@@ -1,4 +1,5 @@
 use crate::{
+    geometry::SurfaceInteraction,
     math::{Normal3f, Point2f, Point3f, Vec3f},
     Float,
 };
@@ -34,6 +35,22 @@ pub struct TextureEvalContext {
     pub dudy: Float,
     pub dvdx: Float,
     pub dvdy: Float,
+}
+
+impl TextureEvalContext {
+    pub fn from_surface_interaction(si: &SurfaceInteraction) -> Self {
+        Self {
+            p: si.pi.midpoints_only(),
+            dpdx: si.dpdx,
+            dpdy: si.dpdy,
+            n: si.n,
+            uv: si.uv,
+            dudx: si.dudx,
+            dudy: si.dudy,
+            dvdx: si.dvdx,
+            dvdy: si.dvdy,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

@@ -1,8 +1,10 @@
 use std::{borrow::Cow, sync::Arc};
 
 use crate::{
+    geometry::SurfaceInteraction,
     math::{Normal3f, Vec3f},
-    reflection::{DielectricBxDF, DiffuseBxDF, TrowbridgeReitz},
+    memory::ScratchBuffer,
+    reflection::{BxDFEnum, DielectricBxDF, DiffuseBxDF, TrowbridgeReitz, BSDF},
     sampling::spectrum::{SampledSpectrum, SampledWavelengths, SpectrumEnum},
     Float,
 };
@@ -16,6 +18,22 @@ pub enum MaterialEnum {
     Dielectric(DielectricMaterial),
 }
 
+impl Material for MaterialEnum {
+    type BxDF = BxDFEnum;
+
+    fn bxdf(
+        &self,
+        tex_eval: &impl TextureEvaluator,
+        ctx: &MaterialEvalContext,
+        lambda: Cow<SampledWavelengths>,
+    ) -> Self::BxDF {
+        match self {
+            MaterialEnum::Diffuse(m) => m.bxdf(tex_eval, ctx, lambda).into(),
+            MaterialEnum::Dielectric(m) => m.bxdf(tex_eval, ctx, lambda).into(),
+        }
+    }
+}
+
 pub trait Material {
     type BxDF: crate::reflection::BxDF;
 
@@ -25,6 +43,17 @@ pub trait Material {
         ctx: &MaterialEvalContext,
         lambda: Cow<SampledWavelengths>,
     ) -> Self::BxDF;
+
+    fn bsdf<'a>(
+        &self,
+        tex_eval: &impl TextureEvaluator,
+        ctx: &MaterialEvalContext,
+        lambda: Cow<SampledWavelengths>,
+        scratch_buffer: &'a mut ScratchBuffer,
+    ) -> BSDF<'a, Self::BxDF> {
+        let bxdf = scratch_buffer.alloc(self.bxdf(tex_eval, ctx, lambda));
+        BSDF::new(ctx.ns, ctx.dpdus, bxdf)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -33,6 +62,17 @@ pub struct MaterialEvalContext {
     pub wo: Vec3f,
     pub ns: Normal3f,
     pub dpdus: Vec3f,
+}
+
+impl MaterialEvalContext {
+    pub fn from_surface_interaction(si: &SurfaceInteraction) -> Self {
+        Self {
+            tex_eval_ctx: TextureEvalContext::from_surface_interaction(si),
+            wo: si.wo.unwrap(),
+            ns: si.shading.n,
+            dpdus: si.shading.dpdu,
+        }
+    }
 }
 
 pub trait TextureEvaluator {
@@ -46,6 +86,12 @@ pub trait TextureEvaluator {
 }
 
 pub struct UniversalTextureEvaluator {}
+
+impl UniversalTextureEvaluator {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
 
 impl TextureEvaluator for UniversalTextureEvaluator {
     fn eval(&self, texture: &impl FloatTexture, ctx: &TextureEvalContext) -> Float {

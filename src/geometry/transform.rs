@@ -298,18 +298,14 @@ impl Transform {
     }
 }
 
-impl Mul for Transform {
-    type Output = Self;
+// Compute the composite of two transformations,
+// equivalent to applying `rhs` then `self`.
+overload!((t1: ?Transform) * (t2: ?Transform) -> Transform {
+    let m = &t1.m * &t2.m;
+    let m_inv = &t2.m_inv * &t1.m_inv;
 
-    /// Compute the composite of two transformations,
-    /// equivalent to applying `rhs` then `self`.
-    fn mul(self, rhs: Self) -> Self {
-        let m = self.m * rhs.m;
-        let m_inv = rhs.m_inv * self.m_inv;
-
-        Self { m, m_inv }
-    }
-}
+    Transform { m, m_inv }
+});
 
 // Apply transform to a point.
 overload!((t: ?Transform) * (p: Point3f) -> Point3f {

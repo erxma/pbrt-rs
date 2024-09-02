@@ -1,7 +1,7 @@
 use std::{path::PathBuf, sync::Arc};
 
 use pbrt_rs::{
-    camera::{CameraTransform, PerspectiveCamera, PixelSensor, RGBFilm},
+    camera::{Camera, CameraTransform, PerspectiveCamera, PixelSensor, RGBFilm},
     color::{RGB, SRGB},
     geometry::{Bounds2f, Bounds2i, Transform},
     image::BoxFilter,
@@ -26,32 +26,13 @@ fn main() {
 }
 
 fn render_cpu() {
-    let look_at = Transform::look_at(
+    let world_to_camera = Transform::look_at(
         Point3f::new(3.0, 4.0, 1.5),
         Point3f::new(0.5, 0.5, 0.0),
-        Vec3f::UP,
+        Vec3f::new(0.0, 0.0, 1.0),
     );
 
     let sampler = IndependentSampler::new(128, None);
-
-    let sphere = Arc::new(
-        Sphere::builder()
-            .radius(1.0)
-            .z_min(-1.0)
-            .z_max(1.0)
-            .phi_max(360.0)
-            .render_from_object(Transform::IDENTITY)
-            .object_from_render(Transform::IDENTITY)
-            .reverse_orientation(false)
-            .build()
-            .unwrap()
-            .into(),
-    );
-    let rough_tex: Arc<FloatTextureEnum> = Arc::new(ConstantFloatTexture::new(0.0).into());
-    let eta = Arc::new(ConstantSpectrum::new(1.5).into());
-    let sphere_mat =
-        Arc::new(DielectricMaterial::new(rough_tex.clone(), rough_tex, false, eta).into());
-    let sphere_prim = Arc::new(SimplePrimitive::new(sphere, sphere_mat).into());
 
     let filter = Arc::new(BoxFilter::new(Vec2f::new(0.5, 0.5)).into());
 
@@ -79,7 +60,7 @@ fn render_cpu() {
     );
 
     let camera = PerspectiveCamera::builder()
-        .transform(CameraTransform::new(look_at))
+        .transform(CameraTransform::new(world_to_camera.inverse()))
         .shutter_open(0.0)
         .shutter_close(1.0)
         .film(film)
@@ -103,12 +84,43 @@ fn render_cpu() {
 
     let sun_light = Arc::new(
         DirectionalLight::new(
-            Transform::look_at(Point3f::new(-30.0, 40.0, 100.0), Point3f::ZERO, Vec3f::UP),
+            Transform::look_at(
+                Point3f::new(-30.0, 40.0, 100.0),
+                Point3f::new(0.0, 0.0, 1.0),
+                Vec3f::new(0.0, 0.0, 1.0),
+            ),
             &BlackbodySpectrum::new(3000.0),
             1.5,
         )
         .into(),
     );
+
+    let sphere = Arc::new(
+        Sphere::builder()
+            .radius(1.0)
+            .z_min(-1.0)
+            .z_max(1.0)
+            .phi_max(360.0)
+            .render_from_object(
+                camera
+                    .camera_transform()
+                    .render_from_world(Transform::IDENTITY),
+            )
+            .object_from_render(
+                camera
+                    .camera_transform()
+                    .world_from_render(Transform::IDENTITY),
+            )
+            .reverse_orientation(false)
+            .build()
+            .unwrap()
+            .into(),
+    );
+    let rough_tex: Arc<FloatTextureEnum> = Arc::new(ConstantFloatTexture::new(0.0).into());
+    let eta = Arc::new(ConstantSpectrum::new(1.5).into());
+    let sphere_mat =
+        Arc::new(DielectricMaterial::new(rough_tex.clone(), rough_tex, false, eta).into());
+    let sphere_prim = Arc::new(SimplePrimitive::new(sphere, sphere_mat).into());
 
     const FLOOR_VERTS: [usize; 4] = [0, 1, 2, 3];
     const FLOOR_POS: [Point3f; 4] = [

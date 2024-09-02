@@ -151,7 +151,28 @@ impl CameraTransform {
     where
         for<'a> &'a Transform: Mul<T, Output = T>,
     {
+        &self.render_from_camera * item
+    }
+
+    pub fn camera_from_render<T>(&self, item: T) -> T
+    where
+        for<'a> &'a Transform: Mul<T, Output = T>,
+    {
+        &self.render_from_camera.inverse() * item
+    }
+
+    pub fn world_from_render<T>(&self, item: T) -> T
+    where
+        for<'a> &'a Transform: Mul<T, Output = T>,
+    {
         &self.world_from_render * item
+    }
+
+    pub fn render_from_world<T>(&self, item: T) -> T
+    where
+        for<'a> &'a Transform: Mul<T, Output = T>,
+    {
+        &self.world_from_render.inverse() * item
     }
 }
 

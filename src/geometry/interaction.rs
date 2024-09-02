@@ -1,11 +1,13 @@
+use std::borrow::Cow;
+
 use crate::{
     camera::Camera,
     lights::LightEnum,
-    materials::MaterialEnum,
+    materials::{Material, MaterialEnum, MaterialEvalContext, UniversalTextureEvaluator},
     math::{next_float_down, next_float_up, Normal3f, Point2f, Point3f, Point3fi, Tuple, Vec3f},
     media::{MediumEnum, MediumInterface, PhaseFunctionEnum},
     memory::ScratchBuffer,
-    reflection::BSDF,
+    reflection::{BxDF, BxDFEnum, BSDF},
     sampling::{
         spectrum::{SampledSpectrum, SampledWavelengths},
         Sampler,
@@ -81,6 +83,12 @@ pub struct SurfaceInteraction<'a> {
     pub area_light: Option<&'a LightEnum>,
     pub medium_interface: Option<&'a MediumInterface>,
     pub medium: Option<&'a MediumEnum>,
+    pub dpdx: Vec3f,
+    pub dpdy: Vec3f,
+    pub dudx: Float,
+    pub dvdx: Float,
+    pub dudy: Float,
+    pub dvdy: Float,
 }
 
 #[derive(Clone, Debug)]
@@ -109,6 +117,12 @@ struct SurfaceInteractionParams {
     dndv: Normal3f,
     time: Float,
     flip_normal: bool,
+    dpdx: Vec3f,
+    dpdy: Vec3f,
+    dudx: Float,
+    dvdx: Float,
+    dudy: Float,
+    dvdy: Float,
 }
 
 impl<'a> SurfaceInteraction<'a> {
@@ -166,18 +180,49 @@ impl<'a> SurfaceInteraction<'a> {
         todo!()
     }
 
-    pub fn get_bsdf(
+    pub fn get_bsdf<'b>(
         &mut self,
-        _ray: &RayDifferential,
-        _wavelengths: &SampledWavelengths,
-        _camera: &impl Camera,
-        _scratch_buffer: &mut ScratchBuffer,
-        _sampler: &mut impl Sampler,
-    ) -> Option<&BSDF> {
-        todo!()
+        ray: &RayDifferential,
+        wavelengths: &SampledWavelengths,
+        camera: &impl Camera,
+        scratch_buffer: &'b mut ScratchBuffer,
+        sampler: &mut impl Sampler,
+    ) -> Option<BSDF<'b, BxDFEnum>> {
+        // Estimate (u, v) and pos differentials at intersection point
+        self.compute_differentials(ray, camera, sampler.samples_per_pixel());
+
+        // TODO: Resolve MixMaterial if necessary
+
+        // Return unset BSDF if surface has no material
+        if self.material.is_none() {
+            return None;
+        }
+
+        // TODO: Eval normal or bump map, if present
+
+        // Get shading dp/du and dp/dv using normal or bump map
+
+        // Return BSDF
+        let bsdf = self.material.unwrap().bsdf(
+            &UniversalTextureEvaluator::new(),
+            &MaterialEvalContext::from_surface_interaction(self),
+            Cow::Borrowed(wavelengths),
+            scratch_buffer,
+        );
+
+        Some(bsdf)
     }
 
     pub fn spawn_ray(&self, _dir: Vec3f) -> RayDifferential {
+        todo!()
+    }
+
+    pub fn compute_differentials(
+        &mut self,
+        ray: &RayDifferential,
+        camera: &impl Camera,
+        samples_per_pixel: usize,
+    ) {
         todo!()
     }
 }
@@ -213,6 +258,12 @@ impl SurfaceInteractionBuilder {
             area_light: None,
             medium_interface: None,
             medium: None,
+            dpdx: params.dpdx,
+            dpdy: params.dpdy,
+            dudx: params.dudx,
+            dvdx: params.dvdx,
+            dudy: params.dudy,
+            dvdy: params.dvdy,
         })
     }
 }

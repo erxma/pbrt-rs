@@ -2,15 +2,17 @@ use bitflags::bitflags;
 use enum_dispatch::enum_dispatch;
 
 use crate::{
-    math::{Point2f, Vec3f},
+    geometry::Frame,
+    math::{Normal3f, Point2f, Vec3f},
     sampling::spectrum::SampledSpectrum,
     Float,
 };
 
-use super::DielectricBxDF;
+use super::{DielectricBxDF, DiffuseBxDF};
 
 #[enum_dispatch]
 pub enum BxDFEnum {
+    Diffuse(DiffuseBxDF),
     Dielectric(DielectricBxDF),
 }
 
@@ -62,9 +64,19 @@ bitflags! {
     }
 }
 
-pub struct BSDF {}
+pub struct BSDF<'a, BxDF> {
+    bxdf: &'a BxDF,
+    shading_frame: Frame,
+}
 
-impl BSDF {
+impl<'a, BxDF: super::BxDF> BSDF<'a, BxDF> {
+    pub fn new(shading_normal: Normal3f, shading_dpdu: Vec3f, bxdf: &'a BxDF) -> Self {
+        Self {
+            bxdf,
+            shading_frame: Frame::from_xz(shading_dpdu.normalized(), shading_normal.into()),
+        }
+    }
+
     pub fn eval(
         &self,
         _wo_render: Vec3f,

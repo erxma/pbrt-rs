@@ -4,6 +4,6 @@ mod sampler;
 pub mod spectrum;
 mod variance;
 
-pub use light_sampler::{LightSampler, SampledLight};
+pub use light_sampler::{LightSampler, SampledLight, UniformLightSampler};
 pub use sampler::{IndependentSampler, Sampler, SamplerEnum};
 pub use variance::VarianceEstimator;

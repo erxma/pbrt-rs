@@ -56,8 +56,8 @@ impl Primitive for GeometricPrimitive {
         si.intr.set_properties(
             Some(&*self.material),
             self.area_light.as_deref(),
-            Some(&self.medium_interface),
-            ray.medium,
+            Some(self.medium_interface.clone()),
+            ray.medium.clone(),
         );
 
         Some(si)
@@ -96,9 +96,12 @@ impl Primitive for SimplePrimitive {
         let mut shape_intersection = self.shape.intersect(ray, t_max)?;
 
         // Initialize SurfaceInteraction
-        shape_intersection
-            .intr
-            .set_properties(Some(&self.material), None, None, ray.medium);
+        shape_intersection.intr.set_properties(
+            Some(&self.material),
+            None,
+            None,
+            ray.medium.clone(),
+        );
 
         Some(shape_intersection)
     }

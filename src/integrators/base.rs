@@ -130,7 +130,7 @@ pub(super) trait ImageTileIntegrate: Send + Sync {
 pub(super) trait RayIntegrate: ImageTileIntegrate {
     fn incident_radiance(
         &self,
-        ray: RayDifferential,
+        ray_diff: RayDifferential,
         lambda: &SampledWavelengths,
         sampler: &mut impl Sampler,
         scratch_buffer: &mut ScratchBuffer,

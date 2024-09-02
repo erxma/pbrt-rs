@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc};
 
 use crate::{
     camera::Camera,
@@ -84,8 +84,8 @@ pub struct SurfaceInteraction<'a> {
     // TODO: Restructure these?
     pub material: Option<&'a MaterialEnum>,
     pub area_light: Option<&'a LightEnum>,
-    pub medium_interface: Option<&'a MediumInterface>,
-    pub medium: Option<&'a MediumEnum>,
+    pub medium_interface: Option<MediumInterface>,
+    pub medium: Option<Arc<MediumEnum>>,
     pub dpdx: Vec3f,
     pub dpdy: Vec3f,
     pub dudx: Float,
@@ -170,13 +170,13 @@ impl<'a> SurfaceInteraction<'a> {
         &mut self,
         material: Option<&'a MaterialEnum>,
         area_light: Option<&'a LightEnum>,
-        prim_medium_interface: Option<&'a MediumInterface>,
-        ray_medium: Option<&'a MediumEnum>,
+        prim_medium_interface: Option<MediumInterface>,
+        ray_medium: Option<Arc<MediumEnum>>,
     ) {
         self.material = material;
         self.area_light = area_light;
         // FIXME
-        if let Some(mi) = prim_medium_interface {
+        if let Some(ref mi) = prim_medium_interface {
             if mi.is_transition() {
                 self.medium_interface = prim_medium_interface;
             }
@@ -226,7 +226,12 @@ impl<'a> SurfaceInteraction<'a> {
     }
 
     pub fn spawn_ray(&self, dir: Vec3f) -> RayDifferential {
-        let ray = Ray::new(self.offset_ray_origin(dir), dir, self.time, self.medium());
+        let ray = Ray::new(
+            self.offset_ray_origin(dir),
+            dir,
+            self.time,
+            self.medium.clone(),
+        );
         RayDifferential::new_without_diff(ray)
     }
 
@@ -320,12 +325,23 @@ impl<'a> SurfaceInteraction<'a> {
     }
 
     pub fn medium(&self) -> Option<&MediumEnum> {
-        self.medium_interface.map(|mi| &*mi.inside).or(self.medium)
+        self.medium_interface
+            .as_ref()
+            .map(|mi| &*mi.inside)
+            .or(self.medium.as_deref())
+    }
+
+    pub fn skip_intersection(&self, ray_diff: &mut RayDifferential, t: Float) {
+        *ray_diff = self.spawn_ray(ray_diff.ray.dir);
+        if let Some(ref mut diffs) = ray_diff.differentials {
+            diffs.rx_origin += t * diffs.rx_dir;
+            diffs.ry_origin += t * diffs.ry_dir;
+        }
     }
 }
 
 impl SurfaceInteractionBuilder {
-    pub fn build<'a>(&self) -> Result<SurfaceInteraction<'a>, SurfaceInteractionBuilderError> {
+    pub fn build<'a, 'b>(&self) -> Result<SurfaceInteraction<'a>, SurfaceInteractionBuilderError> {
         let params = self.build_params()?;
 
         let mut n = params.dpdu.cross(params.dpdv).normalized().into();

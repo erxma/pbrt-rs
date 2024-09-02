@@ -436,22 +436,21 @@ overload!((t: ?Transform) * (n: Normal3f) -> Normal3f {
     )
 });
 
-impl<'a> Mul<Ray<'a>> for Transform {
-    type Output = Ray<'a>;
+impl Mul<Ray> for Transform {
+    type Output = Ray;
 
     /// Apply `self` to a ray.
-    fn mul(self, r: Ray<'a>) -> Self::Output {
+    fn mul(self, r: Ray) -> Self::Output {
         &self * r
     }
 }
 
-impl<'a> Mul<Ray<'a>> for &Transform {
-    type Output = Ray<'a>;
+impl Mul<Ray> for &Transform {
+    type Output = Ray;
 
     /// Apply `self` to a ray.
-    fn mul(self, r: Ray<'a>) -> Self::Output {
+    fn mul(self, r: Ray) -> Self::Output {
         // TODO: Deal with round-off error
-        // TODO: overload! doesn't support generics (lifetimes). Consider alternative?
         let o = self * r.o;
         let dir = self * r.dir;
 
@@ -464,21 +463,20 @@ impl<'a> Mul<Ray<'a>> for &Transform {
     }
 }
 
-impl<'a> Mul<RayDifferential<'a>> for Transform {
-    type Output = RayDifferential<'a>;
+impl Mul<RayDifferential> for Transform {
+    type Output = RayDifferential;
 
-    fn mul(self, rd: RayDifferential<'a>) -> Self::Output {
+    fn mul(self, rd: RayDifferential) -> Self::Output {
         &self * rd
     }
 }
 
-impl<'a> Mul<RayDifferential<'a>> for &Transform {
-    type Output = RayDifferential<'a>;
+impl Mul<RayDifferential> for &Transform {
+    type Output = RayDifferential;
 
     /// Apply `self` to a ray.
-    fn mul(self, rd: RayDifferential<'a>) -> Self::Output {
+    fn mul(self, rd: RayDifferential) -> Self::Output {
         // TODO: Deal with round-off error
-        // TODO: overload! doesn't support generics (lifetimes). Consider alternative?
         // Apply to ray
         let ray = self * rd.ray;
         // Apply to diffs if they've been set

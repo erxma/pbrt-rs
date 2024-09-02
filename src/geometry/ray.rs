@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{
     math::{next_float_down, next_float_up, Normal3f, Point3f, Point3fi, Tuple, Vec3f},
     media::MediumEnum,
@@ -5,17 +7,17 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct Ray<'a> {
+pub struct Ray {
     /// Origin of the ray.
     pub o: Point3f,
     /// Direction of the ray. Is multiplied for each step.
     pub dir: Vec3f,
     pub time: Float,
-    pub medium: Option<&'a MediumEnum>,
+    pub medium: Option<Arc<MediumEnum>>,
 }
 
-impl<'a> Ray<'a> {
-    pub fn new(o: Point3f, dir: Vec3f, time: Float, medium: Option<&'a MediumEnum>) -> Self {
+impl Ray {
+    pub fn new(o: Point3f, dir: Vec3f, time: Float, medium: Option<Arc<MediumEnum>>) -> Self {
         Self {
             o,
             dir,
@@ -46,15 +48,15 @@ impl<'a> Ray<'a> {
     }
 }
 
-impl Ray<'_> {
+impl Ray {
     pub fn at(&self, t: Float) -> Point3f {
         self.o + self.dir * t
     }
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
-pub struct RayDifferential<'a> {
-    pub ray: Ray<'a>,
+pub struct RayDifferential {
+    pub ray: Ray,
     pub differentials: Option<Differentials>,
 }
 
@@ -66,9 +68,9 @@ pub struct Differentials {
     pub ry_dir: Vec3f,
 }
 
-impl<'a> RayDifferential<'a> {
+impl RayDifferential {
     /// Construct a new ray differential with the given ray and differentials
-    pub fn new(ray: Ray<'a>, differentials: Differentials) -> Self {
+    pub fn new(ray: Ray, differentials: Differentials) -> Self {
         Self {
             ray,
             differentials: Some(differentials),
@@ -77,7 +79,7 @@ impl<'a> RayDifferential<'a> {
 
     /// Construct a new ray differential with the given ray,
     /// and no differentials set.
-    pub fn new_without_diff(ray: Ray<'a>) -> Self {
+    pub fn new_without_diff(ray: Ray) -> Self {
         Self {
             ray,
             differentials: None,

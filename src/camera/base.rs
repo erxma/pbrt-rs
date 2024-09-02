@@ -213,33 +213,33 @@ pub struct CameraSample {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct CameraRay<'a> {
-    pub ray: Ray<'a>,
+pub struct CameraRay {
+    pub ray: Ray,
     pub weight: SampledSpectrum,
 }
 
-impl<'a> CameraRay<'a> {
-    pub fn new(ray: Ray<'a>) -> Self {
+impl CameraRay {
+    pub fn new(ray: Ray) -> Self {
         Self::with_weight(ray, SampledSpectrum::with_single_value(1.0))
     }
 
-    pub fn with_weight(ray: Ray<'a>, weight: SampledSpectrum) -> Self {
+    pub fn with_weight(ray: Ray, weight: SampledSpectrum) -> Self {
         Self { ray, weight }
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct CameraRayDifferential<'a> {
-    pub ray: RayDifferential<'a>,
+pub struct CameraRayDifferential {
+    pub ray: RayDifferential,
     pub weight: SampledSpectrum,
 }
 
-impl<'a> CameraRayDifferential<'a> {
-    pub fn new(ray: RayDifferential<'a>) -> Self {
+impl CameraRayDifferential {
+    pub fn new(ray: RayDifferential) -> Self {
         Self::with_weight(ray, SampledSpectrum::with_single_value(1.0))
     }
 
-    pub fn with_weight(ray: RayDifferential<'a>, weight: SampledSpectrum) -> Self {
+    pub fn with_weight(ray: RayDifferential, weight: SampledSpectrum) -> Self {
         Self { ray, weight }
     }
 }

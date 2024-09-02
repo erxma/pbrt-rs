@@ -8,10 +8,11 @@ use delegate::delegate;
 use enum_as_inner::EnumAsInner;
 use enum_dispatch::enum_dispatch;
 use ordered_float::NotNan;
+use overload::overload;
 use std::{
     array,
     iter::Sum,
-    ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Sub, SubAssign},
+    ops::{self, Add, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Sub, SubAssign},
     sync::LazyLock,
 };
 
@@ -584,13 +585,11 @@ impl Add for &SampledSpectrum {
     }
 }
 
-impl AddAssign<&Self> for SampledSpectrum {
-    fn add_assign(&mut self, rhs: &Self) {
-        for i in 0..N_SPECTRUM_SAMPLES {
-            self[i] += rhs[i];
-        }
+overload!((lhs: &mut SampledSpectrum) += (rhs: ?SampledSpectrum) {
+    for i in 0..N_SPECTRUM_SAMPLES {
+        lhs[i] += rhs[i];
     }
-}
+});
 
 impl Sum for SampledSpectrum {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {

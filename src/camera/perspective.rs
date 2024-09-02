@@ -123,7 +123,7 @@ impl Camera for PerspectiveCamera {
             o,
             dir,
             self.sample_time(sample.time),
-            self.projective.medium.as_deref(),
+            self.projective.medium.clone(),
         );
 
         // Modify ray for depth of field
@@ -162,7 +162,7 @@ impl Camera for PerspectiveCamera {
             o,
             dir,
             self.sample_time(sample.time),
-            self.projective.medium.as_deref(),
+            self.projective.medium.clone(),
         );
 
         // Modify ray for depth of field,

@@ -1,39 +1,38 @@
 use std::io::Cursor;
 
 use bytemuck::NoUninit;
-use delegate::delegate;
-use rand::{RngCore, SeedableRng};
+use rand::{distributions::Uniform, Rng as _, SeedableRng};
 use rand_pcg::Pcg32;
 
+use crate::{math::ONE_MINUS_EPSILON, Float};
+
 #[derive(Clone)]
-pub struct Rng(Pcg32);
+pub struct Rng {
+    pcg: Pcg32,
+    uniform: Uniform<Float>,
+}
 
 impl Rng {
     pub fn new(state: u64, inc: u64) -> Self {
-        Self(Pcg32::new(state, inc))
+        Self {
+            pcg: Pcg32::new(state, inc),
+            uniform: Uniform::new_inclusive(0.0, ONE_MINUS_EPSILON),
+        }
+    }
+
+    pub fn from_seed(seed: u64) -> Self {
+        Self {
+            pcg: Pcg32::seed_from_u64(seed),
+            uniform: Uniform::from(0.0..1.0),
+        }
     }
 
     pub fn advance(&mut self, delta: u64) {
-        self.0.advance(delta)
+        self.pcg.advance(delta)
     }
-}
 
-impl RngCore for Rng {
-    delegate! {
-        to self.0 {
-            fn next_u32(&mut self) -> u32;
-            fn next_u64(&mut self) -> u64;
-            fn fill_bytes(&mut self, dest: &mut [u8]);
-            fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error>;
-        }
-    }
-}
-
-impl SeedableRng for Rng {
-    type Seed = <Pcg32 as SeedableRng>::Seed;
-
-    fn from_seed(seed: Self::Seed) -> Self {
-        Self(Pcg32::from_seed(seed))
+    pub fn uniform_float(&mut self) -> Float {
+        self.pcg.sample(self.uniform)
     }
 }
 

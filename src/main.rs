@@ -21,6 +21,7 @@ use pbrt_rs::{
     shapes::{BilinearPatch, BilinearPatchMesh, Sphere},
     Float,
 };
+use time::{macros::format_description, OffsetDateTime};
 
 fn main() {
     let log_env = env_logger::Env::default().default_filter_or("info");
@@ -56,7 +57,15 @@ fn render_cpu() {
             .diagonal(35.0)
             .filter(filter)
             .sensor(sensor)
-            .filename(PathBuf::from("./render.exr"))
+            .filename(PathBuf::from(format!(
+                "render_{}.exr",
+                OffsetDateTime::now_local()
+                    .unwrap()
+                    .format(&format_description!(
+                        "[year]-[month]-[day]T[hour]:[minute]:[second]"
+                    ))
+                    .unwrap()
+            )))
             .color_space(&SRGB)
             .max_component_value(Float::INFINITY)
             .build()
@@ -87,13 +96,20 @@ fn render_cpu() {
         .into(),
     );
 
+    let sun_from = Point3f::new(-30.0, 40.0, 100.0);
+    let sun_to = Point3f::new(0.0, 0.0, 1.0);
+    let w = (sun_from - sun_to).normalized();
+    let (w, v1, v2) = w.coordinate_system();
+    let sun_transform = Transform::from_arr([
+        [v1.x(), v2.x(), w.x(), 0.0],
+        [v1.y(), v2.y(), w.y(), 0.0],
+        [v1.z(), v2.z(), w.z(), 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ]);
+
     let sun_light = Arc::new(
         DirectionalLight::new(
-            Transform::look_at(
-                Point3f::new(-30.0, 40.0, 100.0),
-                Point3f::new(0.0, 0.0, 1.0),
-                Vec3f::new(0.0, 0.0, 1.0),
-            ),
+            camera.camera_transform().render_from_world(sun_transform),
             &BlackbodySpectrum::new(3000.0),
             1.5,
         )

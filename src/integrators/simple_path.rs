@@ -166,7 +166,6 @@ impl RayIntegrate for SimplePathIntegrator {
                         false,
                     ) {
                         if !light_sample.l.is_all_zero() && light_sample.pdf > 0.0 {
-                            // Evaluate BSDF for light and possibly add scattered radiance
                             let incident = light_sample.wi;
                             let bsdf_val = bsdf
                                 .eval(outgoing, incident, TransportMode::Radiance)
@@ -174,13 +173,12 @@ impl RayIntegrate for SimplePathIntegrator {
                                 .unwrap()
                                 * incident.absdot(isect.shading.n.into());
 
+                            // Evaluate BSDF for light and possibly add scattered radiance
+                            if !bsdf_val.is_all_zero()
+                                && self.unoccluded(&isect, light_sample.p_light)
                             {
-                                if !bsdf_val.is_all_zero()
-                                    && self.unoccluded(&isect, light_sample.p_light)
-                                {
-                                    radiance += &beta * bsdf_val * light_sample.l
-                                        / (sampled_light.prob * light_sample.pdf);
-                                }
+                                radiance += &beta * bsdf_val * light_sample.l
+                                    / (sampled_light.prob * light_sample.pdf);
                             }
                         }
                     }

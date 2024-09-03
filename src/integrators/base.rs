@@ -175,13 +175,15 @@ pub(super) trait RayIntegrate: ImageTileIntegrate {
                 camera_ray.ray.scale_differentials(ray_diff_scale);
                 // Evaluate radiance along camera ray
                 let initialize_visible_surface = film.uses_visible_surface();
-                (l, visible_surface) = self.incident_radiance(
+                let (unweighted_l, vis_surf) = self.incident_radiance(
                     camera_ray.ray,
                     &lambda,
                     sampler,
                     scratch_buffer,
                     initialize_visible_surface,
                 );
+                l = unweighted_l * camera_ray.weight;
+                visible_surface = vis_surf;
             }
             None => {
                 l = SampledSpectrum::with_single_value(0.0);

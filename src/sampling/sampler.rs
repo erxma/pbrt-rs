@@ -6,7 +6,6 @@ use crate::{
     Float,
 };
 use enum_dispatch::enum_dispatch;
-use rand::Rng as _;
 use thiserror::Error;
 
 #[enum_dispatch]
@@ -71,10 +70,17 @@ pub struct IndependentSampler {
 
 impl IndependentSampler {
     pub fn new(samples_per_pixel: usize, seed: Option<u64>) -> Self {
+        let rng = match seed {
+            Some(seed) => Rng::from_seed(seed),
+            None => Rng::default(),
+        };
+
+        let sampler_seed = seed.unwrap_or_default();
+
         Self {
             samples_per_pixel,
-            seed: seed.unwrap_or_default(),
-            rng: Default::default(),
+            seed: sampler_seed,
+            rng,
         }
     }
 }
@@ -85,11 +91,11 @@ impl Sampler for IndependentSampler {
     }
 
     fn get_1d(&mut self) -> Float {
-        self.rng.gen()
+        self.rng.uniform_float()
     }
 
     fn get_2d(&mut self) -> Point2f {
-        Point2f::new(self.rng.gen(), self.rng.gen())
+        Point2f::new(self.rng.uniform_float(), self.rng.uniform_float())
     }
 
     fn get_pixel_2d(&mut self) -> Point2f {

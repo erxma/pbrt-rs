@@ -414,7 +414,7 @@ impl SampledSpectrum {
     pub fn safe_div_assign(&mut self, rhs: &Self) {
         for i in 0..N_SPECTRUM_SAMPLES {
             if rhs[i] != 0.0 {
-                self[i] -= rhs[i];
+                self[i] /= rhs[i];
             } else {
                 self[i] = 0.0;
             }

@@ -1,4 +1,7 @@
-use std::ops::{Div, DivAssign, Index, IndexMut, Mul, MulAssign};
+use std::{
+    fmt,
+    ops::{Div, DivAssign, Index, IndexMut, Mul, MulAssign},
+};
 
 use crate::{
     math::{impl_tuple_math_ops, Point2f, Tuple},
@@ -115,6 +118,12 @@ impl IndexMut<usize> for XYZ {
     }
 }
 
+impl fmt::Display for XYZ {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[{}, {}, {}]", self.x, self.y, self.z)
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, derive_more::Add, derive_more::Sub)]
 pub struct RGB {
     pub r: Float,
@@ -167,5 +176,11 @@ impl IndexMut<usize> for RGB {
             2 => &mut self.b,
             _ => panic!("Index for RGB must be within 0..3"),
         }
+    }
+}
+
+impl fmt::Display for RGB {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[{}, {}, {}]", self.r, self.g, self.b)
     }
 }

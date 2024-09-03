@@ -108,7 +108,7 @@ impl RayIntegrate for SimplePathIntegrator {
         lambda: &SampledWavelengths,
         sampler: &mut impl Sampler,
         scratch_buffer: &mut ScratchBuffer,
-        initialize_visible_surface: bool,
+        _initialize_visible_surface: bool,
     ) -> (SampledSpectrum, Option<VisibleSurface>) {
         // Estimate radiance along ray using simple path tracing
         let mut radiance = SampledSpectrum::with_single_value(0.0);

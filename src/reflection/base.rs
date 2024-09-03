@@ -64,6 +64,12 @@ bitflags! {
     }
 }
 
+impl From<BxDFFlags> for BxDFReflTransFlags {
+    fn from(value: BxDFFlags) -> Self {
+        Self::from_bits_truncate(value.bits())
+    }
+}
+
 pub struct BSDF<'a, BxDF> {
     bxdf: &'a BxDF,
     shading_frame: Frame,
@@ -101,7 +107,35 @@ impl<'a, BxDF: super::BxDF> BSDF<'a, BxDF> {
         mode: TransportMode,
         sample_flags: BxDFReflTransFlags,
     ) -> Option<BSDFSample> {
-        todo!()
+        let outgoing = self.render_to_local(outgoing_render);
+        if outgoing.z() == 0.0 || !sample_flags.intersects(self.flags().into()) {
+            return None;
+        }
+
+        // Sample BxDF and return sample
+        let mut bs = self.bxdf.sample_func(outgoing, u, u2, mode, sample_flags)?;
+        if bs.value.is_all_zero() || bs.pdf == 0.0 || bs.incident.z() == 0.0 {
+            None
+        } else {
+            bs.incident = self.local_to_render(bs.incident);
+            Some(bs)
+        }
+    }
+
+    pub fn pdf(
+        &self,
+        outgoing_render: Vec3f,
+        incident_render: Vec3f,
+        mode: TransportMode,
+        sample_flags: BxDFReflTransFlags,
+    ) -> Float {
+        let outgoing = self.render_to_local(outgoing_render);
+        let incident = self.render_to_local(incident_render);
+        if outgoing.z() != 0.0 {
+            self.bxdf.pdf(outgoing, incident, mode, sample_flags)
+        } else {
+            0.0
+        }
     }
 
     pub fn flags(&self) -> BxDFFlags {

@@ -629,49 +629,19 @@ impl SubAssign<&Self> for SampledSpectrum {
     }
 }
 
-impl Mul for SampledSpectrum {
-    type Output = Self;
-
-    fn mul(self, rhs: Self) -> Self {
-        // Take self and mul by rhs values
-        let mut ret = self;
-        ret *= &rhs;
-
-        ret
+overload!((lhs: ?SampledSpectrum) * (rhs: ?SampledSpectrum) -> SampledSpectrum {
+    let mut ret = lhs.clone();
+    for i in 0..N_SPECTRUM_SAMPLES {
+        ret[i] *= rhs[i];
     }
-}
+    ret
+});
 
-impl Mul for &SampledSpectrum {
-    type Output = SampledSpectrum;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        // Clone self and mul by rhs values
-        let mut ret = self.clone();
-        ret *= rhs;
-
-        ret
+overload!((lhs: &mut SampledSpectrum) *= (rhs: ?SampledSpectrum) {
+    for i in 0..N_SPECTRUM_SAMPLES {
+        lhs[i] *= rhs[i];
     }
-}
-
-impl Mul<&Self> for SampledSpectrum {
-    type Output = SampledSpectrum;
-
-    fn mul(self, rhs: &Self) -> Self::Output {
-        // Clone self and mul by rhs values
-        let mut ret = self.clone();
-        ret *= rhs;
-
-        ret
-    }
-}
-
-impl MulAssign<&Self> for SampledSpectrum {
-    fn mul_assign(&mut self, rhs: &Self) {
-        for i in 0..N_SPECTRUM_SAMPLES {
-            self[i] *= rhs[i];
-        }
-    }
-}
+});
 
 impl Mul<Float> for SampledSpectrum {
     type Output = Self;

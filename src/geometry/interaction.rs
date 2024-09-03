@@ -235,6 +235,12 @@ impl<'a> SurfaceInteraction<'a> {
         RayDifferential::new_without_diff(ray)
     }
 
+    pub fn spawn_ray_to(&self, p: Point3f) -> Ray {
+        let mut ray = Ray::spawn_from_to(self.pi, self.n, self.time, p);
+        ray.medium = self.medium_at_side(ray.dir);
+        ray
+    }
+
     pub fn compute_differentials(
         &mut self,
         ray_diffs: &RayDifferential,
@@ -324,6 +330,19 @@ impl<'a> SurfaceInteraction<'a> {
         Ray::offset_ray_origin(self.pi, self.n, w)
     }
 
+    pub fn medium_at_side(&self, w: Vec3f) -> Option<Arc<MediumEnum>> {
+        self.medium_interface
+            .as_ref()
+            .map(|mi| {
+                if w.dot(self.n.into()) > 0.0 {
+                    mi.outside.clone()
+                } else {
+                    mi.inside.clone()
+                }
+            })
+            .or(self.medium.clone())
+    }
+
     pub fn medium(&self) -> Option<&MediumEnum> {
         self.medium_interface
             .as_ref()
@@ -331,12 +350,13 @@ impl<'a> SurfaceInteraction<'a> {
             .or(self.medium.as_deref())
     }
 
-    pub fn skip_intersection(&self, ray_diff: &mut RayDifferential, t: Float) {
-        *ray_diff = self.spawn_ray(ray_diff.ray.dir);
-        if let Some(ref mut diffs) = ray_diff.differentials {
+    pub fn skip_intersection(&self, ray_diff: &RayDifferential, t: Float) -> RayDifferential {
+        let mut new = self.spawn_ray(ray_diff.ray.dir);
+        if let Some(ref mut diffs) = new.differentials {
             diffs.rx_origin += t * diffs.rx_dir;
             diffs.ry_origin += t * diffs.ry_dir;
         }
+        new
     }
 }
 

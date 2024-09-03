@@ -6,8 +6,8 @@ use pbrt_rs::{
     color::{RGB, SRGB},
     geometry::{Bounds2f, Bounds2i, Transform},
     image::BoxFilter,
-    integrators::{Integrate, RandomWalkIntegrator},
-    lights::{DirectionalLight, LightEnum, UniformInfiniteLight},
+    integrators::{Integrate, SimplePathIntegrator},
+    lights::{DirectionalLight, UniformInfiniteLight},
     materials::{
         ConstantFloatTexture, ConstantSpectrumTexture, DielectricMaterial, DiffuseMaterial,
         FloatTextureEnum,
@@ -158,8 +158,15 @@ fn render_cpu() {
 
     let aggregate = BVHAggregate::new(vec![sphere_prim, floor_prim], 255, BVHSplitMethod::Middle);
     let lights = vec![inf_light, sun_light];
-    let mut integrator =
-        RandomWalkIntegrator::new(5, camera.into(), sampler.into(), aggregate.into(), lights);
+    let mut integrator = SimplePathIntegrator::new(
+        5,
+        true,
+        true,
+        camera.into(),
+        sampler.into(),
+        aggregate.into(),
+        lights,
+    );
 
     integrator.render();
 }

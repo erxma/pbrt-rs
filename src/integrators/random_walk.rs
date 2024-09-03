@@ -76,14 +76,14 @@ impl Integrate for RandomWalkIntegrator {
 impl RayIntegrate for RandomWalkIntegrator {
     fn incident_radiance(
         &self,
-        ray: RayDifferential,
+        ray_diff: RayDifferential,
         lambda: &SampledWavelengths,
         sampler: &mut impl Sampler,
         scratch_buffer: &mut ScratchBuffer,
         _initialize_visible_surface: bool,
     ) -> (SampledSpectrum, Option<VisibleSurface>) {
         let sampled_spectrum =
-            self.incident_radiance_random_walk(ray, lambda, sampler, scratch_buffer, 0);
+            self.incident_radiance_random_walk(ray_diff, lambda, sampler, scratch_buffer, 0);
         (sampled_spectrum, None)
     }
 }

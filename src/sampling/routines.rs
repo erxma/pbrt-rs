@@ -1,5 +1,5 @@
 use crate::{
-    float::{FRAC_1_PI, FRAC_PI_2, FRAC_PI_4, INV_4_PI, PI, SQRT_2},
+    float::{FRAC_1_PI, FRAC_PI_2, FRAC_PI_4, INV_2_PI, INV_4_PI, PI, SQRT_2},
     math::{
         self, gaussian, lerp, next_float_down, safe_sqrt, Point2f, Point3f, Vec2f, Vec3f,
         ONE_MINUS_EPSILON,
@@ -259,6 +259,16 @@ pub fn sample_uniform_sphere(u: Point2f) -> Vec3f {
     let z = 1.0 - 2.0 * u.x();
     let r = safe_sqrt(1.0 - z * z);
     let phi = 2.0 * PI * u.y();
+    Vec3f::new(r * phi.cos(), r * phi.sin(), z)
+}
+
+pub const UNIFORM_HEMISPHERE_PDF: Float = INV_2_PI;
+
+#[inline]
+pub fn sample_uniform_hemisphere(u: Point2f) -> Vec3f {
+    let z = u[0];
+    let r = safe_sqrt(1.0 - z * z);
+    let phi = 2.0 * PI * u[1];
     Vec3f::new(r * phi.cos(), r * phi.sin(), z)
 }
 

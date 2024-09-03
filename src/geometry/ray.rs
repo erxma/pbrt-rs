@@ -26,6 +26,15 @@ impl Ray {
         }
     }
 
+    pub fn spawn_with_dir(pi: Point3fi, n: Normal3f, time: Float, dir: Vec3f) -> Self {
+        Self::new(Self::offset_ray_origin(pi, n, dir), dir, time, None)
+    }
+
+    pub fn spawn_from_to(p_form: Point3fi, n: Normal3f, time: Float, p_to: Point3f) -> Self {
+        let dir = p_to - p_form.midpoints_only();
+        Self::spawn_with_dir(p_form, n, time, dir)
+    }
+
     pub fn offset_ray_origin(pi: Point3fi, n: Normal3f, w: Vec3f) -> Point3f {
         // Find vector offset to corner of error bounds and compute initial po
         let d = n.abs().dot_v(pi.error());

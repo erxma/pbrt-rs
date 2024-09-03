@@ -93,6 +93,21 @@ impl<'a, BxDF: super::BxDF> BSDF<'a, BxDF> {
         }
     }
 
+    pub fn sample_func(
+        &self,
+        outgoing_render: Vec3f,
+        u: Float,
+        u2: Point2f,
+        mode: TransportMode,
+        sample_flags: BxDFReflTransFlags,
+    ) -> Option<BSDFSample> {
+        todo!()
+    }
+
+    pub fn flags(&self) -> BxDFFlags {
+        self.bxdf.flags()
+    }
+
     pub fn render_to_local(&self, v: Vec3f) -> Vec3f {
         self.shading_frame.to_local(v)
     }

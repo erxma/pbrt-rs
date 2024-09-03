@@ -4,10 +4,10 @@ use indicatif::ProgressBar;
 
 use crate::{
     camera::{CameraEnum, VisibleSurface},
-    geometry::{Ray, RayDifferential},
+    geometry::{Ray, RayDifferential, SurfaceInteraction},
     image::ImageMetadata,
     lights::{LightEnum, LightType},
-    math::Point2i,
+    math::{Point2i, Point3f, SHADOW_EPSILON},
     memory::ScratchBuffer,
     parallel::parallel_for_2d_tiled_with,
     primitives::{Primitive, PrimitiveEnum},
@@ -24,6 +24,10 @@ pub trait Integrate {
     fn intersect<'a>(&'a self, ray: &'a Ray, t_max: Option<Float>)
         -> Option<ShapeIntersection<'a>>;
     fn intersect_p(&self, ray: &Ray, t_max: Option<Float>) -> bool;
+
+    fn unoccluded(&self, p0: &SurfaceInteraction, p1: Point3f) -> bool {
+        !self.intersect_p(&p0.spawn_ray_to(p1), Some(1.0 - SHADOW_EPSILON))
+    }
 }
 
 pub(super) struct SceneData {

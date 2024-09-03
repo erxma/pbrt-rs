@@ -27,6 +27,7 @@ pub mod float {
     pub const FRAC_PI_2: Float = std::f64::consts::FRAC_PI_2;
     pub const FRAC_PI_4: Float = std::f64::consts::FRAC_PI_4;
     pub const INV_4_PI: Float = 0.07957747154594767;
+    pub const INV_2_PI: Float = 0.15915494309189535;
 }
 
 #[cfg(feature = "use-f64")]
@@ -42,6 +43,7 @@ pub mod float {
     pub const FRAC_PI_2: Float = std::f32::consts::FRAC_PI_2;
     pub const FRAC_PI_4: Float = std::f32::consts::FRAC_PI_4;
     pub const INV_4_PI: Float = 0.07957747;
+    pub const INV_2_PI: Float = 0.15915494;
 }
 
 #[cfg(not(feature = "use-f64"))]

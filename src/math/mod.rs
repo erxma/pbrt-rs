@@ -31,3 +31,5 @@ pub use vec::{
     Vec2B, Vec2Isize, Vec2Usize, Vec2f, Vec2i, Vec3B, Vec3Isize, Vec3Usize, Vec3f, Vec3fi, Vec3i,
 };
 pub use vec_math::{spherical_direction, spherical_quad_area, spherical_triangle_area};
+
+pub const SHADOW_EPSILON: crate::Float = 0.0001;

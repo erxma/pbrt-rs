@@ -54,8 +54,8 @@ impl Film {
             #[allow(non_snake_case)]
             pub fn add_splat(&mut self, p: Point2f, L: &SampledSpectrum, lambda: &SampledWavelengths);
             pub fn sample_wavelengths(&self, u: Float) -> SampledWavelengths;
-            pub fn get_image(&self, metadata: &ImageMetadata, splat_scale: Float) -> Image;
-            pub fn write_image(&self, metadata: &ImageMetadata, splat_scale: Float);
+            pub fn get_image(&self, metadata: &mut ImageMetadata, splat_scale: Float) -> Image;
+            pub fn write_image(&self, metadata: ImageMetadata, splat_scale: Float);
             pub fn get_pixel_rgb(&self, p: Point2i, splat_scale: Float) -> RGB;
             pub fn full_resolution(&self) -> Point2i;
             pub fn pixel_bounds(&self) -> Bounds2i;
@@ -93,9 +93,9 @@ trait FilmTrait {
 
     fn sample_wavelengths(&self, u: Float) -> SampledWavelengths;
 
-    fn get_image(&self, metadata: &ImageMetadata, splat_scale: Float) -> Image;
+    fn get_image(&self, metadata: &mut ImageMetadata, splat_scale: Float) -> Image;
 
-    fn write_image(&self, metadata: &ImageMetadata, splat_scale: Float);
+    fn write_image(&self, metadata: ImageMetadata, splat_scale: Float);
 
     fn get_pixel_rgb(&self, p: Point2i, splat_scale: Float) -> RGB;
 
@@ -115,6 +115,7 @@ pub struct RGBFilm {
     sensor: Arc<PixelSensor>,
     filename: PathBuf,
 
+    color_space: &'static RGBColorSpace,
     max_component_value: Float,
     filter_integral: Float,
     output_rgb_from_sensor_rgb: SquareMatrix<3>,
@@ -122,7 +123,7 @@ pub struct RGBFilm {
 }
 
 impl RGBFilm {
-    pub fn builder<'a>() -> RGBFilmBuilder<'a> {
+    pub fn builder() -> RGBFilmBuilder {
         Default::default()
     }
 }
@@ -133,7 +134,7 @@ impl RGBFilm {
     public,
     build_fn(private, name = "build_params")
 )]
-struct RGBFilmParams<'a> {
+struct RGBFilmParams {
     full_resolution: Point2i,
     pixel_bounds: Bounds2i,
     filter: Arc<FilterEnum>,
@@ -141,11 +142,11 @@ struct RGBFilmParams<'a> {
     sensor: Arc<PixelSensor>,
     filename: PathBuf,
 
-    color_space: &'a RGBColorSpace,
+    color_space: &'static RGBColorSpace,
     max_component_value: Float,
 }
 
-impl<'a> RGBFilmBuilder<'a> {
+impl RGBFilmBuilder {
     pub fn build(&self) -> Result<RGBFilm, RGBFilmBuilderError> {
         let params = self.build_params()?;
 
@@ -162,6 +163,7 @@ impl<'a> RGBFilmBuilder<'a> {
             diagonal: params.diagonal,
             sensor: params.sensor,
             filename: params.filename,
+            color_space: params.color_space,
             max_component_value: params.max_component_value,
             filter_integral,
             output_rgb_from_sensor_rgb,
@@ -246,7 +248,7 @@ impl FilmTrait for RGBFilm {
         SampledWavelengths::sample_visible(u)
     }
 
-    fn get_image(&self, _metadata: &ImageMetadata, splat_scale: Float) -> Image {
+    fn get_image(&self, metadata: &mut ImageMetadata, splat_scale: Float) -> Image {
         // FIXME: Make Bounds2Usize?
         let diagonal = self.pixel_bounds.diagonal();
         let dims = Point2Usize::new(diagonal.x() as usize, diagonal.y() as usize);
@@ -260,13 +262,15 @@ impl FilmTrait for RGBFilm {
             );
         }
 
+        metadata.color_space = Some(self.color_space);
+
         image
     }
 
-    fn write_image(&self, metadata: &ImageMetadata, splat_scale: Float) {
-        let img = self.get_image(metadata, splat_scale);
+    fn write_image(&self, mut metadata: ImageMetadata, splat_scale: Float) {
+        let img = self.get_image(&mut metadata, splat_scale);
         // FIXME: May be error
-        img.write(&self.filename).unwrap();
+        img.write(&self.filename, &metadata).unwrap();
     }
 
     fn get_pixel_rgb(&self, p: Point2i, splat_scale: Float) -> RGB {

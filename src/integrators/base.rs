@@ -121,10 +121,10 @@ pub(super) trait ImageTileIntegrate: Send + Sync {
             next_wave_size = (2 * next_wave_size).min(64);
         }
 
-        self.camera().film().write_image(
-            &ImageMetadata {},
-            1.0 / self.sampler().samples_per_pixel() as Float,
-        );
+        let metadata = ImageMetadata::default();
+        self.camera()
+            .film()
+            .write_image(metadata, 1.0 / self.sampler().samples_per_pixel() as Float);
     }
 
     fn camera(&self) -> &CameraEnum;
@@ -169,9 +169,8 @@ pub(super) trait RayIntegrate: ImageTileIntegrate {
             // Trace camera ray if valid
             Some(mut camera_ray) => {
                 // Scale camera ray differentials based on image sampling rate
-                let ray_diff_scale = (1.0 / (sampler.samples_per_pixel() as Float))
-                    .sqrt()
-                    .max(0.125);
+                let ray_diff_scale =
+                    (1.0 / (sampler.samples_per_pixel() as Float).sqrt()).max(0.125);
                 camera_ray.ray.scale_differentials(ray_diff_scale);
                 // Evaluate radiance along camera ray
                 let initialize_visible_surface = film.uses_visible_surface();

@@ -4,7 +4,7 @@ use std::path::Path;
 
 pub use filter::{BoxFilter, Filter, FilterEnum};
 
-use crate::{math::Point2Usize, Float};
+use crate::{color::RGBColorSpace, math::Point2Usize, Float};
 use exr::prelude::write_rgb_file;
 
 pub struct Image {
@@ -41,7 +41,7 @@ impl Image {
         }
     }
 
-    pub fn write(&self, path: &Path) -> exr::error::UnitResult {
+    pub fn write(&self, path: &Path, metadata: &ImageMetadata) -> exr::error::UnitResult {
         assert_eq!(path.extension().unwrap(), "exr");
         self.write_exr(path)
     }
@@ -66,4 +66,7 @@ impl Image {
     }
 }
 
-pub struct ImageMetadata {}
+#[derive(Default)]
+pub struct ImageMetadata<'a> {
+    pub color_space: Option<&'a RGBColorSpace>,
+}

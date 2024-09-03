@@ -128,8 +128,8 @@ impl RayIntegrate for SimplePathIntegrator {
                     for light in &self.scene_data.infinite_lights {
                         radiance += &beta * light.radiance_infinite(&ray_diff.ray, lambda);
                     }
-                    break;
                 }
+                break;
             }
             let si = si.unwrap();
 
@@ -139,6 +139,12 @@ impl RayIntegrate for SimplePathIntegrator {
                 radiance += &beta * isect.emitted_radiance(-ray_diff.ray.dir, lambda);
             }
 
+            // End path if maximum depth reached
+            depth += 1;
+            if depth == self.max_depth {
+                break;
+            }
+
             // Get BSDF and skip over medium boundaries
             let bsdf = isect.get_bsdf(&ray_diff, lambda, &self.camera, scratch_buffer, sampler);
             if bsdf.is_none() {
@@ -146,12 +152,6 @@ impl RayIntegrate for SimplePathIntegrator {
                 continue;
             }
             let bsdf = bsdf.unwrap();
-
-            // End path if maximum depth reached
-            depth += 1;
-            if depth == self.max_depth {
-                break;
-            }
 
             // Sample direct illumination if sample_lights is true
             let outgoing = -ray_diff.ray.dir;
@@ -201,6 +201,7 @@ impl RayIntegrate for SimplePathIntegrator {
                 ) {
                     beta *= bs.value * bs.incident.absdot(isect.shading.n.into()) / bs.pdf;
                     specular_bounce = bs.flags.contains(BxDFFlags::SPECULAR);
+                    ray_diff = isect.spawn_ray(bs.incident);
                 } else {
                     break;
                 }

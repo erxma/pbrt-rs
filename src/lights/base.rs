@@ -116,7 +116,7 @@ pub trait Light {
     fn preprocess(&self, scene_bounds: Bounds3f);
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LightType {
     /// Light that emits solely from a single point in space.
     DeltaPosition,

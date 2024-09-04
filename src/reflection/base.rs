@@ -11,6 +11,7 @@ use crate::{
 use super::{DielectricBxDF, DiffuseBxDF};
 
 #[enum_dispatch]
+#[derive(Debug)]
 pub enum BxDFEnum {
     Diffuse(DiffuseBxDF),
     Dielectric(DielectricBxDF),
@@ -70,6 +71,7 @@ impl From<BxDFFlags> for BxDFReflTransFlags {
     }
 }
 
+#[derive(Debug)]
 pub struct BSDF<'a, BxDF> {
     bxdf: &'a BxDF,
     shading_frame: Frame,

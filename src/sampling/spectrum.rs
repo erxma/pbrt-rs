@@ -95,6 +95,7 @@ impl SpectrumEnum {
             pub fn at(&self, lambda: Float) -> Float;
             pub fn max_value(&self) -> Float;
             pub fn sample(&self, wavelengths: &SampledWavelengths) -> SampledSpectrum;
+            pub fn to_photometric(&self) -> Float;
         }
     }
 }
@@ -106,6 +107,15 @@ pub trait Spectrum {
     fn sample(&self, wavelengths: &SampledWavelengths) -> SampledSpectrum {
         let values = wavelengths.lambdas().map(|l| self.at(l));
         SampledSpectrum { values }
+    }
+    fn to_photometric(&self) -> Float {
+        let mut y = 0.0;
+        let mut lambda = LAMBDA_MIN;
+        while lambda <= LAMBDA_MAX {
+            y += Y.at(lambda) * self.at(lambda);
+            lambda += 1.0;
+        }
+        y
     }
 }
 
@@ -928,6 +938,10 @@ impl Spectrum for RgbIlluminantSpectrum {
 
     fn max_value(&self) -> Float {
         self.scale * self.rsp.max_value() * self.illuminant.max_value()
+    }
+
+    fn to_photometric(&self) -> Float {
+        self.illuminant.to_photometric()
     }
 }
 

@@ -8,6 +8,7 @@ use crate::{
 
 use super::base::{BSDFSample, BxDF, BxDFFlags, BxDFReflTransFlags, TransportMode};
 
+#[derive(Debug)]
 pub struct DielectricBxDF {
     eta: Float,
     microfacet_distrib: TrowbridgeReitz,
@@ -339,6 +340,7 @@ impl BxDF for DielectricBxDF {
     }
 }
 
+#[derive(Debug)]
 pub struct TrowbridgeReitz {
     alpha_x: Float,
     alpha_y: Float,

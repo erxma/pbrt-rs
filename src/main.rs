@@ -15,7 +15,9 @@ use pbrt_rs::{
     math::{Point2f, Point2i, Point3f, Vec2f, Vec3f},
     primitives::{BVHAggregate, BVHSplitMethod, SimplePrimitive},
     sampling::{
-        spectrum::{BlackbodySpectrum, ConstantSpectrum, RgbAlbedoSpectrum, RgbIlluminantSpectrum},
+        spectrum::{
+            BlackbodySpectrum, ConstantSpectrum, RgbAlbedoSpectrum, RgbIlluminantSpectrum, Spectrum,
+        },
         IndependentSampler,
     },
     shapes::{BilinearPatch, BilinearPatchMesh, Sphere},
@@ -38,7 +40,7 @@ fn render_cpu() {
         Vec3f::new(0.0, 0.0, 1.0),
     );
 
-    let sampler = IndependentSampler::new(512, None);
+    let sampler = IndependentSampler::new(256, None);
 
     let filter = Arc::new(BoxFilter::new(Vec2f::new(0.5, 0.5)).into());
 
@@ -88,13 +90,9 @@ fn render_cpu() {
         .build()
         .unwrap();
 
-    let inf_light = Arc::new(
-        UniformInfiniteLight::new(
-            &RgbIlluminantSpectrum::new(&SRGB, RGB::new(0.4, 0.45, 0.5)),
-            1.0,
-        )
-        .into(),
-    );
+    let inf_spec = RgbIlluminantSpectrum::new(&SRGB, RGB::new(0.4, 0.45, 0.5));
+    let inf_light =
+        Arc::new(UniformInfiniteLight::new(&inf_spec, 1.0 / inf_spec.to_photometric()).into());
 
     let sun_from = Point3f::new(-30.0, 40.0, 100.0);
     let sun_to = Point3f::new(0.0, 0.0, 1.0);
@@ -107,11 +105,12 @@ fn render_cpu() {
         [0.0, 0.0, 0.0, 1.0],
     ]);
 
+    let sun_spec = BlackbodySpectrum::new(3000.0);
     let sun_light = Arc::new(
         DirectionalLight::new(
             camera.camera_transform().render_from_world(sun_transform),
-            &BlackbodySpectrum::new(3000.0),
-            1.5,
+            &sun_spec,
+            1.5 / sun_spec.to_photometric(),
         )
         .into(),
     );

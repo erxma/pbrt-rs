@@ -12,6 +12,7 @@ use super::{
     base::same_hemisphere, BSDFSample, BxDF, BxDFFlags, BxDFReflTransFlags, TransportMode,
 };
 
+#[derive(Debug)]
 pub struct DiffuseBxDF {
     reflectance: SampledSpectrum,
 }

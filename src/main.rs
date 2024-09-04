@@ -15,7 +15,7 @@ use pbrt_rs::{
     math::{Point2f, Point2i, Point3f, Vec2f, Vec3f},
     primitives::{BVHAggregate, BVHSplitMethod, SimplePrimitive},
     sampling::{
-        spectrum::{BlackbodySpectrum, ConstantSpectrum, RgbAlbedoSpectrum},
+        spectrum::{BlackbodySpectrum, ConstantSpectrum, RgbAlbedoSpectrum, RgbIlluminantSpectrum},
         IndependentSampler,
     },
     shapes::{BilinearPatch, BilinearPatchMesh, Sphere},
@@ -38,7 +38,7 @@ fn render_cpu() {
         Vec3f::new(0.0, 0.0, 1.0),
     );
 
-    let sampler = IndependentSampler::new(128, None);
+    let sampler = IndependentSampler::new(512, None);
 
     let filter = Arc::new(BoxFilter::new(Vec2f::new(0.5, 0.5)).into());
 
@@ -90,7 +90,7 @@ fn render_cpu() {
 
     let inf_light = Arc::new(
         UniformInfiniteLight::new(
-            &RgbAlbedoSpectrum::new(&SRGB, RGB::new(0.4, 0.45, 0.5)),
+            &RgbIlluminantSpectrum::new(&SRGB, RGB::new(0.4, 0.45, 0.5)),
             1.0,
         )
         .into(),
@@ -130,7 +130,8 @@ fn render_cpu() {
             .object_from_render(
                 camera
                     .camera_transform()
-                    .world_from_render(Transform::IDENTITY),
+                    .render_from_world(Transform::IDENTITY)
+                    .inverse(),
             )
             .reverse_orientation(false)
             .build()
@@ -167,8 +168,10 @@ fn render_cpu() {
         Some(floor_uv),
     )]);
     let floor_patch = Arc::new(BilinearPatch::new(BilinearPatchMesh::get(0).unwrap(), 0, 0).into());
-    let floor_mat_tex =
-        Arc::new(ConstantSpectrumTexture::new(ConstantSpectrum::new(0.5).into()).into());
+    let floor_mat_tex = Arc::new(
+        ConstantSpectrumTexture::new(RgbAlbedoSpectrum::new(&SRGB, RGB::new(0.8, 0.8, 0.8)).into())
+            .into(),
+    );
     let floor_mat = Arc::new(DiffuseMaterial::new(floor_mat_tex).into());
     let floor_prim = Arc::new(SimplePrimitive::new(floor_patch, floor_mat).into());
 

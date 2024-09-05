@@ -77,7 +77,7 @@ impl RayIntegrate for RandomWalkIntegrator {
     fn incident_radiance(
         &self,
         ray_diff: RayDifferential,
-        lambda: &SampledWavelengths,
+        lambda: &mut SampledWavelengths,
         sampler: &mut impl Sampler,
         scratch_buffer: &mut ScratchBuffer,
         _initialize_visible_surface: bool,
@@ -107,7 +107,7 @@ impl RandomWalkIntegrator {
     fn incident_radiance_random_walk(
         &self,
         ray_diff: RayDifferential,
-        wavelengths: &SampledWavelengths,
+        wavelengths: &mut SampledWavelengths,
         sampler: &mut impl Sampler,
         scratch_buffer: &mut ScratchBuffer,
         depth: usize,

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, sync::Arc};
+use std::sync::Arc;
 
 use crate::{
     geometry::SurfaceInteraction,
@@ -26,7 +26,7 @@ impl Material for MaterialEnum {
         &self,
         tex_eval: &impl TextureEvaluator,
         ctx: &MaterialEvalContext,
-        lambda: Cow<SampledWavelengths>,
+        lambda: &mut SampledWavelengths,
     ) -> Self::BxDF {
         match self {
             MaterialEnum::Diffuse(m) => m.bxdf(tex_eval, ctx, lambda).into(),
@@ -42,14 +42,14 @@ pub trait Material {
         &self,
         tex_eval: &impl TextureEvaluator,
         ctx: &MaterialEvalContext,
-        lambda: Cow<SampledWavelengths>,
+        lambda: &mut SampledWavelengths,
     ) -> Self::BxDF;
 
     fn bsdf<'a>(
         &self,
         tex_eval: &impl TextureEvaluator,
         ctx: &MaterialEvalContext,
-        lambda: Cow<SampledWavelengths>,
+        lambda: &mut SampledWavelengths,
         scratch_buffer: &'a mut ScratchBuffer,
     ) -> BSDF<'a, Self::BxDF> {
         let bxdf = scratch_buffer.alloc(self.bxdf(tex_eval, ctx, lambda));
@@ -127,7 +127,7 @@ impl Material for DiffuseMaterial {
         &self,
         tex_eval: &impl TextureEvaluator,
         ctx: &MaterialEvalContext,
-        lambda: Cow<SampledWavelengths>,
+        lambda: &mut SampledWavelengths,
     ) -> Self::BxDF {
         let reflectance = tex_eval
             .eval_spectrum(&*self.reflectance, &ctx.tex_eval_ctx, &lambda)
@@ -173,12 +173,12 @@ impl Material for DielectricMaterial {
         &self,
         tex_eval: &impl TextureEvaluator,
         ctx: &MaterialEvalContext,
-        mut lambda: Cow<SampledWavelengths>,
+        lambda: &mut SampledWavelengths,
     ) -> Self::BxDF {
         // Compute index of refraction
         let sampled_eta = self.eta.at(lambda[0]);
         if !self.eta.is_constant() {
-            lambda.to_mut().terminate_secondary();
+            lambda.terminate_secondary();
         }
 
         // Create microfacet distribution

@@ -135,7 +135,7 @@ pub(super) trait RayIntegrate: ImageTileIntegrate {
     fn incident_radiance(
         &self,
         ray_diff: RayDifferential,
-        lambda: &SampledWavelengths,
+        lambda: &mut SampledWavelengths,
         sampler: &mut impl Sampler,
         scratch_buffer: &mut ScratchBuffer,
         initialize_visible_surface: bool,
@@ -152,7 +152,7 @@ pub(super) trait RayIntegrate: ImageTileIntegrate {
 
         // Sample wavelengths for the ray
         let lu = sampler.get_1d();
-        let lambda = film.sample_wavelengths(lu);
+        let mut lambda = film.sample_wavelengths(lu);
 
         // Initialize CameraSample for current sampple
         let filter = film.filter();
@@ -176,7 +176,7 @@ pub(super) trait RayIntegrate: ImageTileIntegrate {
                 let initialize_visible_surface = film.uses_visible_surface();
                 let (unweighted_l, vis_surf) = self.incident_radiance(
                     camera_ray.ray,
-                    &lambda,
+                    &mut lambda,
                     sampler,
                     scratch_buffer,
                     initialize_visible_surface,

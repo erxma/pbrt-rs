@@ -1,4 +1,4 @@
-use std::{borrow::Cow, sync::Arc};
+use std::sync::Arc;
 
 use crate::{
     camera::Camera,
@@ -195,7 +195,7 @@ impl<'a> SurfaceInteraction<'a> {
     pub fn get_bsdf<'b>(
         &mut self,
         ray: &RayDifferential,
-        wavelengths: &SampledWavelengths,
+        wavelengths: &mut SampledWavelengths,
         camera: &impl Camera,
         scratch_buffer: &'b mut ScratchBuffer,
         sampler: &mut impl Sampler,
@@ -218,7 +218,7 @@ impl<'a> SurfaceInteraction<'a> {
         let bsdf = self.material.unwrap().bsdf(
             &UniversalTextureEvaluator::new(),
             &MaterialEvalContext::from_surface_interaction(self),
-            Cow::Borrowed(wavelengths),
+            wavelengths,
             scratch_buffer,
         );
 

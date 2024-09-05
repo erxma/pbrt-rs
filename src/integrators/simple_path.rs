@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use delegate::delegate;
-use log::trace;
 
 use crate::{
     camera::{CameraEnum, VisibleSurface},
@@ -106,7 +105,7 @@ impl RayIntegrate for SimplePathIntegrator {
     fn incident_radiance(
         &self,
         mut ray_diff: RayDifferential,
-        lambda: &SampledWavelengths,
+        lambda: &mut SampledWavelengths,
         sampler: &mut impl Sampler,
         scratch_buffer: &mut ScratchBuffer,
         _initialize_visible_surface: bool,
@@ -168,30 +167,18 @@ impl RayIntegrate for SimplePathIntegrator {
                     ) {
                         if !light_sample.l.is_all_zero() && light_sample.pdf > 0.0 {
                             let incident = light_sample.wi;
-                            trace!("wi={incident}");
                             let bsdf_val = bsdf
                                 .eval(outgoing, incident, TransportMode::Radiance)
                                 // TODO: Confirm unwrap is okay
-                                .unwrap();
-                            trace!("bsdfeval={bsdf_val}");
-                            let bsdf_val = bsdf_val * incident.absdot(isect.shading.n.into());
+                                .unwrap()
+                                * incident.absdot(isect.shading.n.into());
 
                             // Evaluate BSDF for light and possibly add scattered radiance
                             if !bsdf_val.is_all_zero()
                                 && self.unoccluded(&isect, light_sample.p_light)
                             {
-                                trace!("bsdf_val = {bsdf_val}");
-                                let rad_contrib = &beta * bsdf_val * &light_sample.l
+                                radiance += &beta * bsdf_val * &light_sample.l
                                     / (sampled_light.prob * light_sample.pdf);
-                                trace!("Sample lights contrib = {rad_contrib}");
-                                trace!(
-                                    "    beta={}, l={}, prob={}, pdf={}",
-                                    beta,
-                                    light_sample.l,
-                                    sampled_light.prob,
-                                    light_sample.pdf
-                                );
-                                radiance += rad_contrib;
                             }
                         }
                     }
@@ -210,10 +197,7 @@ impl RayIntegrate for SimplePathIntegrator {
                     TransportMode::Radiance,
                     BxDFReflTransFlags::all(),
                 ) {
-                    let beta_factor =
-                        bs.value * bs.incident.absdot(isect.shading.n.into()) / bs.pdf;
-                    trace!("Loc1 beta factor = {beta_factor}");
-                    beta *= beta_factor;
+                    beta *= bs.value * bs.incident.absdot(isect.shading.n.into()) / bs.pdf;
                     specular_bounce = bs.flags.contains(BxDFFlags::SPECULAR);
                     ray_diff = isect.spawn_ray(bs.incident);
                 } else {
@@ -240,14 +224,12 @@ impl RayIntegrate for SimplePathIntegrator {
                     }
                 }
 
-                let beta_factor = bsdf
+                beta *= bsdf
                     .eval(outgoing, incident, TransportMode::Radiance)
                     // TODO: Confirm unwrap is okay
                     .unwrap()
                     * incident.absdot(isect.shading.n.into())
                     / pdf;
-                trace!("Loc2 beta factor = {beta_factor}");
-                beta *= beta_factor;
                 specular_bounce = false;
                 ray_diff = isect.spawn_ray(incident);
             }

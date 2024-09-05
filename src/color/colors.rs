@@ -24,6 +24,8 @@ impl XYZ {
         Self { x, y, z }
     }
 
+    /// Convert from xyY to XYZ, given `xy` chromaticity coordinates
+    /// and optionally y_lambda coordinates.
     pub fn from_xyy(xy: Point2f, Y: Option<Float>) -> XYZ {
         #![allow(non_snake_case)]
 
@@ -39,6 +41,7 @@ impl XYZ {
         (self.x + self.y + self.z) / 3.0
     }
 
+    /// The xy chromaticity coordinates of `self`, as a point.
     pub fn xy(&self) -> Point2f {
         Point2f::new(
             self.x / (self.x + self.y + self.z),

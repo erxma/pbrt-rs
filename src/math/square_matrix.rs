@@ -334,6 +334,17 @@ impl<const N: usize> Mul for &SquareMatrix<N> {
     }
 }
 
+impl<const N: usize, T> Mul<T> for SquareMatrix<N>
+where
+    T: Tuple<N, Float>,
+{
+    type Output = T;
+
+    fn mul(self, rhs: T) -> Self::Output {
+        &self * rhs
+    }
+}
+
 impl<const N: usize, T> Mul<T> for &SquareMatrix<N>
 where
     T: Tuple<N, Float>,

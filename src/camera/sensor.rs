@@ -103,8 +103,8 @@ impl<'a> PixelSensorBuilder<'a> {
             rgb.into()
         });
 
-        let sensor_white_g = spectrum::inner_product(sensor_illum, &g_bar);
-        let sensor_white_y = spectrum::inner_product(sensor_illum, &*spectrum::Y);
+        let sensor_white_g = sensor_illum.inner_product(&g_bar);
+        let sensor_white_y = sensor_illum.inner_product(&*spectrum::Y);
 
         let xyz_output: [[Float; 3]; PixelSensor::N_SWATCH_REFLECTANCES] = array::from_fn(|row| {
             let xyz = project_reflectance::<XYZ>(
@@ -142,7 +142,7 @@ impl<'a> PixelSensorBuilder<'a> {
         // Compute white balancing matrix for XYZ PixelSensor
         let xyz_from_sensor_rgb = match params.sensor_illum {
             Some(sensor_illum) => {
-                let src_white = spectrum::spectrum_to_xyz(sensor_illum).xy();
+                let src_white = sensor_illum.to_xyz().xy();
                 let target_white = params.output_color_space.w;
                 color::white_balance(src_white, target_white)
             }

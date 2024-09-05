@@ -10,7 +10,7 @@ use enum_dispatch::enum_dispatch;
 use ordered_float::NotNan;
 use overload::overload;
 use std::{
-    array,
+    array, fmt,
     iter::Sum,
     ops::{self, Add, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Sub, SubAssign},
     sync::LazyLock,
@@ -21,32 +21,32 @@ pub const LAMBDA_MAX: Float = 830.0;
 
 const N_SPECTRUM_SAMPLES: usize = 4;
 
+/// X component of CIE XYZ matching curves, sampled at 1-nm increments from 360nm to 830nm.
 pub static X: LazyLock<SpectrumEnum> = LazyLock::new(|| {
-    let samples: [SpectrumSample; N_CIE_SPECTRUM_SAMPLES] =
-        core::array::from_fn(|i| SpectrumSample {
-            lambda: CIE_LAMBDA[i],
-            value: CIE_X[i],
-        });
+    let samples: [SpectrumSample; N_CIE_SPECTRUM_SAMPLES] = array::from_fn(|i| SpectrumSample {
+        lambda: CIE_LAMBDA[i],
+        value: CIE_X[i],
+    });
     let pls = PiecewiseLinearSpectrum::new(&samples);
     DenselySampledSpectrum::new(&pls, None, None).into()
 });
 
+/// Y component of CIE XYZ matching curves, sampled at 1-nm increments from 360nm to 830nm.
 pub static Y: LazyLock<SpectrumEnum> = LazyLock::new(|| {
-    let samples: [SpectrumSample; N_CIE_SPECTRUM_SAMPLES] =
-        core::array::from_fn(|i| SpectrumSample {
-            lambda: CIE_LAMBDA[i],
-            value: CIE_Y[i],
-        });
+    let samples: [SpectrumSample; N_CIE_SPECTRUM_SAMPLES] = array::from_fn(|i| SpectrumSample {
+        lambda: CIE_LAMBDA[i],
+        value: CIE_Y[i],
+    });
     let pls = PiecewiseLinearSpectrum::new(&samples);
     DenselySampledSpectrum::new(&pls, None, None).into()
 });
 
+/// Z component of CIE XYZ matching curves, sampled at 1-nm increments from 360nm to 830nm.
 pub static Z: LazyLock<SpectrumEnum> = LazyLock::new(|| {
-    let samples: [SpectrumSample; N_CIE_SPECTRUM_SAMPLES] =
-        core::array::from_fn(|i| SpectrumSample {
-            lambda: CIE_LAMBDA[i],
-            value: CIE_Z[i],
-        });
+    let samples: [SpectrumSample; N_CIE_SPECTRUM_SAMPLES] = array::from_fn(|i| SpectrumSample {
+        lambda: CIE_LAMBDA[i],
+        value: CIE_Z[i],
+    });
     let pls = PiecewiseLinearSpectrum::new(&samples);
     DenselySampledSpectrum::new(&pls, None, None).into()
 });
@@ -95,6 +95,8 @@ impl SpectrumEnum {
             pub fn at(&self, lambda: Float) -> Float;
             pub fn max_value(&self) -> Float;
             pub fn sample(&self, wavelengths: &SampledWavelengths) -> SampledSpectrum;
+            pub fn inner_product(&self, other: &impl Spectrum) -> Float;
+            pub fn to_xyz(&self) -> XYZ;
             pub fn to_photometric(&self) -> Float;
         }
     }
@@ -106,8 +108,33 @@ pub trait Spectrum {
     fn max_value(&self) -> Float;
     fn sample(&self, wavelengths: &SampledWavelengths) -> SampledSpectrum {
         let values = wavelengths.lambdas().map(|l| self.at(l));
-        SampledSpectrum { values }
+        SampledSpectrum::new(values)
     }
+
+    /// Compute the inner product (sum of element-wise products) with a Riemann sum
+    /// over integer wavelengths.
+    fn inner_product(&self, other: &impl Spectrum) -> Float {
+        let mut integral = 0.0;
+
+        let mut lambda = LAMBDA_MIN;
+        while lambda <= LAMBDA_MAX {
+            integral += self.at(lambda) * other.at(lambda);
+            lambda += 1.0;
+        }
+
+        integral
+    }
+
+    /// Compute the XYZ coefficients of this distribution,
+    /// i.e. this distribution's inner product with the X, Y, Z matching curves.
+    fn to_xyz(&self) -> XYZ {
+        XYZ::new(
+            self.inner_product(&*X),
+            self.inner_product(&*Y),
+            self.inner_product(&*Z),
+        ) / CIE_Y_INTEGRAL
+    }
+
     fn to_photometric(&self) -> Float {
         let mut y = 0.0;
         let mut lambda = LAMBDA_MIN;
@@ -261,7 +288,7 @@ impl PiecewiseLinearSpectrum {
 
         if normalize {
             // Normalize to have luminance of 1.
-            let inner = CIE_Y_INTEGRAL / inner_product(&spec, &*Y);
+            let inner = CIE_Y_INTEGRAL / spec.inner_product(&*Y);
             spec = spec.scale(inner);
         }
 
@@ -526,6 +553,8 @@ impl SampledSpectrum {
         }
     }
 
+    /// Compute XYZ coefficients for `self`, using a Monte Carlo estimate
+    /// using the sampled XYZ spectral values at the given `wavelengths`.
     pub fn to_xyz(&self, wavelengths: &SampledWavelengths) -> XYZ {
         // Sample the X, Y, Z matching curves at lambda
         let x = X.sample(wavelengths);
@@ -535,9 +564,9 @@ impl SampledSpectrum {
         // Evaluate estimator to compute (x, y, z) coefficients
         let pdf = wavelengths.pdf();
         XYZ::new(
-            (&x * self).safe_div(&pdf).average().unwrap(),
-            (&y * self).safe_div(&pdf).average().unwrap(),
-            (&z * self).safe_div(&pdf).average().unwrap(),
+            (x * self).safe_div(&pdf).average().unwrap(),
+            (y * self).safe_div(&pdf).average().unwrap(),
+            (z * self).safe_div(&pdf).average().unwrap(),
         ) / CIE_Y_INTEGRAL
     }
 
@@ -551,6 +580,8 @@ impl SampledSpectrum {
         (&y * self).safe_div(&pdf).average().unwrap()
     }
 
+    /// Convert spectrum sampled at `wavelengths` to RGB in a given color space `cs`,
+    /// via XYZ.
     pub fn to_rgb(&self, wavelengths: &SampledWavelengths, cs: &RGBColorSpace) -> RGB {
         let xyz = self.to_xyz(wavelengths);
         cs.to_rgb(xyz)
@@ -769,6 +800,12 @@ impl DivAssign<Float> for SampledSpectrum {
     }
 }
 
+impl fmt::Display for SampledSpectrum {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_list().entries(&self.values).finish()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct SampledWavelengths {
     lambdas: [Float; N_SPECTRUM_SAMPLES],
@@ -858,6 +895,11 @@ pub struct RgbAlbedoSpectrum {
 
 impl RgbAlbedoSpectrum {
     pub fn new(cs: &RGBColorSpace, rgb: RGB) -> Self {
+        assert!(
+            (0.0..=1.0).contains(&rgb.r)
+                && (0.0..=1.0).contains(&rgb.g)
+                && (0.0..=1.0).contains(&rgb.b)
+        );
         Self {
             rsp: cs.to_rgb_coeffs(rgb),
         }
@@ -881,7 +923,7 @@ pub struct RgbUnboundedSpectrum {
 }
 
 impl RgbUnboundedSpectrum {
-    pub fn new(cs: RGBColorSpace, rgb: RGB) -> Self {
+    pub fn new(cs: &RGBColorSpace, rgb: RGB) -> Self {
         let m = rgb.r.max(rgb.g).max(rgb.b);
 
         let scale = 2.0 * m;
@@ -943,24 +985,4 @@ impl Spectrum for RgbIlluminantSpectrum {
     fn to_photometric(&self) -> Float {
         self.illuminant.to_photometric()
     }
-}
-
-pub fn spectrum_to_xyz(s: &impl Spectrum) -> XYZ {
-    XYZ::new(
-        inner_product(&*X, s),
-        inner_product(&*Y, s),
-        inner_product(&*Z, s),
-    ) / CIE_Y_INTEGRAL
-}
-
-pub fn inner_product(f: &impl Spectrum, g: &impl Spectrum) -> Float {
-    let mut integral = 0.0;
-
-    let mut lambda = LAMBDA_MIN;
-    while lambda <= LAMBDA_MAX {
-        integral += f.at(lambda) * g.at(lambda);
-        lambda += 1.0;
-    }
-
-    integral
 }

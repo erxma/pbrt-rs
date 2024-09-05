@@ -1,29 +1,40 @@
 use std::{
     cmp::min,
     ops::{Index, IndexMut},
-    sync::{Arc, LazyLock},
+    sync::LazyLock,
 };
 
 use crate::{
     math::{evaluate_polynomial, find_interval, lerp, Point2f, SquareMatrix},
-    sampling::spectrum::{spectrum_to_xyz, DenselySampledSpectrum, Spectrum, ILLUMD65},
+    sampling::spectrum::{DenselySampledSpectrum, Spectrum, ILLUMD65},
     util::data::SRGB_TABLE,
     Float,
 };
 
 use super::{RGB, XYZ};
 
+/// Represents an RGB color space, defining how RGB values
+/// map to physical color representations.
 #[derive(Clone, Debug)]
 pub struct RGBColorSpace {
+    /// xyY chromaticity coordinates of the red primary.
     pub r: Point2f,
+    /// xyY chromaticity coordinates of the green primary.
     pub g: Point2f,
+    /// xyY chromaticity coordinates of the blue primary.
     pub b: Point2f,
+    /// xyY chromaticity coordinates of the illuminant whitepoint.
     pub w: Point2f,
+    /// Spectral power distribution of the whitepoint, i.e. the light source
+    /// color defining the whitepoint.
     pub illuminant: DenselySampledSpectrum,
+    /// Matrix transforming from RGB color space to CIE XYZ color space.
     pub xyz_from_rgb: SquareMatrix<3>,
+    /// Matrix transforming from CIE XYZ color space to RGB color space.
     pub rgb_from_xyz: SquareMatrix<3>,
 
-    rgb_to_spectrum_table: Arc<RGBToSpectrumTable>,
+    /// Table mapping RGB values to full spectral distributions.
+    rgb_to_spectrum_table: &'static RGBToSpectrumTable,
 }
 
 pub static SRGB: LazyLock<RGBColorSpace> = LazyLock::new(|| {
@@ -32,21 +43,24 @@ pub static SRGB: LazyLock<RGBColorSpace> = LazyLock::new(|| {
         Point2f::new(0.3, 0.6),
         Point2f::new(0.15, 0.06),
         &*ILLUMD65,
-        SRGB_TABLE.clone(),
+        &SRGB_TABLE,
     )
 });
 
 impl RGBColorSpace {
+    /// Construct a new color space with the given `x`, `y`, `z` whitepoint chromaticities,
+    /// `illuminant` spectrum (treated as the spectral distribution for RGB white),
+    /// and table for converting RGB values to spectral distributions.
     #[allow(non_snake_case)]
     pub fn new(
         r: Point2f,
         g: Point2f,
         b: Point2f,
         illuminant: &impl Spectrum,
-        rgb_to_spectrum_table: Arc<RGBToSpectrumTable>,
+        rgb_to_spectrum_table: &'static RGBToSpectrumTable,
     ) -> Self {
         // Compute whitepoint primaries and XYZ coordinates
-        let W = spectrum_to_xyz(illuminant);
+        let W = illuminant.to_xyz();
         let w = W.xy();
         let R = XYZ::from_xyy(r, None);
         let G = XYZ::from_xyy(g, None);
@@ -57,7 +71,7 @@ impl RGBColorSpace {
         let rgb_inverse = rgb
             .inverse()
             .expect("RGB matrix for RGBColorSpace is expected to be invertible. Are the given RGB values invalid?");
-        let C: XYZ = rgb_inverse.mul(&W);
+        let C: XYZ = rgb_inverse * W;
 
         let xyz_from_rgb = rgb * SquareMatrix::diagonal([C.x, C.y, C.z]);
         let rgb_from_xyz = xyz_from_rgb.inverse().unwrap();
@@ -141,7 +155,7 @@ impl RGBToSpectrumTable {
         // Compute integer indices and offsets for coefficient interpolation
         let xi = min(x as usize, Self::RESOLUTION - 2);
         let yi = min(y as usize, Self::RESOLUTION - 2);
-        let zi = find_interval(RESOLUTION, |i| self.z_nodes[i] < z).unwrap();
+        let zi = find_interval(Self::RESOLUTION, |i| self.z_nodes[i] < z).unwrap();
 
         let dx = x - xi as Float;
         let dy = y - yi as Float;
@@ -169,16 +183,16 @@ impl RGBToSpectrumTable {
     }
 }
 
-const RESOLUTION: usize = RGBToSpectrumTable::RESOLUTION;
-
 #[derive(Clone, Debug)]
 pub struct CoefficientTable {
     vals: Vec<Float>,
 }
 
 impl CoefficientTable {
+    const RESOLUTION: usize = RGBToSpectrumTable::RESOLUTION;
+
     pub fn new(vals: Vec<Float>) -> Self {
-        assert_eq!(vals.len(), 3 * RESOLUTION * RESOLUTION * RESOLUTION * 3);
+        assert_eq!(vals.len(), 3 * Self::RESOLUTION.pow(3) * 3);
         Self { vals }
     }
 }
@@ -189,9 +203,9 @@ impl Index<(usize, usize, usize, usize, usize)> for CoefficientTable {
     fn index(&self, index: (usize, usize, usize, usize, usize)) -> &Self::Output {
         let (rgb_max_i, z, y, x, c_i) = index;
         let mut vec_idx = rgb_max_i;
-        vec_idx = vec_idx * RESOLUTION + z;
-        vec_idx = vec_idx * RESOLUTION + y;
-        vec_idx = vec_idx * RESOLUTION + x;
+        vec_idx = vec_idx * Self::RESOLUTION + z;
+        vec_idx = vec_idx * Self::RESOLUTION + y;
+        vec_idx = vec_idx * Self::RESOLUTION + x;
         vec_idx = vec_idx * 3 + c_i;
         &self.vals[vec_idx]
     }
@@ -201,18 +215,23 @@ impl IndexMut<(usize, usize, usize, usize, usize)> for CoefficientTable {
     fn index_mut(&mut self, index: (usize, usize, usize, usize, usize)) -> &mut Self::Output {
         let (rgb_max_i, z, y, x, c_i) = index;
         let mut vec_idx = rgb_max_i;
-        vec_idx = vec_idx * RESOLUTION + z;
-        vec_idx = vec_idx * RESOLUTION + y;
-        vec_idx = vec_idx * RESOLUTION + x;
+        vec_idx = vec_idx * Self::RESOLUTION + z;
+        vec_idx = vec_idx * Self::RESOLUTION + y;
+        vec_idx = vec_idx * Self::RESOLUTION + x;
         vec_idx = vec_idx * 3 + c_i;
         &mut self.vals[vec_idx]
     }
 }
 
+/// A reflectance spectrum, represented as a sigmoid applied
+/// to a quadratic polynomial.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RGBSigmoidPolynomial {
+    /// Coefficient of lambda^2 in the polynomial.
     c0: Float,
+    /// Coefficient of lambda^1 in the polynomial.
     c1: Float,
+    /// Constant in the polynomial.
     c2: Float,
 }
 
@@ -225,18 +244,25 @@ impl RGBSigmoidPolynomial {
         Self::sigmoid(evaluate_polynomial(lambda, &[self.c2, self.c1, self.c0]))
     }
 
+    /// Max value of the spectral distribution over the visible wavelength range (360-830nm),
+    /// which can be obtained as the max of the polynomial.
     pub fn max_value(&self) -> Float {
         let max_endpoint = self.at(360.0).max(self.at(830.0));
 
+        // Value found by setting polynomial's derivative to 0.
         let lambda = -self.c1 / (2.0 * self.c0);
 
-        if (360.0..830.0).contains(&lambda) {
+        // Return the max out of the endpoints values and value at lambda
+        if (360.0..=830.0).contains(&lambda) {
             max_endpoint.max(self.at(lambda))
         } else {
             max_endpoint
         }
     }
 
+    /// Sigmoid function with a special case to handle `+Infinity` and `-Infinity`,
+    /// In these cases, `1.0` or `0.0` are returned, respectively.
+    /// Useful for coefficients in ideally absorptive/reflective spectra.
     fn sigmoid(x: Float) -> Float {
         if x.is_infinite() {
             if x > 0.0 {
@@ -245,6 +271,7 @@ impl RGBSigmoidPolynomial {
                 0.0
             }
         } else {
+            // Standard sigmoid function
             0.5 + x / (2.0 * (1.0 + x * x).sqrt())
         }
     }

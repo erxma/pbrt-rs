@@ -68,7 +68,7 @@ impl SampleInteraction {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SurfaceInteraction<'a> {
     pub pi: Point3fi,
     pub time: Float,

@@ -13,6 +13,7 @@ use derive_builder::Builder;
 
 use super::base::{Light, LightLiSample, LightSampleContext, LightType, SpectrumCache};
 
+#[derive(Debug)]
 pub struct PointLight {
     render_from_light: Transform,
     medium_interface: MediumInterface,

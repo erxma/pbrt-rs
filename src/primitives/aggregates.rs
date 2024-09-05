@@ -502,16 +502,29 @@ impl BVHAggregate {
                 right,
                 split_axis,
             } => {
+                // Need to push the root node first,
+                // set second_child_offset once it's known
+                // TODO: Could maybe be a little cleaner
+                let node = LinearBVHNode::Interior {
+                    bounds,
+                    second_child_offset: Default::default(),
+                    axis: split_axis,
+                };
+                linear_nodes.push(node);
+
+                // Recursively call for children, placing their nodes after this root
+                let idx = linear_nodes.len() - 1;
                 Self::flatten_bvh_node(*left, linear_nodes);
                 // Current len of vec = the starting index of right child's nodes, record it
                 let second_child_offset = linear_nodes.len();
                 Self::flatten_bvh_node(*right, linear_nodes);
-                let node = LinearBVHNode::Interior {
+
+                // Set second_child_offset now that it's known
+                linear_nodes[idx] = LinearBVHNode::Interior {
                     bounds,
                     second_child_offset,
                     axis: split_axis,
                 };
-                linear_nodes.push(node);
             }
         }
     }
@@ -706,6 +719,7 @@ impl BVHBuildNode {
 }
 
 #[repr(align(32))]
+#[derive(Debug)]
 enum LinearBVHNode {
     Leaf {
         bounds: Bounds3f,

@@ -13,6 +13,7 @@ use std::sync::LazyLock;
 use super::{directional::DirectionalLight, PointLight, UniformInfiniteLight};
 
 #[enum_dispatch]
+#[derive(Debug)]
 pub enum LightEnum {
     Point(PointLight),
     Directional(DirectionalLight),

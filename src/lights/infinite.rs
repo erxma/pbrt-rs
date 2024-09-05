@@ -15,6 +15,7 @@ use crate::{
 
 use super::{base::SpectrumCache, Light, LightLiSample, LightSampleContext};
 
+#[derive(Debug)]
 pub struct UniformInfiniteLight {
     emitted_radiance: ArcIntern<DenselySampledSpectrum>,
     scale: Float,

@@ -13,6 +13,7 @@ use crate::{
 
 use super::{base::SpectrumCache, Light, LightLiSample, LightSampleContext, LightType};
 
+#[derive(Debug)]
 pub struct DirectionalLight {
     render_from_light: Transform,
 

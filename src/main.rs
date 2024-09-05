@@ -126,12 +126,6 @@ fn render_cpu() {
                     .camera_transform()
                     .render_from_world(Transform::IDENTITY),
             )
-            .object_from_render(
-                camera
-                    .camera_transform()
-                    .render_from_world(Transform::IDENTITY)
-                    .inverse(),
-            )
             .reverse_orientation(false)
             .build()
             .unwrap()

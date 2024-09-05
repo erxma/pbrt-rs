@@ -42,7 +42,6 @@ struct SphereParams {
     z_max: Float,
     phi_max: Float,
     render_from_object: Transform,
-    object_from_render: Transform,
     reverse_orientation: bool,
 }
 
@@ -52,15 +51,19 @@ impl SphereBuilder {
 
         let radius = params.radius;
 
-        let z_min = params.z_min.min(params.z_max).clamp(-radius, radius);
-        let z_max = params.z_min.max(params.z_max).clamp(-radius, radius);
-        let theta_z_min = (params.z_min.min(params.z_max) / radius)
-            .clamp(-1.0, 1.0)
-            .acos();
-        let theta_z_max = (params.z_max.min(params.z_max) / radius)
-            .clamp(-1.0, 1.0)
-            .acos();
+        if params.z_min > params.z_max {
+            return Err(SphereBuilderError::ValidationError(format!(
+                "Sphere z_min is greater than z_max ({} > {})",
+                params.z_min, params.z_max
+            )));
+        }
+
+        let z_min = params.z_min.clamp(-radius, radius);
+        let z_max = params.z_max.clamp(-radius, radius);
+        let theta_z_min = (params.z_min / radius).clamp(-1.0, 1.0).acos();
+        let theta_z_max = (params.z_max / radius).clamp(-1.0, 1.0).acos();
         let phi_max = params.phi_max.clamp(0.0, 360.0).to_radians();
+        let object_from_render = params.render_from_object.inverse();
 
         Ok(Sphere {
             radius: params.radius,
@@ -70,7 +73,7 @@ impl SphereBuilder {
             theta_z_max,
             phi_max,
             render_from_object: params.render_from_object,
-            object_from_render: params.object_from_render,
+            object_from_render,
             reverse_orientation: params.reverse_orientation,
         })
     }
@@ -92,14 +95,11 @@ impl Shape for Sphere {
     fn intersect(&self, ray: &Ray, t_max: Option<Float>) -> Option<ShapeIntersection> {
         let t_max = t_max.unwrap_or(Float::INFINITY);
 
-        let isect = self.basic_intersect(ray, t_max);
-
-        isect.map(|isect| {
-            let intr = self.interaction_from_intersection(&isect, -ray.dir, ray.time);
-            ShapeIntersection {
-                intr,
-                t_hit: isect.t_hit,
-            }
+        let isect = self.basic_intersect(ray, t_max)?;
+        let intr = self.interaction_from_intersection(&isect, -ray.dir, ray.time);
+        Some(ShapeIntersection {
+            intr,
+            t_hit: isect.t_hit,
         })
     }
 
@@ -294,9 +294,10 @@ impl Sphere {
         // Compute sphere quadratic discriminant, discrim
         let v = Vec3fi::from(o_obj - b / (2.0 * a) * dir_obj);
         let len = v.length();
-        let discrim =
-            4.0 * a * (Interval::new_exact(self.radius) + len) * Interval::new_exact(self.radius)
-                - len;
+        let discrim = 4.0
+            * a
+            * (Interval::new_exact(self.radius) + len)
+            * (Interval::new_exact(self.radius) - len);
         if discrim.lower_bound() < 0.0 {
             return None;
         }
@@ -399,9 +400,6 @@ impl Sphere {
         let theta = safe_acos(cos_theta);
         let v = (theta - self.theta_z_min) / (self.theta_z_max - self.theta_z_min);
 
-        // Compute error bounds for sphere intersection
-        let p_error = gamma(5) * Vec3f::from(p_hit).abs();
-
         // Compute sphere dp/du and dp/dv
         let z_radius = (p_hit.x().powi(2) + p_hit.y().powi(2)).sqrt();
         let cos_phi = p_hit.x() / z_radius;
@@ -437,6 +435,9 @@ impl Sphere {
             Normal3f::from((f * F - e * G) * inv_EGF2 * dpdu + (e * F - f * E) * inv_EGF2 * dpdv);
         let dndv =
             Normal3f::from((g * F - f * G) * inv_EGF2 * dpdu + (f * F - g * E) * inv_EGF2 * dpdv);
+
+        // Compute error bounds for sphere intersection
+        let p_error = gamma(5) * Vec3f::from(p_hit).abs();
 
         let flip_normal = self.reverse_orientation ^ self.render_from_object.swaps_handedness();
         let wo_object = &self.object_from_render * wo;

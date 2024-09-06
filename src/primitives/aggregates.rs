@@ -28,7 +28,7 @@ impl BVHAggregate {
         max_prims_in_node: u8,
         split_method: BVHSplitMethod,
     ) -> Self {
-        // TODO: Consider if it'd be worth it to precompute vec of centroids
+        // OPTIMIZATION: Consider if it'd be worth it to precompute vec of centroids
 
         // Build BVH using given method
         let root_result;

@@ -92,7 +92,7 @@ pub trait Camera {
         &self,
         p: Point3f,
         n: Normal3f,
-        time: Float,
+        _time: Float,
         samples_per_pixel: usize,
     ) -> (Vec3f, Vec3f) {
         // Compute tangent plane equation for ray diff intersections

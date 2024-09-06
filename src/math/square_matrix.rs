@@ -169,7 +169,7 @@ impl Invert for SquareMatrix<3> {
 
 impl SquareMatrix<4> {
     #[inline]
-    // TODO: Currently not providing version for N > 4 because of complexity of constraining.
+    // FUTURE: Currently not providing version for N > 4 because of complexity of constraining.
     // But it isn't expected to be used anyway
     pub fn determinant(&self) -> Float {
         let m = &self.m;

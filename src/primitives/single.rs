@@ -71,7 +71,6 @@ impl Primitive for GeometricPrimitive {
 
 #[derive(Clone)]
 pub struct SimplePrimitive {
-    // TODO: Cost of Arcs acceptable?
     shape: Arc<ShapeEnum>,
     material: Arc<MaterialEnum>,
 }

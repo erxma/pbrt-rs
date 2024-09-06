@@ -381,7 +381,7 @@ fn blackbody(lambda: Float, temp: Float) -> Float {
     let l = lambda * 1e-9;
 
     // Emitted radiance
-    // TODO: Possible speedup for exp
+    // OPTIMIZATION: Possible speedup for exp
     (2.0 * H * C * C) / (l.powi(5) * (((H * C) / (l * K_B * temp)).exp() - 1.0))
 }
 
@@ -463,65 +463,39 @@ impl SampledSpectrum {
     }
 
     pub fn sqrt(&self) -> Self {
-        // TODO: These fors could be replaced with map if
-        // there's no performance issue
-        let mut ret = self.clone();
-
-        for i in 0..N_SPECTRUM_SAMPLES {
-            ret[i] = ret[i].sqrt();
+        Self {
+            values: self.values.map(|sample| sample.sqrt()),
         }
-
-        ret
     }
 
     pub fn clamp(&self, min: Float, max: Float) -> Self {
-        let mut ret = self.clone();
-
-        for i in 0..N_SPECTRUM_SAMPLES {
-            ret[i] = ret[i].clamp(min, max);
+        Self {
+            values: self.values.map(|sample| sample.clamp(min, max)),
         }
-
-        ret
     }
 
     pub fn clamp_zero(&self) -> Self {
-        let mut ret = self.clone();
-
-        for i in 0..N_SPECTRUM_SAMPLES {
-            ret[i] = ret[i].max(0.0);
+        Self {
+            values: self.values.map(|sample| sample.max(0.0)),
         }
-
-        ret
     }
 
     pub fn powi(&self, n: i32) -> Self {
-        let mut ret = self.clone();
-
-        for i in 0..N_SPECTRUM_SAMPLES {
-            ret[i] = ret[i].powi(n);
+        Self {
+            values: self.values.map(|sample| sample.powi(n)),
         }
-
-        ret
     }
 
     pub fn powf(&self, n: Float) -> Self {
-        let mut ret = self.clone();
-
-        for i in 0..N_SPECTRUM_SAMPLES {
-            ret[i] = ret[i].powf(n);
+        Self {
+            values: self.values.map(|sample| sample.powf(n)),
         }
-
-        ret
     }
 
     pub fn exp(&self) -> Self {
-        let mut ret = self.clone();
-
-        for i in 0..N_SPECTRUM_SAMPLES {
-            ret[i] = ret[i].exp();
+        Self {
+            values: self.values.map(|sample| sample.exp()),
         }
-
-        ret
     }
 
     pub fn max_component_value(&self) -> Option<Float> {

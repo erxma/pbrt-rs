@@ -248,7 +248,7 @@ pub fn invert_bilinear_sample(p: Point2f, w: &[Float]) -> Point2f {
 }
 
 #[inline]
-pub fn invert_bilinear(p: Point2f, v: &[Point2f]) -> Point2f {
+pub fn invert_bilinear(_p: Point2f, _verts: &[Point2f]) -> Point2f {
     todo!()
 }
 
@@ -303,22 +303,22 @@ pub fn sample_uniform_disk_polar(u: Point2f) -> Point2f {
 
 #[inline]
 pub fn sample_spherical_rectangle(
-    p: Point3f,
-    v00: Point3f,
-    eu: Vec3f,
-    ev: Vec3f,
-    u: Point2f,
+    _p_ref: Point3f,
+    _s: Point3f,
+    _ex: Vec3f,
+    _ey: Vec3f,
+    _u: Point2f,
 ) -> (Point3f, Float) {
     todo!()
 }
 
 #[inline]
 pub fn invert_spherical_rectangle_sample(
-    p_ref: Point3f,
-    v00: Point3f,
-    eu: Vec3f,
-    ev: Vec3f,
-    p_rect: Point3f,
+    _p_ref: Point3f,
+    _s: Point3f,
+    _ex: Vec3f,
+    _ey: Vec3f,
+    _p_rect: Point3f,
 ) -> Point2f {
     todo!()
 }

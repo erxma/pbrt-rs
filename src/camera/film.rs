@@ -314,19 +314,5 @@ impl Default for RGBPixel {
     }
 }
 
-impl Clone for RGBPixel {
-    // TODO: Should this be kept?
-    fn clone(&self) -> Self {
-        Self {
-            rgb_sum: self.rgb_sum,
-            weight_sum: self.weight_sum,
-            rgb_splat: self
-                .rgb_splat
-                .each_ref()
-                .map(|val| AtomicF64::new(val.load(Ordering::Acquire))),
-        }
-    }
-}
-
 #[derive(Clone, Debug)]
 pub struct VisibleSurface {}

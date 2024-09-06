@@ -10,7 +10,7 @@ pub const ONE_MINUS_EPSILON: Float = 1.0 - Float::EPSILON;
 // Returns the least number greater than `v`.
 #[inline]
 pub fn next_float_up(mut v: Float) -> Float {
-    // TODO: Available in nightly. Impl is near identical.
+    // FUTURE: Available in nightly. Impl is near identical.
     // Return same for +Infinity or NaN
     if v.is_infinite() && v > 0.0 || v.is_nan() {
         return v;
@@ -36,7 +36,7 @@ pub fn next_float_up(mut v: Float) -> Float {
 // Returns the greatest number less than `v`.
 #[inline]
 pub fn next_float_down(mut v: Float) -> Float {
-    // TODO: Available in nightly. Impl is near identical.
+    // FUTURE: Available in nightly. Impl is near identical.
     // Return same for -Infinity or NaN
     if v.is_infinite() && v < 0.0 || v.is_nan() {
         return v;

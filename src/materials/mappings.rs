@@ -39,16 +39,19 @@ pub struct TextureEvalContext {
 
 impl TextureEvalContext {
     pub fn from_surface_interaction(si: &SurfaceInteraction) -> Self {
+        let diffs = si.mappings_diffs.as_ref().expect(
+            "Creating TextureEvalContext from SurfaceInteraction requires mappings differentials to be set",
+        );
         Self {
             p: si.pi.midpoints_only(),
-            dpdx: si.dpdx,
-            dpdy: si.dpdy,
+            dpdx: diffs.dpdx,
+            dpdy: diffs.dpdy,
             n: si.n,
             uv: si.uv,
-            dudx: si.dudx,
-            dudy: si.dudy,
-            dvdx: si.dvdx,
-            dvdy: si.dvdy,
+            dudx: diffs.dudx,
+            dudy: diffs.dudy,
+            dvdx: diffs.dvdx,
+            dvdy: diffs.dvdy,
         }
     }
 }

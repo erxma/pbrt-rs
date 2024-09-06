@@ -5,7 +5,8 @@ use derive_builder::Builder;
 use crate::{
     float::PI,
     geometry::{
-        Bounds3f, DirectionCone, Frame, Ray, SampleInteraction, SurfaceInteraction, Transform,
+        Bounds3f, DirectionCone, Frame, Ray, SampleInteraction, SurfaceInteraction,
+        SurfaceInteractionParams, Transform,
     },
     math::{
         difference_of_products, gamma, safe_acos, safe_sqrt, spherical_direction, Interval,
@@ -441,17 +442,16 @@ impl Sphere {
 
         let flip_normal = self.reverse_orientation ^ self.render_from_object.swaps_handedness();
         let wo_object = &self.object_from_render * wo;
-        SurfaceInteraction::builder()
-            .pi(Point3fi::new_fi(p_hit, p_error))
-            .uv(Point2f::new(u, v))
-            .wo(wo_object)
-            .dpdu(dpdu)
-            .dpdv(dpdv)
-            .dndu(dndu)
-            .dndv(dndv)
-            .time(time)
-            .flip_normal(flip_normal)
-            .build()
-            .unwrap()
+        SurfaceInteraction::new(SurfaceInteractionParams {
+            pi: Point3fi::new_fi(p_hit, p_error),
+            uv: Point2f::new(u, v),
+            wo: Some(wo_object),
+            dpdu,
+            dpdv,
+            dndu,
+            dndv,
+            time,
+            flip_normal,
+        })
     }
 }

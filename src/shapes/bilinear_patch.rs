@@ -3,7 +3,10 @@ use std::sync::{Arc, OnceLock};
 use itertools::iproduct;
 
 use crate::{
-    geometry::{Bounds3f, DirectionCone, Ray, SampleInteraction, SurfaceInteraction, Transform},
+    geometry::{
+        Bounds3f, DirectionCone, Ray, SampleInteraction, SurfaceInteraction,
+        SurfaceInteractionParams, Transform,
+    },
     math::{
         difference_of_products, gamma, lerp, solve_quadratic, spherical_quad_area, Normal3f,
         Point2f, Point3f, Point3fi, SquareMatrix, Tuple, Vec3f,
@@ -137,18 +140,17 @@ impl BilinearPatch {
         let p_err = gamma(6) * Vec3f::from(p_abs_sum);
 
         let flip_normal = mesh.reverse_orientation ^ mesh.transform_swaps_handedness;
-        let mut isect = SurfaceInteraction::builder()
-            .pi(Point3fi::new_fi(p, p_err))
-            .wo(outgoing)
-            .uv(uv)
-            .dpdu(dpdu)
-            .dpdv(dpdv)
-            .dndu(dndu)
-            .dndv(dndv)
-            .time(time)
-            .flip_normal(flip_normal)
-            .build()
-            .unwrap();
+        let mut isect = SurfaceInteraction::new(SurfaceInteractionParams {
+            pi: Point3fi::new_fi(p, p_err),
+            wo: Some(outgoing),
+            uv,
+            dpdu,
+            dpdv,
+            dndu,
+            dndv,
+            time,
+            flip_normal,
+        });
 
         // Compute patch shading normal if necessary
         if let Some((n00, n10, n01, n11)) = mesh.vertex_normals(blp_idx) {

@@ -2,7 +2,7 @@ use std::{path::PathBuf, sync::Arc};
 
 use log::info;
 use pbrt_rs::{
-    camera::{Camera, CameraTransform, PerspectiveCamera, PixelSensor, RGBFilm},
+    camera::{Camera, CameraTransform, PerspectiveCamera, PixelSensor, RGBFilm, RGBFilmParams},
     color::{RGB, SRGB},
     geometry::{Bounds2f, Bounds2i, Transform},
     image::BoxFilter,
@@ -40,26 +40,20 @@ fn render_cpu() {
         Vec3f::new(0.0, 0.0, 1.0),
     );
 
-    let sampler = IndependentSampler::new(256, None);
+    let sampler = IndependentSampler::new(128, None);
 
     let filter = Arc::new(BoxFilter::new(Vec2f::new(0.5, 0.5)).into());
 
-    let sensor = Arc::new(
-        PixelSensor::builder()
-            .output_color_space(&SRGB)
-            .imaging_ratio(1.0)
-            .build()
-            .unwrap(),
-    );
+    let sensor = Arc::new(PixelSensor::with_xyz_matching(&SRGB, None, 1.0));
 
     let film = Arc::new(
-        RGBFilm::builder()
-            .full_resolution(Point2i::new(400, 400))
-            .pixel_bounds(Bounds2i::new(Point2i::new(0, 0), Point2i::new(400, 400)))
-            .diagonal(35.0)
-            .filter(filter)
-            .sensor(sensor)
-            .filename(PathBuf::from(format!(
+        RGBFilm::new(RGBFilmParams {
+            full_resolution: Point2i::new(400, 400),
+            pixel_bounds: Bounds2i::new(Point2i::new(0, 0), Point2i::new(400, 400)),
+            diagonal: 35.0,
+            filter,
+            sensor,
+            filename: PathBuf::from(format!(
                 "render_{}.exr",
                 OffsetDateTime::now_local()
                     .unwrap()
@@ -67,12 +61,11 @@ fn render_cpu() {
                         "[year]-[month]-[day]T[hour]:[minute]:[second]"
                     ))
                     .unwrap()
-            )))
-            .color_space(&SRGB)
-            .max_component_value(Float::INFINITY)
-            .build()
-            .unwrap()
-            .into(),
+            )),
+            color_space: &SRGB,
+            max_component_value: Float::INFINITY,
+        })
+        .into(),
     );
 
     let camera = PerspectiveCamera::builder()

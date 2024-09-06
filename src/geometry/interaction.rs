@@ -17,7 +17,6 @@ use crate::{
     },
     Float,
 };
-use derive_builder::Builder;
 
 use super::{Ray, RayDifferential};
 
@@ -73,25 +72,25 @@ pub struct SurfaceInteraction<'a> {
     pub pi: Point3fi,
     pub time: Float,
     pub wo: Option<Vec3f>,
-
+    /// Surface normal at the point.
     pub n: Normal3f,
+    /// Parametric UV coordinates at the point.
     pub uv: Point2f,
+    // The parametric partial derivatives of the surface around the point,
+    // i.e. local differential geometry around it
     pub dpdu: Vec3f,
     pub dpdv: Vec3f,
     pub dndu: Normal3f,
     pub dndv: Normal3f,
+    /// Possibly perturbed values of surface normal and
+    /// differential geometry around point.
     pub shading: Shading,
     // TODO: Restructure these?
     pub material: Option<&'a MaterialEnum>,
     pub area_light: Option<&'a LightEnum>,
     pub medium_interface: Option<MediumInterface>,
     pub medium: Option<Arc<MediumEnum>>,
-    pub dpdx: Vec3f,
-    pub dpdy: Vec3f,
-    pub dudx: Float,
-    pub dvdx: Float,
-    pub dudy: Float,
-    pub dvdy: Float,
+    pub mappings_diffs: Option<MappingsDifferentials>,
 }
 
 #[derive(Clone, Debug)]
@@ -103,40 +102,62 @@ pub struct Shading {
     pub dndv: Normal3f,
 }
 
-#[derive(Builder)]
-#[builder(
-    name = "SurfaceInteractionBuilder",
-    public,
-    setter(strip_option),
-    build_fn(private, name = "build_params")
-)]
-struct SurfaceInteractionParams {
-    pi: Point3fi,
-    uv: Point2f,
-    wo: Option<Vec3f>,
-    dpdu: Vec3f,
-    dpdv: Vec3f,
-    dndu: Normal3f,
-    dndv: Normal3f,
-    time: Float,
-    flip_normal: bool,
-    #[builder(default)]
-    dpdx: Vec3f,
-    #[builder(default)]
-    dpdy: Vec3f,
-    #[builder(default)]
-    dudx: Float,
-    #[builder(default)]
-    dvdx: Float,
-    #[builder(default)]
-    dudy: Float,
-    #[builder(default)]
-    dvdy: Float,
+#[derive(Clone, Debug)]
+pub struct MappingsDifferentials {
+    pub dpdx: Vec3f,
+    pub dpdy: Vec3f,
+    pub dudx: Float,
+    pub dvdx: Float,
+    pub dudy: Float,
+    pub dvdy: Float,
+}
+
+#[derive(Clone, Debug)]
+pub struct SurfaceInteractionParams {
+    pub pi: Point3fi,
+    pub uv: Point2f,
+    pub wo: Option<Vec3f>,
+    pub dpdu: Vec3f,
+    pub dpdv: Vec3f,
+    pub dndu: Normal3f,
+    pub dndv: Normal3f,
+    pub time: Float,
+    pub flip_normal: bool,
 }
 
 impl<'a> SurfaceInteraction<'a> {
-    pub fn builder() -> SurfaceInteractionBuilder {
-        SurfaceInteractionBuilder::default()
+    pub fn new(params: SurfaceInteractionParams) -> Self {
+        let mut n = params.dpdu.cross(params.dpdv).normalized().into();
+        // Adjust normal based on orientation and handedness
+        if params.flip_normal {
+            n *= -1.0;
+        }
+        Self {
+            pi: params.pi,
+            time: params.time,
+            wo: params.wo,
+
+            n,
+            uv: params.uv,
+            dpdu: params.dpdu,
+            dpdv: params.dpdv,
+            dndu: params.dndu,
+            dndv: params.dndv,
+            // Defaults to same, can be set later
+            // Generally not computed until some time after initial construction
+            shading: Shading {
+                n,
+                dpdu: params.dpdu,
+                dpdv: params.dpdv,
+                dndu: params.dndu,
+                dndv: params.dndv,
+            },
+            material: None,
+            area_light: None,
+            medium_interface: None,
+            medium: None,
+            mappings_diffs: None,
+        }
     }
 
     // Update the shading geometry info
@@ -247,6 +268,8 @@ impl<'a> SurfaceInteraction<'a> {
         camera: &impl Camera,
         samples_per_pixel: usize,
     ) {
+        let dpdx;
+        let dpdy;
         match &ray_diffs.differentials {
             Some(diffs)
                 if self.n.dot_v(diffs.rx_dir) != 0.0 && self.n.dot_v(diffs.ry_dir) != 0.0 =>
@@ -259,13 +282,13 @@ impl<'a> SurfaceInteraction<'a> {
                 let ty = (-self.n.dot(diffs.ry_origin.into()) - d) / self.n.dot_v(diffs.ry_dir);
                 let py = diffs.ry_origin + ty * diffs.ry_dir;
 
-                self.dpdx = px - self.pi.midpoints_only();
-                self.dpdy = py - self.pi.midpoints_only();
+                dpdx = px - self.pi.midpoints_only();
+                dpdy = py - self.pi.midpoints_only();
             }
 
             Some(_) | None => {
                 // Estiamte screen-space change in p based on cam projection
-                (self.dpdx, self.dpdy) = camera.approximate_dp_dxy(
+                (dpdx, dpdy) = camera.approximate_dp_dxy(
                     self.pi.midpoints_only(),
                     self.n,
                     self.time,
@@ -291,39 +314,48 @@ impl<'a> SurfaceInteraction<'a> {
         };
 
         // Compute A^T*b for x and y
-        let atb0x = self.dpdu.dot(self.dpdx);
-        let atb1x = self.dpdv.dot(self.dpdx);
-        let atb0y = self.dpdu.dot(self.dpdy);
-        let atb1y = self.dpdv.dot(self.dpdy);
+        let atb0x = self.dpdu.dot(dpdx);
+        let atb1x = self.dpdv.dot(dpdx);
+        let atb0y = self.dpdu.dot(dpdy);
+        let atb1y = self.dpdv.dot(dpdy);
 
         // Compute u, v deriatives with respect to x, y
-        self.dudx = difference_of_products(ata11, atb0x, ata01, atb1x) * inv_det;
-        self.dvdx = difference_of_products(ata00, atb1x, ata01, atb0x) * inv_det;
-        self.dudy = difference_of_products(ata11, atb0y, ata01, atb1y) * inv_det;
-        self.dvdy = difference_of_products(ata00, atb1y, ata01, atb0y) * inv_det;
+        let mut dudx = difference_of_products(ata11, atb0x, ata01, atb1x) * inv_det;
+        let mut dvdx = difference_of_products(ata00, atb1x, ata01, atb0x) * inv_det;
+        let mut dudy = difference_of_products(ata11, atb0y, ata01, atb1y) * inv_det;
+        let mut dvdy = difference_of_products(ata00, atb1y, ata01, atb0y) * inv_det;
 
         // Clamp derivatives to reasonable values, in case of very large values or inf,
         // e.g. with highly distorted (u, v) or at silhouette edges
-        self.dudx = if self.dudx.is_finite() {
-            self.dudx.clamp(-1e8, 1e8)
+        dudx = if dudx.is_finite() {
+            dudx.clamp(-1e8, 1e8)
         } else {
             0.0
         };
-        self.dvdx = if self.dvdx.is_finite() {
-            self.dvdx.clamp(-1e8, 1e8)
+        dvdx = if dvdx.is_finite() {
+            dvdx.clamp(-1e8, 1e8)
         } else {
             0.0
         };
-        self.dudy = if self.dudy.is_finite() {
-            self.dudy.clamp(-1e8, 1e8)
+        dudy = if dudy.is_finite() {
+            dudy.clamp(-1e8, 1e8)
         } else {
             0.0
         };
-        self.dvdy = if self.dvdy.is_finite() {
-            self.dvdy.clamp(-1e8, 1e8)
+        dvdy = if dvdy.is_finite() {
+            dvdy.clamp(-1e8, 1e8)
         } else {
             0.0
         };
+
+        self.mappings_diffs = Some(MappingsDifferentials {
+            dpdx,
+            dpdy,
+            dudx,
+            dvdx,
+            dudy,
+            dvdy,
+        });
     }
 
     pub fn offset_ray_origin(&self, w: Vec3f) -> Point3f {
@@ -357,47 +389,6 @@ impl<'a> SurfaceInteraction<'a> {
             diffs.ry_origin += t * diffs.ry_dir;
         }
         new
-    }
-}
-
-impl SurfaceInteractionBuilder {
-    pub fn build<'a, 'b>(&self) -> Result<SurfaceInteraction<'a>, SurfaceInteractionBuilderError> {
-        let params = self.build_params()?;
-
-        let mut n = params.dpdu.cross(params.dpdv).normalized().into();
-        // Adjust normal based on orientation and handedness
-        if params.flip_normal {
-            n *= -1.0;
-        }
-        Ok(SurfaceInteraction {
-            pi: params.pi,
-            time: params.time,
-            wo: params.wo,
-
-            n,
-            uv: params.uv,
-            dpdu: params.dpdu,
-            dpdv: params.dpdv,
-            dndu: params.dndu,
-            dndv: params.dndv,
-            shading: Shading {
-                n,
-                dpdu: params.dpdu,
-                dpdv: params.dpdv,
-                dndu: params.dndu,
-                dndv: params.dndv,
-            },
-            material: None,
-            area_light: None,
-            medium_interface: None,
-            medium: None,
-            dpdx: params.dpdx,
-            dpdy: params.dpdy,
-            dudx: params.dudx,
-            dvdx: params.dvdx,
-            dudy: params.dudy,
-            dvdy: params.dvdy,
-        })
     }
 }
 

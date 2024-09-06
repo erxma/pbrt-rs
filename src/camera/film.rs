@@ -5,9 +5,8 @@ use std::{
 };
 
 use delegate::delegate;
-use derive_builder::Builder;
 use enum_dispatch::enum_dispatch;
-use num_traits::{AsPrimitive, NumCast};
+use num_traits::AsPrimitive;
 
 use crate::{
     color::{RGBColorSpace, RGB},
@@ -123,40 +122,14 @@ pub struct RGBFilm {
 }
 
 impl RGBFilm {
-    pub fn builder() -> RGBFilmBuilder {
-        Default::default()
-    }
-}
-
-#[derive(Builder)]
-#[builder(
-    name = "RGBFilmBuilder",
-    public,
-    build_fn(private, name = "build_params")
-)]
-struct RGBFilmParams {
-    full_resolution: Point2i,
-    pixel_bounds: Bounds2i,
-    filter: Arc<FilterEnum>,
-    diagonal: Float,
-    sensor: Arc<PixelSensor>,
-    filename: PathBuf,
-
-    color_space: &'static RGBColorSpace,
-    max_component_value: Float,
-}
-
-impl RGBFilmBuilder {
-    pub fn build(&self) -> Result<RGBFilm, RGBFilmBuilderError> {
-        let params = self.build_params()?;
-
+    pub fn new(params: RGBFilmParams) -> Self {
         let filter_integral = params.filter.integral();
 
         // Compute output_rgb_from_sensor_rgb
         let output_rgb_from_sensor_rgb =
-            params.color_space.rgb_from_xyz.clone() * params.sensor.xyz_from_sensor_rgb.clone();
+            &params.color_space.rgb_from_xyz * &params.sensor.xyz_from_sensor_rgb;
 
-        Ok(RGBFilm {
+        Self {
             full_resolution: params.full_resolution,
             pixel_bounds: params.pixel_bounds,
             filter: params.filter,
@@ -168,8 +141,19 @@ impl RGBFilmBuilder {
             filter_integral,
             output_rgb_from_sensor_rgb,
             pixels: Array2D::fill_default(params.pixel_bounds),
-        })
+        }
     }
+}
+
+pub struct RGBFilmParams {
+    pub full_resolution: Point2i,
+    pub pixel_bounds: Bounds2i,
+    pub filter: Arc<FilterEnum>,
+    pub diagonal: Float,
+    pub sensor: Arc<PixelSensor>,
+    pub filename: PathBuf,
+    pub color_space: &'static RGBColorSpace,
+    pub max_component_value: Float,
 }
 
 impl FilmTrait for RGBFilm {
@@ -237,8 +221,7 @@ impl FilmTrait for RGBFilm {
 
             if wt != 0.0 {
                 for i in 0..3 {
-                    self.pixels[pi].rgb_splat[i]
-                        .fetch_add(NumCast::from(wt * rgb[i]).unwrap(), Ordering::Relaxed);
+                    self.pixels[pi].rgb_splat[i].fetch_add((wt * rgb[i]).as_(), Ordering::Relaxed);
                 }
             }
         }
@@ -258,7 +241,7 @@ impl FilmTrait for RGBFilm {
             let rgb = self.get_pixel_rgb(p, splat_scale);
             image.set_channels(
                 Point2Isize::from(p).as_point2usize(),
-                &[rgb[0], rgb[1], rgb[2]],
+                &[rgb.r, rgb.g, rgb.b],
             );
         }
 

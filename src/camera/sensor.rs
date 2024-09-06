@@ -1,7 +1,5 @@
 use std::{array, sync::LazyLock};
 
-use derive_builder::Builder;
-
 use crate::{
     color::{self, RGBColorSpace, RGB, XYZ},
     math::{SquareMatrix, Tuple},
@@ -33,64 +31,19 @@ static SWATCH_REFLECTANCES: LazyLock<
 impl PixelSensor {
     pub const N_SWATCH_REFLECTANCES: usize = 24;
 
-    pub fn builder<'a>() -> PixelSensorBuilder<'a> {
-        PixelSensorBuilder::default()
-    }
-}
-
-impl PixelSensor {
-    #[allow(non_snake_case)]
-    pub fn to_sensor_rgb(&self, L: &SampledSpectrum, lambda: &SampledWavelengths) -> RGB {
-        let L = L.safe_div(&lambda.pdf());
-        RGB::new(
-            (self.r_bar.sample(lambda) * &L).average().unwrap(),
-            (self.g_bar.sample(lambda) * &L).average().unwrap(),
-            (self.b_bar.sample(lambda) * L).average().unwrap(),
-        ) * self.imaging_ratio
-    }
-}
-
-#[derive(Builder)]
-#[builder(
-    name = "PixelSensorBuilder",
-    public,
-    setter(strip_option),
-    build_fn(private, name = "build_params")
-)]
-struct PixelSensorParams<'a> {
-    #[builder(default)]
-    rgb_matching: Option<[&'a SpectrumEnum; 3]>,
-    output_color_space: &'a RGBColorSpace,
-    #[builder(default)]
-    sensor_illum: Option<&'a SpectrumEnum>,
-    imaging_ratio: Float,
-}
-
-impl<'a> PixelSensorBuilder<'a> {
-    pub fn build(&self) -> Result<PixelSensor, PixelSensorBuilderError> {
-        let params = self.build_params()?;
-
-        match params.rgb_matching {
-            Some(_) => Self::build_with_rgb_matching(params),
-            None => Self::build_with_xyz_matching(params),
-        }
-    }
-
-    fn build_with_rgb_matching(
-        params: PixelSensorParams,
-    ) -> Result<PixelSensor, PixelSensorBuilderError> {
-        let [r, g, b] = params.rgb_matching.unwrap();
+    pub fn with_rgb_matching(
+        output_color_space: &RGBColorSpace,
+        r: &impl Spectrum,
+        g: &impl Spectrum,
+        b: &impl Spectrum,
+        sensor_illum: &impl Spectrum,
+        imaging_ratio: Float,
+    ) -> Self {
         let r_bar = DenselySampledSpectrum::new(r, None, None);
         let g_bar = DenselySampledSpectrum::new(g, None, None);
         let b_bar = DenselySampledSpectrum::new(b, None, None);
-        let sensor_illum = params
-            .sensor_illum
-            .ok_or(PixelSensorBuilderError::ValidationError(
-                "When RGB matching is used, sensor_illum must be provided".to_string(),
-            ))?;
 
         // Compute XYZ from camera RGB matrix:
-
         // Compute rgb_camera values for training swatches
         let rgb_camera: [[Float; 3]; PixelSensor::N_SWATCH_REFLECTANCES] = array::from_fn(|row| {
             let rgb: RGB = project_reflectance(
@@ -109,7 +62,7 @@ impl<'a> PixelSensorBuilder<'a> {
         let xyz_output: [[Float; 3]; PixelSensor::N_SWATCH_REFLECTANCES] = array::from_fn(|row| {
             let xyz = project_reflectance::<XYZ>(
                 &SWATCH_REFLECTANCES[row],
-                &params.output_color_space.illuminant,
+                &output_color_space.illuminant,
                 &*spectrum::X,
                 &*spectrum::Y,
                 &*spectrum::Z,
@@ -119,43 +72,53 @@ impl<'a> PixelSensorBuilder<'a> {
 
         // Initialize XYZFromSensorRGB using linear least squares
         let xyz_from_sensor_rgb = SquareMatrix::linear_least_squares(&rgb_camera, &xyz_output)
-            .ok_or(PixelSensorBuilderError::ValidationError(
-                "Sensor XYZ from RGB matrix could not be solved.".to_string(),
-            ))?;
+            .expect("sensor XYZ from RGB matrix could not be solved");
 
-        Ok(PixelSensor {
+        PixelSensor {
             r_bar,
             g_bar,
             b_bar,
-            imaging_ratio: params.imaging_ratio,
+            imaging_ratio,
             xyz_from_sensor_rgb,
-        })
+        }
     }
 
-    fn build_with_xyz_matching(
-        params: PixelSensorParams,
-    ) -> Result<PixelSensor, PixelSensorBuilderError> {
+    pub fn with_xyz_matching(
+        output_color_space: &RGBColorSpace,
+        sensor_illum: Option<&SpectrumEnum>,
+        imaging_ratio: Float,
+    ) -> Self {
         let r_bar = DenselySampledSpectrum::new(&*spectrum::X, None, None);
         let g_bar = DenselySampledSpectrum::new(&*spectrum::Y, None, None);
         let b_bar = DenselySampledSpectrum::new(&*spectrum::Z, None, None);
 
         // Compute white balancing matrix for XYZ PixelSensor
-        let xyz_from_sensor_rgb = match params.sensor_illum {
-            Some(sensor_illum) => {
-                let src_white = sensor_illum.to_xyz().xy();
-                let target_white = params.output_color_space.w;
+        let xyz_from_sensor_rgb = match sensor_illum {
+            Some(sensor) => {
+                let src_white = sensor.to_xyz().xy();
+                let target_white = output_color_space.w;
                 color::white_balance(src_white, target_white)
             }
             None => SquareMatrix::IDENTITY,
         };
 
-        Ok(PixelSensor {
+        Self {
             r_bar,
             g_bar,
             b_bar,
-            imaging_ratio: params.imaging_ratio,
+            imaging_ratio,
             xyz_from_sensor_rgb,
-        })
+        }
+    }
+
+    #[allow(non_snake_case)]
+    pub fn to_sensor_rgb(&self, L: &SampledSpectrum, lambda: &SampledWavelengths) -> RGB {
+        let L = L.safe_div(&lambda.pdf());
+        RGB::new(
+            (self.r_bar.sample(lambda) * &L).average().unwrap(),
+            (self.g_bar.sample(lambda) * &L).average().unwrap(),
+            (self.b_bar.sample(lambda) * L).average().unwrap(),
+        ) * self.imaging_ratio
     }
 }
 

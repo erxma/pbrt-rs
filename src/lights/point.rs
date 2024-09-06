@@ -4,12 +4,9 @@ use crate::{
     math::{Normal3f, Point2f, Point3f, Vec3f},
     media::MediumInterface,
     memory::ArcIntern,
-    sampling::spectrum::{
-        DenselySampledSpectrum, SampledSpectrum, SampledWavelengths, Spectrum, SpectrumEnum,
-    },
+    sampling::spectrum::{DenselySampledSpectrum, SampledSpectrum, SampledWavelengths, Spectrum},
     Float,
 };
-use derive_builder::Builder;
 
 use super::base::{Light, LightLiSample, LightSampleContext, LightType, SpectrumCache};
 
@@ -18,46 +15,29 @@ pub struct PointLight {
     render_from_light: Transform,
     medium_interface: MediumInterface,
 
-    i: ArcIntern<DenselySampledSpectrum>,
+    intensity: ArcIntern<DenselySampledSpectrum>,
     scale: Float,
-}
-
-#[derive(Builder)]
-#[builder(
-    public,
-    name = "PointLightBuilder",
-    build_fn(private, name = "build_params")
-)]
-struct PointLightParams<'a> {
-    render_from_light: Transform,
-    medium_interface: MediumInterface,
-
-    i: &'a SpectrumEnum,
-    scale: Float,
-}
-
-impl<'a> PointLightBuilder<'a> {
-    pub fn build(&self) -> Result<PointLight, PointLightBuilderError> {
-        let params = self.build_params()?;
-
-        Ok(PointLight {
-            render_from_light: params.render_from_light,
-            medium_interface: params.medium_interface,
-            i: SpectrumCache::lookup_spectrum(params.i),
-            scale: params.scale,
-        })
-    }
 }
 
 impl PointLight {
-    pub fn builder<'a>() -> PointLightBuilder<'a> {
-        PointLightBuilder::default()
+    pub fn new(
+        render_from_light: Transform,
+        medium_interface: MediumInterface,
+        i: &impl Spectrum,
+        scale: Float,
+    ) -> Self {
+        Self {
+            render_from_light,
+            medium_interface,
+            intensity: SpectrumCache::lookup_spectrum(i),
+            scale,
+        }
     }
 }
 
 impl Light for PointLight {
     fn phi(&self, wavelengths: &SampledWavelengths) -> SampledSpectrum {
-        4.0 * PI * self.scale * self.i.sample(wavelengths)
+        4.0 * PI * self.scale * self.intensity.sample(wavelengths)
     }
 
     fn light_type(&self) -> LightType {
@@ -73,7 +53,8 @@ impl Light for PointLight {
     ) -> Option<LightLiSample> {
         let p = &self.render_from_light * Point3f::ZERO;
         let wi = (p - ctx.pi_mids()).normalized();
-        let li = self.scale * self.i.sample(wavelengths) / p.distance_squared(ctx.pi_mids());
+        let li =
+            self.scale * self.intensity.sample(wavelengths) / p.distance_squared(ctx.pi_mids());
 
         Some(LightLiSample {
             l: li,

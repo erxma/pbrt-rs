@@ -9,14 +9,11 @@ use hashbrown::HashSet;
 
 use crate::math::{Normal3f, Point2f, Point3f, Vec3f};
 
-pub static USIZE_BUFFER_CACHE: LazyLock<BufferCache<usize>> = LazyLock::new(|| BufferCache::new());
-pub static POINT2F_BUFFER_CACHE: LazyLock<BufferCache<Point2f>> =
-    LazyLock::new(|| BufferCache::new());
-pub static POINT3F_BUFFER_CACHE: LazyLock<BufferCache<Point3f>> =
-    LazyLock::new(|| BufferCache::new());
-pub static VEC3F_BUFFER_CACHE: LazyLock<BufferCache<Vec3f>> = LazyLock::new(|| BufferCache::new());
-pub static NORMAL3F_BUFFER_CACHE: LazyLock<BufferCache<Normal3f>> =
-    LazyLock::new(|| BufferCache::new());
+pub static USIZE_BUFFER_CACHE: LazyLock<BufferCache<usize>> = LazyLock::new(BufferCache::new);
+pub static POINT2F_BUFFER_CACHE: LazyLock<BufferCache<Point2f>> = LazyLock::new(BufferCache::new);
+pub static POINT3F_BUFFER_CACHE: LazyLock<BufferCache<Point3f>> = LazyLock::new(BufferCache::new);
+pub static VEC3F_BUFFER_CACHE: LazyLock<BufferCache<Vec3f>> = LazyLock::new(BufferCache::new);
+pub static NORMAL3F_BUFFER_CACHE: LazyLock<BufferCache<Normal3f>> = LazyLock::new(BufferCache::new);
 
 pub struct BufferCache<T> {
     shards: Vec<RwLock<Shard<T>>>,

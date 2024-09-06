@@ -100,8 +100,8 @@ impl BilinearPatch {
 
         // Compute patch point p, dp/du, dp/dv for (u, v)
         let p = lerp(lerp(p00, p01, uv[1]), lerp(p10, p11, uv[1]), uv[0]);
-        let dpdu: Vec3f = (lerp(p10, p11, uv[1]) - lerp(p00, p01, uv[1])).into();
-        let dpdv: Vec3f = (lerp(p01, p11, uv[0]) - lerp(p00, p10, uv[0])).into();
+        let dpdu: Vec3f = lerp(p10, p11, uv[1]) - lerp(p00, p01, uv[1]);
+        let dpdv: Vec3f = lerp(p01, p11, uv[0]) - lerp(p00, p10, uv[0]);
 
         // TODO: Skipping this part for now
         // Compute (s, t) texcoords at patch (u, v)

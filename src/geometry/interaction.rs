@@ -227,16 +227,14 @@ impl<'a> SurfaceInteraction<'a> {
         // TODO: Resolve MixMaterial if necessary
 
         // Return unset BSDF if surface has no material
-        if self.material.is_none() {
-            return None;
-        }
+        let material = &self.material?;
 
         // TODO: Eval normal or bump map, if present
 
         // Get shading dp/du and dp/dv using normal or bump map
 
         // Return BSDF
-        let bsdf = self.material.unwrap().bsdf(
+        let bsdf = material.bsdf(
             &UniversalTextureEvaluator::new(),
             &MaterialEvalContext::from_surface_interaction(self),
             wavelengths,

@@ -72,15 +72,15 @@ impl DielectricBxDF {
     ) -> BSDFSample {
         let incident = Vec3f::new(-outgoing.x(), -outgoing.y(), outgoing.z());
         let fresnel = SampledSpectrum::with_single_value(reflectance / incident.cos_theta().abs());
-        let sample = BSDFSample {
+
+        BSDFSample {
             value: fresnel,
             incident,
             pdf: normalized_prob_reflect,
             pdf_is_proportional: false,
             flags: BxDFFlags::SPECULAR_REFLECTION,
             eta: 1.0,
-        };
-        sample
+        }
     }
 
     fn sample_perfect_specular_transmit(
@@ -97,15 +97,15 @@ impl DielectricBxDF {
         if mode == TransportMode::Radiance {
             ft /= etap * etap;
         }
-        let sample = BSDFSample {
+
+        Some(BSDFSample {
             value: ft,
             incident,
             pdf: normalized_prob_transmit,
             pdf_is_proportional: false,
             flags: BxDFFlags::SPECULAR_TRANSMISSION,
             eta: etap,
-        };
-        Some(sample)
+        })
     }
 
     // Sample rough dielectric BSDF
@@ -181,15 +181,15 @@ impl DielectricBxDF {
                 * reflectance
                 / (4.0 * incident.cos_theta() * outgoing.cos_theta()),
         );
-        let sample = BSDFSample {
+
+        Some(BSDFSample {
             value: fresnel,
             incident,
             pdf,
             pdf_is_proportional: false,
             flags: BxDFFlags::GLOSSY_REFLECTION,
             eta: 1.0,
-        };
-        Some(sample)
+        })
     }
 
     fn sample_rough_transmit(
@@ -233,15 +233,15 @@ impl DielectricBxDF {
         if mode == TransportMode::Radiance {
             ft /= etap * etap;
         }
-        let sample = BSDFSample {
+
+        Some(BSDFSample {
             value: ft,
             incident,
             pdf,
             pdf_is_proportional: false,
             flags: BxDFFlags::GLOSSY_TRANSMISSION,
             eta: etap,
-        };
-        Some(sample)
+        })
     }
 }
 

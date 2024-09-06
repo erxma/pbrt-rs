@@ -536,17 +536,20 @@ overload!((t: ?Transform) * (b: Bounds3f) -> Bounds3f {
 
 impl fmt::Display for Transform {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(p) = f.precision() {
-            if f.alternate() {
-                write!(f, "Transform:\n{:#.*}", p, self.m)
-            } else {
-                write!(f, "Transform:\n{:.*}", p, self.m)
+        match f.precision() {
+            Some(p) => {
+                if f.alternate() {
+                    write!(f, "Transform:\n{:#.*}", p, self.m)
+                } else {
+                    write!(f, "Transform:\n{:.*}", p, self.m)
+                }
             }
-        } else {
-            if f.alternate() {
-                write!(f, "Transform:\n{:#}", self.m)
-            } else {
-                write!(f, "Transform:\n{}", self.m)
+            None => {
+                if f.alternate() {
+                    write!(f, "Transform:\n{:#}", self.m)
+                } else {
+                    write!(f, "Transform:\n{}", self.m)
+                }
             }
         }
     }

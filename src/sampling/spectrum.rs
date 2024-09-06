@@ -776,7 +776,7 @@ impl DivAssign<Float> for SampledSpectrum {
 
 impl fmt::Display for SampledSpectrum {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_list().entries(&self.values).finish()
+        f.debug_list().entries(self.values).finish()
     }
 }
 

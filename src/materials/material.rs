@@ -86,11 +86,12 @@ pub trait TextureEvaluator {
     ) -> SampledSpectrum;
 }
 
+#[derive(Default)]
 pub struct UniversalTextureEvaluator {}
 
 impl UniversalTextureEvaluator {
     pub fn new() -> Self {
-        Self {}
+        Self::default()
     }
 }
 
@@ -130,7 +131,7 @@ impl Material for DiffuseMaterial {
         lambda: &mut SampledWavelengths,
     ) -> Self::BxDF {
         let reflectance = tex_eval
-            .eval_spectrum(&*self.reflectance, &ctx.tex_eval_ctx, &lambda)
+            .eval_spectrum(&*self.reflectance, &ctx.tex_eval_ctx, lambda)
             .clamp(0.0, 1.0);
         DiffuseBxDF::new(reflectance)
     }

@@ -35,9 +35,9 @@ pub struct MediumProperties<'a> {
 }
 
 pub struct RayMajorantSegment {
-    t_min: Float,
-    t_max: Float,
-    sigma_maj: SampledSpectrum,
+    pub t_min: Float,
+    pub t_max: Float,
+    pub sigma_maj: SampledSpectrum,
 }
 
 #[derive(Clone, Debug, PartialEq)]

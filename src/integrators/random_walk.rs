@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use delegate::delegate;
+use log::info;
 
 use crate::{
     camera::{CameraEnum, VisibleSurface},
@@ -96,6 +97,7 @@ impl RandomWalkIntegrator {
         aggregate: PrimitiveEnum,
         lights: Vec<Arc<LightEnum>>,
     ) -> Self {
+        info!("Scene bounds: {}", aggregate.bounds());
         Self {
             scene_data: SceneData::new(aggregate, lights),
             camera,
@@ -153,14 +155,14 @@ impl RandomWalkIntegrator {
         let wp = sample_uniform_sphere(u);
 
         let eval = bsdf.eval(wo, wp, TransportMode::Radiance);
-        if eval.is_none() {
+        if eval.is_all_zero() {
             return le;
         }
 
-        let f_cos = eval.unwrap() * wp.absdot(isect.shading.n.into());
+        let f_cos = eval * wp.absdot(isect.shading.n.into());
 
         // Recursively trace ray to estimate incident radiance at surface
-        let ray_diff = isect.spawn_ray(wp);
+        let ray_diff = isect.spawn_ray_diff_with_dir(wp);
 
         le + f_cos
             * self.incident_radiance_random_walk(

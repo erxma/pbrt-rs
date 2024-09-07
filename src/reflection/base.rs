@@ -19,9 +19,22 @@ pub enum BxDFEnum {
 
 #[enum_dispatch(BxDFEnum)]
 pub trait BxDF {
+    /// Flags indicating properties of the material.
     fn flags(&self) -> BxDFFlags;
 
-    fn func(&self, outgoing: Vec3f, incident: Vec3f, mode: TransportMode) -> SampledSpectrum;
+    /// Evaluate the distribution function for the given pair of directions
+    /// in the BxDF's local shading coordinate space.
+    ///
+    /// `mode` indicates whther the outgoing direction is toward a camera
+    /// or a light source.
+    fn eval(&self, outgoing: Vec3f, incident: Vec3f, mode: TransportMode) -> SampledSpectrum;
+
+    /// Use importance sampling to draw a direction from `self`'s distribution
+    /// that approximately matches the scattering function's shape.
+    /// Specifically, an incident direction given an outgoing one.
+    ///
+    /// Generation can optionally be restricted to the reflection or transmission
+    /// component via `sample_flags`.
     fn sample_func(
         &self,
         outgoing: Vec3f,
@@ -30,6 +43,9 @@ pub trait BxDF {
         mode: TransportMode,
         sample_flags: BxDFReflTransFlags,
     ) -> Option<BSDFSample>;
+
+    /// Returns the PDF in the distribution for a given pair of directions
+    /// in the BxDF's local shading coordinate space.
     fn pdf(
         &self,
         outgoing: Vec3f,
@@ -85,22 +101,33 @@ impl<'a, BxDF: super::BxDF> BSDF<'a, BxDF> {
         }
     }
 
+    /// Evaluate the distribution function for the given pair of directions
+    /// in rendering space.
+    ///
+    /// `mode` indicates whther the outgoing direction is toward a camera
+    /// or a light source.
     pub fn eval(
         &self,
         outgoing_render: Vec3f,
         incident_render: Vec3f,
         mode: TransportMode,
-    ) -> Option<SampledSpectrum> {
+    ) -> SampledSpectrum {
         let incident = self.render_to_local(incident_render);
         let outgoing = self.render_to_local(outgoing_render);
 
         if outgoing.z() != 0.0 {
-            Some(self.bxdf.func(outgoing, incident, mode))
+            self.bxdf.eval(outgoing, incident, mode)
         } else {
-            None
+            SampledSpectrum::with_single_value(0.0)
         }
     }
 
+    /// Use importance sampling to draw a direction from `self`'s distribution
+    /// that approximately matches the scattering function's shape.
+    /// Specifically, an incident direction given an outgoing one.
+    ///
+    /// Generation can optionally be restricted to the reflection or transmission
+    /// component via `sample_flags`.
     pub fn sample_func(
         &self,
         outgoing_render: Vec3f,
@@ -124,6 +151,8 @@ impl<'a, BxDF: super::BxDF> BSDF<'a, BxDF> {
         }
     }
 
+    /// Returns the PDF in the distribution for a given pair of directions
+    /// in rendering space.
     pub fn pdf(
         &self,
         outgoing_render: Vec3f,
@@ -140,14 +169,17 @@ impl<'a, BxDF: super::BxDF> BSDF<'a, BxDF> {
         }
     }
 
+    /// Flags indicating properties of the material.
     pub fn flags(&self) -> BxDFFlags {
         self.bxdf.flags()
     }
 
+    /// Transform a vector from rendering space to the BxDF's local coordinate space.
     pub fn render_to_local(&self, v: Vec3f) -> Vec3f {
         self.shading_frame.to_local(v)
     }
 
+    /// Transform a vector from the BxDF's local coordinate space to rendering space.
     pub fn local_to_render(&self, v: Vec3f) -> Vec3f {
         self.shading_frame.from_local(v)
     }

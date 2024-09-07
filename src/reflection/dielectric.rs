@@ -170,7 +170,7 @@ impl DielectricBxDF {
 
         // Compute PDF of rough dielectric reflection
         let pdf = self.microfacet_distrib.pdf(outgoing, microfacet_n)
-            / (4.0 * outgoing.dot(incident).abs())
+            / (4.0 * outgoing.absdot(incident))
             * normalized_prob_reflect;
 
         let fresnel = SampledSpectrum::with_single_value(
@@ -262,7 +262,7 @@ impl BxDF for DielectricBxDF {
         flags
     }
 
-    fn func(&self, outgoing: Vec3f, incident: Vec3f, mode: TransportMode) -> SampledSpectrum {
+    fn eval(&self, outgoing: Vec3f, incident: Vec3f, mode: TransportMode) -> SampledSpectrum {
         if self.eta == 1.0 || self.microfacet_distrib.effectively_smooth() {
             SampledSpectrum::with_single_value(0.0)
         } else {
@@ -430,34 +430,34 @@ impl TrowbridgeReitz {
 
     pub fn sample_microfacet_n(&self, incident: Vec3f, u: Point2f) -> Vec3f {
         // Transform incident to hemispherical config
-        let mut wh = Vec3f::new(
+        let mut in_hemi = Vec3f::new(
             self.alpha_x * incident.x(),
             self.alpha_y * incident.y(),
             incident.z(),
         )
         .normalized();
-        if wh.z() < 0.0 {
-            wh = -wh;
+        if in_hemi.z() < 0.0 {
+            in_hemi = -in_hemi;
         }
 
         // Find orthonormal basis for visible normal sampling
-        let t1 = if wh.z() < 0.99999 {
-            Vec3f::new(0.0, 0.0, 1.0).cross(wh).normalized()
+        let t1 = if in_hemi.z() < 0.99999 {
+            Vec3f::new(0.0, 0.0, 1.0).cross(in_hemi).normalized()
         } else {
             Vec3f::new(1.0, 0.0, 0.0)
         };
-        let t2 = wh.cross(t1);
+        let t2 = in_hemi.cross(t1);
 
-        // Generate uniformly distributed points on the unit disk
+        // Generate uniformly distributed point on the unit disk
         let mut p = sample_uniform_disk_polar(u);
 
         // Warp hemispherical projection for visible normal sampling
         let height = (1.0 - p.x() * p.x()).sqrt();
-        *p.y_mut() = lerp(height, p.y(), (1.0 + wh.z()) / 2.0);
+        *p.y_mut() = lerp(height, p.y(), (1.0 + in_hemi.z()) / 2.0);
 
         // Reproject to hemisphere and transform normal to ellipsoid config
         let pz = (1.0 - Vec2f::from(p).length_squared()).max(0.0).sqrt();
-        let nh = p.x() * t1 + p.y() * t2 + pz * wh;
+        let nh = p.x() * t1 + p.y() * t2 + pz * in_hemi;
 
         Vec3f::new(
             self.alpha_x * nh.x(),
@@ -471,6 +471,7 @@ impl TrowbridgeReitz {
         1.0 / (1.0 + self.lambda(outgoing) + self.lambda(incident))
     }
 
+    // i.e. D
     pub fn density(&self, microfacet_n: Vec3f) -> Float {
         let tan2_theta = microfacet_n.tan2_theta();
         if tan2_theta.is_finite() {
@@ -485,9 +486,7 @@ impl TrowbridgeReitz {
     }
 
     pub fn density_visible(&self, w: Vec3f, microfacet_n: Vec3f) -> Float {
-        self.masking(w) / w.cos_theta().abs()
-            * self.density(microfacet_n)
-            * w.dot(microfacet_n).abs()
+        self.masking(w) / w.cos_theta().abs() * self.density(microfacet_n) * w.absdot(microfacet_n)
     }
 
     pub fn pdf(&self, w: Vec3f, microfacet_n: Vec3f) -> Float {
@@ -517,7 +516,7 @@ impl TrowbridgeReitz {
 fn fresnel_dielectric(mut cos_theta_i: Float, mut eta: Float) -> Float {
     cos_theta_i = cos_theta_i.clamp(-1.0, 1.0);
 
-    // Potentially flipinterface orientation for Fresnel equations
+    // Potentially flip interface orientation for Fresnel equations
     if cos_theta_i < 0.0 {
         eta = 1.0 / eta;
         cos_theta_i = -cos_theta_i;

@@ -1,7 +1,5 @@
 use std::sync::OnceLock;
 
-use log::trace;
-
 use crate::{
     float::PI,
     geometry::{Bounds3f, Ray, Transform},
@@ -68,7 +66,6 @@ impl Light for DirectionalLight {
         let incident = (&self.render_from_light * Vec3f::new(0.0, 0.0, 1.0)).normalized();
         let p_outside = ctx.pi_mids() + incident * (2.0 * scene_radius);
 
-        trace!("wi={incident}, poutside={p_outside}, scale={}", self.scale);
         Some(LightLiSample {
             l: self.scale * self.emitted_radiance.sample(wavelengths),
             wi: incident,

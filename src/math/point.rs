@@ -937,7 +937,7 @@ impl Point3fi {
         self.x().width() == 0.0 && self.y().width() == 0.0 && self.z().width() == 0.0
     }
 
-    pub fn midpoints_only(&self) -> Point3f {
+    pub fn midpoints(&self) -> Point3f {
         Point3f::new(
             self.x().midpoint(),
             self.y().midpoint(),

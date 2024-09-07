@@ -43,7 +43,7 @@ impl TextureEvalContext {
             "Creating TextureEvalContext from SurfaceInteraction requires mappings differentials to be set",
         );
         Self {
-            p: si.pi.midpoints_only(),
+            p: si.pi.midpoints(),
             dpdx: diffs.dpdx,
             dpdy: diffs.dpdy,
             n: si.n,

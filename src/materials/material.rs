@@ -69,7 +69,7 @@ impl MaterialEvalContext {
     pub fn from_surface_interaction(si: &SurfaceInteraction) -> Self {
         Self {
             tex_eval_ctx: TextureEvalContext::from_surface_interaction(si),
-            wo: si.wo.unwrap(),
+            wo: si.wo,
             ns: si.shading.n,
             dpdus: si.shading.dpdu,
         }

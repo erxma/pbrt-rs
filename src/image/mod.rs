@@ -3,6 +3,7 @@ mod filter;
 use std::path::Path;
 
 pub use filter::{BoxFilter, Filter, FilterEnum};
+use num_traits::AsPrimitive;
 
 use crate::{color::RGBColorSpace, math::Point2Usize, Float};
 use exr::prelude::write_rgb_file;
@@ -31,7 +32,7 @@ impl Image {
 
     pub fn set_channel(&mut self, p: Point2Usize, channel: usize, value: Float) {
         let idx = self.pixel_offset(p) + channel;
-        self.values[idx] = value;
+        self.values[idx] = value.as_();
     }
 
     pub fn set_channels(&mut self, p: Point2Usize, values: &[Float]) {
@@ -41,7 +42,7 @@ impl Image {
         }
     }
 
-    pub fn write(&self, path: &Path, metadata: &ImageMetadata) -> exr::error::UnitResult {
+    pub fn write(&self, path: &Path, _metadata: &ImageMetadata) -> exr::error::UnitResult {
         assert_eq!(path.extension().unwrap(), "exr");
         self.write_exr(path)
     }

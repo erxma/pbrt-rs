@@ -28,7 +28,7 @@ impl BxDF for DiffuseBxDF {
         BxDFFlags::DIFFUSE_REFLECTION
     }
 
-    fn func(&self, outgoing: Vec3f, incident: Vec3f, _mode: TransportMode) -> SampledSpectrum {
+    fn eval(&self, outgoing: Vec3f, incident: Vec3f, _mode: TransportMode) -> SampledSpectrum {
         if same_hemisphere(outgoing, incident) {
             &self.reflectance * FRAC_1_PI
         } else {

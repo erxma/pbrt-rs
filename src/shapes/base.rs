@@ -99,7 +99,7 @@ impl ShapeSampleContext {
         if w.dot(n_as_v) < 0.0 {
             offset *= -1.0;
         }
-        let mut po = self.pi.midpoints_only() + offset;
+        let mut po = self.pi.midpoints() + offset;
 
         // Round offset point po away from p
         for i in 0..3 {

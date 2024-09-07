@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use delegate::delegate;
+use log::info;
 
 use crate::{
     camera::{CameraEnum, VisibleSurface},
@@ -47,6 +48,7 @@ impl SimplePathIntegrator {
         aggregate: PrimitiveEnum,
         lights: Vec<Arc<LightEnum>>,
     ) -> Self {
+        info!("Scene bounds: {}", aggregate.bounds());
         let light_sampler = UniformLightSampler::new(&lights);
         Self {
             scene_data: SceneData::new(aggregate, lights),
@@ -110,20 +112,37 @@ impl RayIntegrate for SimplePathIntegrator {
         scratch_buffer: &mut ScratchBuffer,
         _initialize_visible_surface: bool,
     ) -> (SampledSpectrum, Option<VisibleSurface>) {
-        // Estimate radiance along ray using simple path tracing
+        // Estimate radiance along ray using simple path tracing:
+
+        // Current estimated scattered radiance running total
         let mut radiance = SampledSpectrum::with_single_value(0.0);
+        // Path throughput weight (factors of the throughput function,
+        // i.e. the product of the BSDF values and cosine terms for verts
+        // generated so far, divided by the respective sampling PDFs)
+        // The product of beta with scattered light from direct lighting
+        // from the final vertex of the path gives the contribution for a path.
         let mut beta = SampledSpectrum::with_single_value(1.0);
+        // Whether the last outgoing path direction sampled was due to
+        // perfect specular reflection
         let mut specular_bounce = true;
         let mut depth = 0;
 
+        // Each loop accounts for an additional segment of a path
+        // Break early if beta has reached zero
         while !beta.is_all_zero() {
             // Find next vertex and accumulate contribution:
 
-            // Intersect ray with scene
+            // Intersect ray with scene geometry
             let si = self.intersect(&ray_diff.ray, None);
 
-            //Account for infinite lights if ray has no intersection
+            // If no intersection, ray path ends.
             if si.is_none() {
+                // Before finishing, may need to account for infinite lights, if...
+                // - sample_lights is false, in which case emission is only found when
+                // rays happen to intersect emitters, so infinite area contributions
+                // need to be added here; if true, already accounted for, except...
+                // - in case of a specular BSDF at the previous vert, in which case
+                // sampling light is not useful as only specular dir scatters light
                 if !self.sample_lights || specular_bounce {
                     for light in &self.scene_data.infinite_lights {
                         radiance += &beta * light.radiance_infinite(&ray_diff.ray, lambda);
@@ -133,7 +152,8 @@ impl RayIntegrate for SimplePathIntegrator {
             }
             let si = si.unwrap();
 
-            // Account for emissive surface if light was not sampled
+            // If light was not sampled, also need to account for emissive surface
+            // for similar reasons to above
             let mut isect = si.intr;
             if !self.sample_lights || specular_bounce {
                 radiance += &beta * isect.emitted_radiance(-ray_diff.ray.dir, lambda);
@@ -145,35 +165,44 @@ impl RayIntegrate for SimplePathIntegrator {
             }
             depth += 1;
 
-            // Get BSDF and skip over medium boundaries
+            // Get BSDF at the intersection point.
+            // and skip over medium boundaries
             let bsdf = isect.get_bsdf(&ray_diff, lambda, &self.camera, scratch_buffer, sampler);
+            // If no BSDF is returned, the current surface should have no effect on light,
+            // skip it
+            // Such surfaces exist at transitions between participating media,
+            // whose boundaries are optically inactive (have same IOR on both sides)
             if bsdf.is_none() {
+                specular_bounce = true;
                 ray_diff = isect.skip_intersection(&ray_diff, si.t_hit);
                 continue;
             }
             let bsdf = bsdf.unwrap();
 
-            // Sample direct illumination if sample_lights is true
             let outgoing = -ray_diff.ray.dir;
+            // Explicitly sample direct light illumination, if on
             if self.sample_lights {
+                // First, choose a light source. Proceed if one was returned.
                 if let Some(sampled_light) = self.light_sampler.sample(sampler.get_1d()) {
                     // Sample point on sampled light to estimate direct illumination
                     let u_light = sampler.get_2d();
+                    // Proceed if one was returned
                     if let Some(light_sample) = sampled_light.light.sample_li(
                         LightSampleContext::with_surface_interaction(&isect),
                         u_light,
                         lambda,
                         false,
                     ) {
+                        // Proceed if light sample is valid (radiance isn't just zero,
+                        // and PDF is non-zero)
                         if !light_sample.l.is_all_zero() && light_sample.pdf > 0.0 {
+                            // Evaluate BSDF for light and possibly add scattered radiance
                             let incident = light_sample.wi;
-                            let bsdf_val = bsdf
-                                .eval(outgoing, incident, TransportMode::Radiance)
-                                // TODO: Confirm unwrap is okay
-                                .unwrap()
+                            let bsdf_val = bsdf.eval(outgoing, incident, TransportMode::Radiance)
                                 * incident.absdot(isect.shading.n.into());
 
-                            // Evaluate BSDF for light and possibly add scattered radiance
+                            // Trace shadow ray to evaluate visibility factor
+                            // Can just skip if BSDF is zero
                             if !bsdf_val.is_all_zero()
                                 && self.unoccluded(&isect, light_sample.p_light)
                             {
@@ -187,9 +216,10 @@ impl RayIntegrate for SimplePathIntegrator {
 
             // Sample outgoing direction at intersection to continue path
             if self.sample_bsdf {
-                // Sample BSDF for new path dir
+                // sample_bsdf on, use BSDF's sampling method
                 let u = sampler.get_1d();
                 let u2 = sampler.get_2d();
+                // Proceed if a result was returned. Otherwise, break.
                 if let Some(bs) = bsdf.sample_func(
                     outgoing,
                     u,
@@ -199,22 +229,27 @@ impl RayIntegrate for SimplePathIntegrator {
                 ) {
                     beta *= bs.value * bs.incident.absdot(isect.shading.n.into()) / bs.pdf;
                     specular_bounce = bs.flags.contains(BxDFFlags::SPECULAR);
-                    ray_diff = isect.spawn_ray(bs.incident);
+                    ray_diff = isect.spawn_ray_diff_with_dir(bs.incident);
                 } else {
                     break;
                 }
             } else {
-                // Uniformly sample sphere or hemisphere to get new path dir
+                // sample_bsdf off, just sample uniformly
+                // Uniformly sample sphere or hemisphere
                 let mut incident;
                 let pdf;
                 let flags = bsdf.flags();
+                // If BSDF is both reflective and transmissive...
                 if flags.contains(BxDFFlags::REFLECTION) && flags.contains(BxDFFlags::TRANSMISSION)
                 {
+                    // Sample new dir from whole sphere
                     incident = sample_uniform_sphere(sampler.get_2d());
                     pdf = UNIFORM_SPHERE_PDF;
                 } else {
+                    // Otherwise, just sample the hemisphere of reflection/transmission...
                     incident = sample_uniform_hemisphere(sampler.get_2d());
                     pdf = UNIFORM_HEMISPHERE_PDF;
+                    // making sure to flip it towards that
                     let need_flip_towards_reflection = flags.contains(BxDFFlags::REFLECTION)
                         && outgoing.dot(isect.n.into()) * incident.dot(isect.n.into()) < 0.0;
                     let need_flip_towards_transmission = flags.contains(BxDFFlags::TRANSMISSION)
@@ -224,14 +259,11 @@ impl RayIntegrate for SimplePathIntegrator {
                     }
                 }
 
-                beta *= bsdf
-                    .eval(outgoing, incident, TransportMode::Radiance)
-                    // TODO: Confirm unwrap is okay
-                    .unwrap()
+                beta *= bsdf.eval(outgoing, incident, TransportMode::Radiance)
                     * incident.absdot(isect.shading.n.into())
                     / pdf;
                 specular_bounce = false;
-                ray_diff = isect.spawn_ray(incident);
+                ray_diff = isect.spawn_ray_diff_with_dir(incident);
             }
         }
 

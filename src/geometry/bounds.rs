@@ -1,3 +1,4 @@
+use core::fmt;
 use std::ops::{Index, IndexMut, Range};
 
 use itertools::iproduct;
@@ -589,7 +590,7 @@ impl Bounds3f {
     }
 
     // TODO: Does this have to for 3f only?
-    /// Return the boudning sphere of `self`, as the (center, radius) of the sphere.
+    /// Return the bounding sphere of `self`, as the `(center, radius)` of the sphere.
     pub fn bounding_sphere(&self) -> (Point3f, pbrt::Float) {
         let center = (self.p_min + self.p_max) / 2.0;
         let radius = if self.contains(center) {
@@ -639,6 +640,16 @@ impl IndexMut<usize> for Bounds3f {
             0 => &mut self.p_min,
             1 => &mut self.p_max,
             _ => panic!("Index out of bounds for Bounds3"),
+        }
+    }
+}
+
+impl fmt::Display for Bounds3f {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(p) = f.precision() {
+            write!(f, "[ {:.*}..{:.*} ]", p, self.p_min, p, self.p_max,)
+        } else {
+            write!(f, "[ {}..{} ]", self.p_min, self.p_max)
         }
     }
 }

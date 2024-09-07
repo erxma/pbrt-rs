@@ -4,10 +4,7 @@ use crate::{
     camera::Camera,
     lights::LightEnum,
     materials::{Material, MaterialEnum, MaterialEvalContext, UniversalTextureEvaluator},
-    math::{
-        difference_of_products, next_float_down, next_float_up, Normal3f, Point2f, Point3f,
-        Point3fi, Tuple, Vec3f,
-    },
+    math::{difference_of_products, Normal3f, Point2f, Point3f, Point3fi, Vec3f},
     media::{MediumEnum, MediumInterface, PhaseFunctionEnum},
     memory::ScratchBuffer,
     reflection::{BxDFEnum, BSDF},
@@ -36,34 +33,7 @@ impl SampleInteraction {
     }
 
     pub fn spawn_ray(&self, dir: Vec3f) -> RayDifferential {
-        RayDifferential::new_without_diff(Ray::new(
-            self.offset_ray_origin(dir),
-            dir,
-            self.time,
-            None,
-        ))
-    }
-
-    fn offset_ray_origin(&self, w: Vec3f) -> Point3f {
-        let n_as_v = Vec3f::from(self.n);
-        // Find vector offset to corner of error bounds, compute initial po
-        let d = n_as_v.abs().dot(self.pi.error());
-        let mut offset = d * n_as_v;
-        if w.dot(n_as_v) < 0.0 {
-            offset *= -1.0;
-        }
-        let mut po = self.pi.midpoints_only() + offset;
-
-        // Round offset point po away from p
-        for i in 0..3 {
-            if offset[i] > 0.0 {
-                po[i] = next_float_up(po[i]);
-            } else if offset[i] < 0.0 {
-                po[i] = next_float_down(po[i]);
-            }
-        }
-
-        po
+        RayDifferential::new_without_diff(Ray::spawn_with_dir(self.pi, self.n, self.time, dir))
     }
 }
 
@@ -71,7 +41,7 @@ impl SampleInteraction {
 pub struct SurfaceInteraction<'a> {
     pub pi: Point3fi,
     pub time: Float,
-    pub wo: Option<Vec3f>,
+    pub wo: Vec3f,
     /// Surface normal at the point.
     pub n: Normal3f,
     /// Parametric UV coordinates at the point.
@@ -116,7 +86,7 @@ pub struct MappingsDifferentials {
 pub struct SurfaceInteractionParams {
     pub pi: Point3fi,
     pub uv: Point2f,
-    pub wo: Option<Vec3f>,
+    pub wo: Vec3f,
     pub dpdu: Vec3f,
     pub dpdv: Vec3f,
     pub dndu: Normal3f,
@@ -194,10 +164,10 @@ impl<'a> SurfaceInteraction<'a> {
         prim_medium_interface: Option<MediumInterface>,
         ray_medium: Option<Arc<MediumEnum>>,
     ) {
+        assert!(prim_medium_interface.is_none() || ray_medium.is_none(), "should not provide both medium interface and ray medium to SurfaceInteraction properties");
         self.material = material;
         self.area_light = area_light;
-        // FIXME
-        if let Some(ref mi) = prim_medium_interface {
+        if let Some(mi) = prim_medium_interface.as_ref() {
             if mi.is_transition() {
                 self.medium_interface = prim_medium_interface;
             }
@@ -208,7 +178,7 @@ impl<'a> SurfaceInteraction<'a> {
 
     pub fn emitted_radiance(&self, w: Vec3f, lambda: &SampledWavelengths) -> SampledSpectrum {
         match self.area_light {
-            Some(light) => light.radiance(self.pi.midpoints_only(), self.n, self.uv, w, lambda),
+            Some(light) => light.radiance(self.pi.midpoints(), self.n, self.uv, w, lambda),
             None => SampledSpectrum::with_single_value(0.0),
         }
     }
@@ -244,13 +214,9 @@ impl<'a> SurfaceInteraction<'a> {
         Some(bsdf)
     }
 
-    pub fn spawn_ray(&self, dir: Vec3f) -> RayDifferential {
-        let ray = Ray::new(
-            self.offset_ray_origin(dir),
-            dir,
-            self.time,
-            self.medium.clone(),
-        );
+    pub fn spawn_ray_diff_with_dir(&self, dir: Vec3f) -> RayDifferential {
+        let mut ray = Ray::spawn_with_dir(self.pi, self.n, self.time, dir);
+        ray.medium = self.medium.clone();
         RayDifferential::new_without_diff(ray)
     }
 
@@ -274,20 +240,20 @@ impl<'a> SurfaceInteraction<'a> {
             {
                 // Estimate screen-space change in p using differentials:
                 // Compute auxillary intersection points with plane, px and py
-                let d = -self.n.dot(self.pi.midpoints_only().into());
+                let d = -self.n.dot(self.pi.midpoints().into());
                 let tx = (-self.n.dot(diffs.rx_origin.into()) - d) / self.n.dot_v(diffs.rx_dir);
                 let px = diffs.rx_origin + tx * diffs.rx_dir;
                 let ty = (-self.n.dot(diffs.ry_origin.into()) - d) / self.n.dot_v(diffs.ry_dir);
                 let py = diffs.ry_origin + ty * diffs.ry_dir;
 
-                dpdx = px - self.pi.midpoints_only();
-                dpdy = py - self.pi.midpoints_only();
+                dpdx = px - self.pi.midpoints();
+                dpdy = py - self.pi.midpoints();
             }
 
             Some(_) | None => {
                 // Estiamte screen-space change in p based on cam projection
                 (dpdx, dpdy) = camera.approximate_dp_dxy(
-                    self.pi.midpoints_only(),
+                    self.pi.midpoints(),
                     self.n,
                     self.time,
                     samples_per_pixel,
@@ -381,7 +347,7 @@ impl<'a> SurfaceInteraction<'a> {
     }
 
     pub fn skip_intersection(&self, ray_diff: &RayDifferential, t: Float) -> RayDifferential {
-        let mut new = self.spawn_ray(ray_diff.ray.dir);
+        let mut new = self.spawn_ray_diff_with_dir(ray_diff.ray.dir);
         if let Some(ref mut diffs) = new.differentials {
             diffs.rx_origin += t * diffs.rx_dir;
             diffs.ry_origin += t * diffs.ry_dir;

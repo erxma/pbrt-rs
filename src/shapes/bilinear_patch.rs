@@ -142,7 +142,7 @@ impl BilinearPatch {
         let flip_normal = mesh.reverse_orientation ^ mesh.transform_swaps_handedness;
         let mut isect = SurfaceInteraction::new(SurfaceInteractionParams {
             pi: Point3fi::new_fi(p, p_err),
-            wo: Some(outgoing),
+            wo: outgoing,
             uv,
             dpdu,
             dpdv,
@@ -326,28 +326,25 @@ impl Shape for BilinearPatch {
         let (p00, p10, p01, p11) = self.mesh_positions();
 
         // Sample patch with respect to solid angle from reference point
-        let v00 = (p00 - ctx.pi.midpoints_only()).normalized();
-        let v10 = (p10 - ctx.pi.midpoints_only()).normalized();
-        let v01 = (p01 - ctx.pi.midpoints_only()).normalized();
-        let v11 = (p11 - ctx.pi.midpoints_only()).normalized();
+        let v00 = (p00 - ctx.pi.midpoints()).normalized();
+        let v10 = (p10 - ctx.pi.midpoints()).normalized();
+        let v01 = (p01 - ctx.pi.midpoints()).normalized();
+        let v11 = (p11 - ctx.pi.midpoints()).normalized();
         if !self.is_rectangle()
             || self.mesh().image_distribution.is_some()
             || spherical_quad_area(v00, v10, v11, v01) <= Self::MIN_SPHERICAL_SAMPLE_AREA
         {
             let mut ss = self.sample(u)?;
             ss.intr.time = ctx.time;
-            let mut wi = ss.intr.pi.midpoints_only() - ctx.pi.midpoints_only();
+            let mut wi = ss.intr.pi.midpoints() - ctx.pi.midpoints();
             if wi.length_squared() == 0.0 {
                 return None;
             }
             wi = wi.normalized();
 
             // Convert area sampling PDF in ss to solid angle measure
-            ss.pdf /= ss.intr.n.dot_v(-wi).abs()
-                / ctx
-                    .pi
-                    .midpoints_only()
-                    .distance_squared(ss.intr.pi.midpoints_only());
+            ss.pdf /= ss.intr.n.absdot(Normal3f::from(-wi))
+                / ctx.pi.midpoints().distance_squared(ss.intr.pi.midpoints());
             if ss.pdf.is_infinite() {
                 return None;
             }
@@ -375,7 +372,7 @@ impl Shape for BilinearPatch {
             // Sample spherical rectangle at reference point
             let eu = p10 - p00;
             let ev = p01 - p00;
-            let (p, quad_pdf) = sample_spherical_rectangle(ctx.pi.midpoints_only(), p00, eu, ev, u);
+            let (p, quad_pdf) = sample_spherical_rectangle(ctx.pi.midpoints(), p00, eu, ev, u);
             pdf *= quad_pdf;
 
             // Compute (u, v) and surface normal for sampled point
@@ -454,10 +451,10 @@ impl Shape for BilinearPatch {
             }
         };
 
-        let v00 = (p00 - ctx.pi.midpoints_only()).normalized();
-        let v10 = (p10 - ctx.pi.midpoints_only()).normalized();
-        let v01 = (p01 - ctx.pi.midpoints_only()).normalized();
-        let v11 = (p11 - ctx.pi.midpoints_only()).normalized();
+        let v00 = (p00 - ctx.pi.midpoints()).normalized();
+        let v10 = (p10 - ctx.pi.midpoints()).normalized();
+        let v01 = (p01 - ctx.pi.midpoints()).normalized();
+        let v11 = (p11 - ctx.pi.midpoints()).normalized();
         if !self.is_rectangle()
             || self.mesh().image_distribution.is_some()
             || spherical_quad_area(v00, v10, v11, v01) <= Self::MIN_SPHERICAL_SAMPLE_AREA
@@ -472,8 +469,8 @@ impl Shape for BilinearPatch {
             let pdf = self.pdf(&intr)
                 * (ctx
                     .pi
-                    .midpoints_only()
-                    .distance_squared(isect.intr.pi.midpoints_only())
+                    .midpoints()
+                    .distance_squared(isect.intr.pi.midpoints())
                     / isect.intr.n.absdot(Normal3f::from(wi)));
 
             if pdf.is_finite() {
@@ -495,11 +492,11 @@ impl Shape for BilinearPatch {
                 ];
 
                 let u = invert_spherical_rectangle_sample(
-                    ctx.pi.midpoints_only(),
+                    ctx.pi.midpoints(),
                     p00,
                     p10 - p00,
                     p01 - p00,
-                    isect.intr.pi.midpoints_only(),
+                    isect.intr.pi.midpoints(),
                 );
                 pdf * bilinear_pdf(u, &w)
             } else {

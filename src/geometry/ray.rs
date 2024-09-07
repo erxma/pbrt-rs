@@ -30,9 +30,9 @@ impl Ray {
         Self::new(Self::offset_ray_origin(pi, n, dir), dir, time, None)
     }
 
-    pub fn spawn_from_to(p_form: Point3fi, n: Normal3f, time: Float, p_to: Point3f) -> Self {
-        let dir = p_to - p_form.midpoints_only();
-        Self::spawn_with_dir(p_form, n, time, dir)
+    pub fn spawn_from_to(p_from: Point3fi, n: Normal3f, time: Float, p_to: Point3f) -> Self {
+        let dir = p_to - p_from.midpoints();
+        Self::spawn_with_dir(p_from, n, time, dir)
     }
 
     pub fn offset_ray_origin(pi: Point3fi, n: Normal3f, w: Vec3f) -> Point3f {
@@ -42,7 +42,7 @@ impl Ray {
         if n.dot_v(w) < 0.0 {
             offset = -offset;
         }
-        let mut po = pi.midpoints_only() + offset;
+        let mut po = pi.midpoints() + offset;
 
         // Round offset point po away from pi
         for i in 0..3 {
@@ -93,6 +93,14 @@ impl RayDifferential {
             ray,
             differentials: None,
         }
+    }
+
+    pub fn spawn_with_dir(pi: Point3fi, n: Normal3f, time: Float, dir: Vec3f) -> Self {
+        Self::new_without_diff(Ray::spawn_with_dir(pi, n, time, dir))
+    }
+
+    pub fn spawn_from_to(p_from: Point3fi, n: Normal3f, time: Float, p_to: Point3f) -> Self {
+        Self::new_without_diff(Ray::spawn_from_to(p_from, n, time, p_to))
     }
 
     pub fn set_differentials(

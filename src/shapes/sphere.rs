@@ -147,21 +147,21 @@ impl Shape for Sphere {
     fn sample_with_context(&self, ctx: &ShapeSampleContext, u: Point2f) -> Option<ShapeSample> {
         let p_center = &self.render_from_object * Point3f::ZERO;
         let p_origin = ctx.offset_ray_origin(p_center.into());
-        let ctx_p = ctx.pi.midpoints_only();
+        let ctx_p = ctx.pi.midpoints();
         // If p is inside sphere, sample uniformly
         if p_origin.distance_squared(p_center) <= self.radius * self.radius {
             // Sample shape by area, compute incident dir wi
             let mut shape_sample = self.sample(u).unwrap();
             let sample_intr = &mut shape_sample.intr;
             sample_intr.time = ctx.time;
-            let mut wi = sample_intr.pi.midpoints_only() - ctx_p;
+            let mut wi = sample_intr.pi.midpoints() - ctx_p;
             if wi.length_squared() == 0.0 {
                 return None;
             }
             wi = wi.normalized();
             // Compute area sampling PDF is ss to solid angle measure
             shape_sample.pdf /= Vec3f::from(sample_intr.n).absdot(-wi)
-                / ctx_p.distance_squared(sample_intr.pi.midpoints_only());
+                / ctx_p.distance_squared(sample_intr.pi.midpoints());
             if shape_sample.pdf.is_infinite() {
                 return None;
             }
@@ -231,7 +231,7 @@ impl Shape for Sphere {
     fn pdf_with_context(&self, ctx: &ShapeSampleContext, wi: Vec3f) -> Float {
         let p_center = &self.render_from_object * Point3f::ZERO;
         let p_origin = ctx.offset_ray_origin(p_center.into());
-        let ctx_p = ctx.pi.midpoints_only();
+        let ctx_p = ctx.pi.midpoints();
         // Similarly to sample_with_context...if p is inside sphere, sample uniformly
         if p_origin.distance_squared(p_center) <= self.radius * self.radius {
             // Return solid angle PDF for point inside sphere:
@@ -244,7 +244,7 @@ impl Shape for Sphere {
                     // Compute PDF in solid angle measure from intersection point
                     let pdf = (1.0 / self.area())
                         / (isect.intr.n.absdot_v(-wi)
-                            / ctx_p.distance_squared(isect.intr.pi.midpoints_only()));
+                            / ctx_p.distance_squared(isect.intr.pi.midpoints()));
 
                     if pdf.is_finite() {
                         pdf
@@ -335,8 +335,7 @@ impl Sphere {
 
         let compute_point_and_phi = |t_shape_hit: Interval| {
             // Compute sphere hit position and phi
-            let mut p_hit =
-                o_obj.midpoints_only() + t_shape_hit.midpoint() * dir_obj.midpoints_only();
+            let mut p_hit = o_obj.midpoints() + t_shape_hit.midpoint() * dir_obj.midpoints_only();
             // Refine sphere intersection point
             p_hit *= self.radius / p_hit.distance(Point3f::ZERO);
             if p_hit.x() == 0.0 && p_hit.y() == 0.0 {
@@ -445,7 +444,7 @@ impl Sphere {
         SurfaceInteraction::new(SurfaceInteractionParams {
             pi: Point3fi::new_fi(p_hit, p_error),
             uv: Point2f::new(u, v),
-            wo: Some(wo_object),
+            wo: wo_object,
             dpdu,
             dpdv,
             dndu,

@@ -154,7 +154,7 @@ impl LightSampleContext {
     }
 
     pub fn pi_mids(&self) -> Point3f {
-        self.pi.midpoints_only()
+        self.pi.midpoints()
     }
 }
 

@@ -37,9 +37,9 @@ impl Frame {
             "Basis vector z must be normalized, but got sqlen {}",
             z.length_squared()
         );
-        debug_assert!(x.dot(y).abs() < 1e-4);
-        debug_assert!(y.dot(z).abs() < 1e-4);
-        debug_assert!(z.dot(x).abs() < 1e-4);
+        debug_assert!(x.absdot(y) < 1e-4);
+        debug_assert!(y.absdot(z) < 1e-4);
+        debug_assert!(z.absdot(x) < 1e-4);
         Self { x, y, z }
     }
 

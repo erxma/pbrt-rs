@@ -42,10 +42,8 @@ impl Light for UniformInfiniteLight {
             .get()
             .expect("Must call preprocess() with scene bounds info for UniformInfiniteLight first");
 
-        4.0 * PI
-            * PI
-            * scene_radius
-            * scene_radius
+        4.0 * PI.powi(2)
+            * scene_radius.powi(2)
             * self.scale
             * self.emitted_radiance.sample(wavelengths)
     }

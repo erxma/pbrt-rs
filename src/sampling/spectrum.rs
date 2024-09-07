@@ -173,15 +173,15 @@ impl Spectrum for ConstantSpectrum {
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct DenselySampledSpectrum {
-    lambda_min: u32,
-    lambda_max: u32,
+    lambda_min: usize,
+    lambda_max: usize,
     values: Vec<NotNan<Float>>,
 }
 
 impl DenselySampledSpectrum {
-    pub fn new(spec: &impl Spectrum, lambda_min: Option<u32>, lambda_max: Option<u32>) -> Self {
-        let lambda_min = lambda_min.unwrap_or(LAMBDA_MIN as u32);
-        let lambda_max = lambda_max.unwrap_or(LAMBDA_MAX as u32);
+    pub fn new(spec: &impl Spectrum, lambda_min: Option<usize>, lambda_max: Option<usize>) -> Self {
+        let lambda_min = lambda_min.unwrap_or(LAMBDA_MIN as usize);
+        let lambda_max = lambda_max.unwrap_or(LAMBDA_MAX as usize);
 
         assert!(lambda_max >= lambda_min);
 
@@ -214,13 +214,13 @@ impl Spectrum for DenselySampledSpectrum {
             "Spectrum wavelength lambda should be nonnegative"
         );
 
-        let lambda = lambda.round() as u32;
+        let lambda = lambda.round() as usize;
 
-        if lambda > self.lambda_max {
-            0.0
-        } else {
-            let offset = (lambda - self.lambda_min) as usize;
+        if (self.lambda_min..=self.lambda_max).contains(&lambda) {
+            let offset = lambda - self.lambda_min;
             *self.values[offset]
+        } else {
+            0.0
         }
     }
 

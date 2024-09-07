@@ -29,7 +29,6 @@ pub fn parallel_for_2d_tiled_with<T>(
         Bounds2i::new(tile_start, tile_end)
     });
 
-    // TODO: Confirm that par_bridge is sufficient; could collect into Vec first?
     tiles.par_bridge().for_each_with(init, op);
 }
 

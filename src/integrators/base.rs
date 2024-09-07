@@ -26,7 +26,10 @@ pub trait Integrate {
     fn intersect_p(&self, ray: &Ray, t_max: Option<Float>) -> bool;
 
     fn unoccluded(&self, p0: &SurfaceInteraction, p1: Point3f) -> bool {
-        !self.intersect_p(&p0.spawn_ray_to(p1), Some(1.0 - SHADOW_EPSILON))
+        !self.intersect_p(
+            &p0.spawn_ray_leaving_towards(p1),
+            Some(1.0 - SHADOW_EPSILON),
+        )
     }
 }
 

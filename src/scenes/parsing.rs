@@ -529,7 +529,7 @@ fn param(input: &mut &str) -> PResult<(String, Value)> {
 }
 
 fn literal(input: &mut &str) -> PResult<Literal> {
-    // FIXME: cut_err verify is not available in winnow yet
+    // FUTURE: cut_err verify is not available in winnow yet
     let array = delimited('[', separated(1.., atomic_literal, space1), ']')
         .verify(|arr: &Vec<_>| arr.iter().map(AtomicLiteralType::from).all_equal());
     let val = alt((

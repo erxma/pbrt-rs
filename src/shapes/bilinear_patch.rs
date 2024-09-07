@@ -443,7 +443,7 @@ impl Shape for BilinearPatch {
 
         // Compute solid angle PDF for patch from reference point
         // Intersect sample ray with shape geometry
-        let ray = ctx.spawn_ray(wi);
+        let ray = ctx.spawn_ray_with_dir(wi);
         let isect = match self.intersect(&ray, None) {
             Some(isect) => isect,
             None => {

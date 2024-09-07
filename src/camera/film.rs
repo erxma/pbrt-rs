@@ -236,7 +236,7 @@ impl FilmTrait for RGBFilm {
         let diagonal = self.pixel_bounds.diagonal();
         let dims = Point2Usize::new(diagonal.x() as usize, diagonal.y() as usize);
         let mut image = Image::new(dims, vec!["r", "g", "b"]);
-        // TODO: Parallelize
+        // OPTIMIZATION: Parallelize
         for p in self.pixel_bounds {
             let rgb = self.get_pixel_rgb(p, splat_scale);
             image.set_channels(

@@ -146,7 +146,7 @@ impl Shape for Sphere {
 
     fn sample_with_context(&self, ctx: &ShapeSampleContext, u: Point2f) -> Option<ShapeSample> {
         let p_center = &self.render_from_object * Point3f::ZERO;
-        let p_origin = ctx.offset_ray_origin(p_center.into());
+        let p_origin = ctx.offset_ray_origin_towards(p_center);
         let ctx_p = ctx.pi.midpoints();
         // If p is inside sphere, sample uniformly
         if p_origin.distance_squared(p_center) <= self.radius * self.radius {
@@ -230,14 +230,14 @@ impl Shape for Sphere {
 
     fn pdf_with_context(&self, ctx: &ShapeSampleContext, wi: Vec3f) -> Float {
         let p_center = &self.render_from_object * Point3f::ZERO;
-        let p_origin = ctx.offset_ray_origin(p_center.into());
+        let p_origin = ctx.offset_ray_origin_towards(p_center);
         let ctx_p = ctx.pi.midpoints();
         // Similarly to sample_with_context...if p is inside sphere, sample uniformly
         if p_origin.distance_squared(p_center) <= self.radius * self.radius {
             // Return solid angle PDF for point inside sphere:
 
             // Intersect sample ray with shape geometry
-            let ray = ctx.spawn_ray(wi);
+            let ray = ctx.spawn_ray_with_dir(wi);
             let isect = self.intersect(&ray, None);
             match isect {
                 Some(isect) => {

@@ -15,7 +15,7 @@ where
     v1 * (1.0 - t) + v2 * t
 }
 
-pub fn gamma(n: i32) -> Float {
+pub fn gamma(n: usize) -> Float {
     let n = n as Float;
     (MACHINE_EPSILON * n) / (1.0 - n * MACHINE_EPSILON)
 }

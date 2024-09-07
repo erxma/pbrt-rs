@@ -35,6 +35,18 @@ impl Ray {
         Self::spawn_with_dir(p_from, n, time, dir)
     }
 
+    pub fn spawn_from_to_fi(
+        p_from: Point3fi,
+        n_from: Normal3f,
+        time: Float,
+        p_to: Point3fi,
+        n_to: Normal3f,
+    ) -> Self {
+        let p_from = Self::offset_ray_origin(p_from, n_from, p_to.midpoints() - p_from.midpoints());
+        let p_to = Self::offset_ray_origin(p_to, n_to, p_from - p_to.midpoints());
+        Self::new(p_from, p_to - p_from, time, None)
+    }
+
     pub fn offset_ray_origin(pi: Point3fi, n: Normal3f, w: Vec3f) -> Point3f {
         // Find vector offset to corner of error bounds and compute initial po
         let d = n.abs().dot_v(pi.error());
@@ -93,14 +105,6 @@ impl RayDifferential {
             ray,
             differentials: None,
         }
-    }
-
-    pub fn spawn_with_dir(pi: Point3fi, n: Normal3f, time: Float, dir: Vec3f) -> Self {
-        Self::new_without_diff(Ray::spawn_with_dir(pi, n, time, dir))
-    }
-
-    pub fn spawn_from_to(p_from: Point3fi, n: Normal3f, time: Float, p_to: Point3f) -> Self {
-        Self::new_without_diff(Ray::spawn_from_to(p_from, n, time, p_to))
     }
 
     pub fn set_differentials(

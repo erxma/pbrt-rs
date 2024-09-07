@@ -229,7 +229,7 @@ impl RayIntegrate for SimplePathIntegrator {
                 ) {
                     beta *= bs.value * bs.incident.absdot(isect.shading.n.into()) / bs.pdf;
                     specular_bounce = bs.flags.contains(BxDFFlags::SPECULAR);
-                    ray_diff = isect.spawn_ray_diff_with_dir(bs.incident);
+                    ray_diff = isect.spawn_ray_leaving_with_dir(bs.incident);
                 } else {
                     break;
                 }
@@ -263,7 +263,7 @@ impl RayIntegrate for SimplePathIntegrator {
                     * incident.absdot(isect.shading.n.into())
                     / pdf;
                 specular_bounce = false;
-                ray_diff = isect.spawn_ray_diff_with_dir(incident);
+                ray_diff = isect.spawn_ray_leaving_with_dir(incident);
             }
         }
 

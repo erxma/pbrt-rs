@@ -1,7 +1,7 @@
 use super::{BilinearPatch, Sphere};
 use crate::{
     geometry::{Bounds3f, DirectionCone, Ray, SampleInteraction, SurfaceInteraction},
-    math::{next_float_down, next_float_up, Normal3f, Point2f, Point3f, Point3fi, Tuple, Vec3f},
+    math::{Normal3f, Point2f, Point3f, Point3fi, Vec3f},
     Float,
 };
 use enum_dispatch::enum_dispatch;
@@ -91,30 +91,16 @@ impl ShapeSampleContext {
         }
     }
 
-    pub fn offset_ray_origin(&self, w: Vec3f) -> Point3f {
-        let n_as_v = Vec3f::from(self.n.unwrap());
-        // Find vector offset to corner of error bounds, compute initial po
-        let d = n_as_v.abs().dot(self.pi.error());
-        let mut offset = d * n_as_v;
-        if w.dot(n_as_v) < 0.0 {
-            offset *= -1.0;
-        }
-        let mut po = self.pi.midpoints() + offset;
-
-        // Round offset point po away from p
-        for i in 0..3 {
-            if offset[i] > 0.0 {
-                po[i] = next_float_up(po[i]);
-            } else if offset[i] < 0.0 {
-                po[i] = next_float_down(po[i]);
-            }
-        }
-
-        po
+    pub fn offset_ray_origin_with_dir(&self, dir: Vec3f) -> Point3f {
+        Ray::offset_ray_origin(self.pi, self.n.unwrap(), dir)
     }
 
-    pub fn spawn_ray(&self, w: Vec3f) -> Ray {
-        Ray::new(self.offset_ray_origin(w), w, self.time, None)
+    pub fn offset_ray_origin_towards(&self, to_point: Point3f) -> Point3f {
+        self.offset_ray_origin_with_dir(to_point - self.pi.midpoints())
+    }
+
+    pub fn spawn_ray_with_dir(&self, dir: Vec3f) -> Ray {
+        Ray::spawn_with_dir(self.pi, self.n.unwrap(), self.time, dir)
     }
 }
 

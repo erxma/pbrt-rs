@@ -325,7 +325,7 @@ impl BVHAggregate {
         bit_idx: isize,
         max_prims_in_node: u8,
     ) -> BVHBuildResult {
-        // TODO Performance: The book preallocates a vec to hold nodes
+        // OPTIMIZATION: The book preallocates a vec to hold nodes
         // that will be created(the number is bounded).
         // Not doing that for now as it was leading to a lot of tricky ownership issues
         // that may or may not have defeated the purpose anyway,
@@ -613,7 +613,6 @@ impl Primitive for BVHAggregate {
         while let Some(idx) = nodes_to_visit_indices.pop() {
             let node = &self.nodes[idx];
             // Check against BVH node
-            // TODO: This expects moving ray but trait takes borrow
             if node.bounds().intersect_p(ray, t_max).is_some() {
                 match node {
                     LinearBVHNode::Leaf {

@@ -337,7 +337,7 @@ impl Spectrum for PiecewiseLinearSpectrum {
             // Lerp position between the two samples (by lambda)
             let t = (lambda - lower_sample.lambda) / (higher_sample.lambda - lower_sample.lambda);
 
-            lerp(t, lower_sample.value, higher_sample.value)
+            lerp(lower_sample.value, higher_sample.value, t)
         }
     }
 

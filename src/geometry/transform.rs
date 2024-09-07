@@ -8,7 +8,7 @@ use itertools::iproduct;
 use overload::overload;
 
 use crate::{
-    math::{gamma, Normal3f, Point3f, Point3fi, SquareMatrix, Vec3f, Vec3fi},
+    math::{gamma, Normal3f, Point3f, Point3fi, SquareMatrix, Tuple, Vec3f, Vec3fi},
     Float,
 };
 
@@ -436,6 +436,55 @@ overload!((t: ?Transform) * (n: Normal3f) -> Normal3f {
     )
 });
 
+impl Transform {
+    pub fn mul_ray(&self, ray: Ray, mut t_max: Option<Float>) -> (Ray, Option<Float>) {
+        let mut o = self * Point3fi::from(ray.o);
+        let dir = self * ray.dir;
+
+        // Offset ray origin to edge of error bounds and compute t_max
+        let len_sq = dir.length_squared();
+        if len_sq > 0.0 {
+            let dt = dir.abs().dot(o.error()) / len_sq;
+            o += Vec3fi::from(dir) * dt;
+            t_max = t_max.map(|t| t - dt);
+        }
+
+        (
+            Ray {
+                o: o.midpoints(),
+                dir,
+                ..ray
+            },
+            t_max,
+        )
+    }
+
+    pub fn mul_ray_diff(
+        &self,
+        ray_diff: RayDifferential,
+        t_max: Option<Float>,
+    ) -> (RayDifferential, Option<Float>) {
+        // Apply to ray
+        let (ray, t_max) = self.mul_ray(ray_diff.ray, t_max);
+        // Apply to diffs if they've been set
+        let differentials = ray_diff.differentials.map(|diff| {
+            let rx_origin = self * diff.rx_origin;
+            let ry_origin = self * diff.ry_origin;
+            let rx_dir = self * diff.rx_dir;
+            let ry_dir = self * diff.ry_dir;
+            Differentials {
+                rx_origin,
+                ry_origin,
+                rx_dir,
+                ry_dir,
+            }
+        });
+
+        (RayDifferential { ray, differentials }, t_max)
+    }
+}
+
+// Cases where there is definitely no t_max
 impl Mul<Ray> for Transform {
     type Output = Ray;
 
@@ -450,16 +499,8 @@ impl Mul<Ray> for &Transform {
 
     /// Apply `self` to a ray.
     fn mul(self, r: Ray) -> Self::Output {
-        // TODO: Deal with round-off error
-        let o = self * r.o;
-        let dir = self * r.dir;
-
-        Self::Output {
-            o,
-            dir,
-            time: r.time,
-            medium: r.medium,
-        }
+        let (ray, _) = self.mul_ray(r, None);
+        ray
     }
 }
 
@@ -476,24 +517,8 @@ impl Mul<RayDifferential> for &Transform {
 
     /// Apply `self` to a ray.
     fn mul(self, rd: RayDifferential) -> Self::Output {
-        // TODO: Deal with round-off error
-        // Apply to ray
-        let ray = self * rd.ray;
-        // Apply to diffs if they've been set
-        let differentials = rd.differentials.map(|diff| {
-            let rx_origin = self * diff.rx_origin;
-            let ry_origin = self * diff.ry_origin;
-            let rx_dir = self * diff.rx_dir;
-            let ry_dir = self * diff.ry_dir;
-            Differentials {
-                rx_origin,
-                ry_origin,
-                rx_dir,
-                ry_dir,
-            }
-        });
-
-        RayDifferential { ray, differentials }
+        let (rd, _) = self.mul_ray_diff(rd, None);
+        rd
     }
 }
 

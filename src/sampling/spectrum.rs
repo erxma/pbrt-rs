@@ -399,7 +399,7 @@ impl BlackbodySpectrum {
     /// Construct a new spectrum for a blackbody at the given `temp`.
     pub fn new(temp: Float) -> Self {
         // Wavelength (in meters) where emitted radiance is at maximum, for this temp
-        let lambda_max = 2.877721e-3 / temp;
+        let lambda_max = 2.8977721e-3 / temp;
         Self {
             temp,
             normalization_factor: 1.0 / blackbody(lambda_max * 1e9, temp),

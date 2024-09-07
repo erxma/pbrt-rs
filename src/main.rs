@@ -130,6 +130,31 @@ fn render_cpu() {
         Arc::new(DielectricMaterial::new(rough_tex.clone(), rough_tex, false, eta).into());
     let sphere_prim = Arc::new(SimplePrimitive::new(sphere, sphere_mat).into());
 
+    let sphere2 = Arc::new(
+        Sphere::builder()
+            .radius(1.5)
+            .z_min(-1.5)
+            .z_max(1.5)
+            .phi_max(360.0)
+            .render_from_object(
+                camera
+                    .camera_transform()
+                    .render_from_world(Transform::translate(Vec3f::new(-3.5, -2.0, 0.5))),
+            )
+            .reverse_orientation(false)
+            .build()
+            .unwrap()
+            .into(),
+    );
+    let sphere2_mat_tex = Arc::new(
+        ConstantSpectrumTexture::new(
+            RgbAlbedoSpectrum::new(&SRGB, RGB::new(0.8, 0.45, 0.15)).into(),
+        )
+        .into(),
+    );
+    let sphere2_mat = Arc::new(DiffuseMaterial::new(sphere2_mat_tex).into());
+    let sphere2_prim = Arc::new(SimplePrimitive::new(sphere2, sphere2_mat).into());
+
     let floor_indices = vec![0, 1, 2, 3];
     let floor_pos = vec![
         Point3f::new(-20.0, -20.0, 0.0),
@@ -161,7 +186,11 @@ fn render_cpu() {
     let floor_mat = Arc::new(DiffuseMaterial::new(floor_mat_tex).into());
     let floor_prim = Arc::new(SimplePrimitive::new(floor_patch, floor_mat).into());
 
-    let aggregate = BVHAggregate::new(vec![sphere_prim, floor_prim], 255, BVHSplitMethod::Middle);
+    let aggregate = BVHAggregate::new(
+        vec![sphere_prim, floor_prim, sphere2_prim],
+        255,
+        BVHSplitMethod::Middle,
+    );
     let lights = vec![inf_light, sun_light];
     let mut integrator = SimplePathIntegrator::new(
         5,

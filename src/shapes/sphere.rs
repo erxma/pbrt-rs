@@ -335,7 +335,7 @@ impl Sphere {
 
         let compute_point_and_phi = |t_shape_hit: Interval| {
             // Compute sphere hit position and phi
-            let mut p_hit = o_obj.midpoints() + t_shape_hit.midpoint() * dir_obj.midpoints_only();
+            let mut p_hit = o_obj.midpoints() + t_shape_hit.midpoint() * dir_obj.midpoints();
             // Refine sphere intersection point
             p_hit *= self.radius / p_hit.distance(Point3f::ZERO);
             if p_hit.x() == 0.0 && p_hit.y() == 0.0 {
@@ -441,7 +441,8 @@ impl Sphere {
 
         let flip_normal = self.reverse_orientation ^ self.render_from_object.swaps_handedness();
         let wo_object = &self.object_from_render * wo;
-        SurfaceInteraction::new(SurfaceInteractionParams {
+
+        let intr_obj = SurfaceInteraction::new(SurfaceInteractionParams {
             pi: Point3fi::new_fi(p_hit, p_error),
             uv: Point2f::new(u, v),
             wo: wo_object,
@@ -451,6 +452,77 @@ impl Sphere {
             dndv,
             time,
             flip_normal,
-        })
+        });
+
+        intr_obj.transform(&self.render_from_object)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use approx::assert_relative_eq;
+
+    use crate::camera::CameraTransform;
+
+    use super::*;
+
+    #[test]
+    fn basic_intersect() {
+        let radius = 1.0;
+        let (_, sphere, ray) = setup1(1.0);
+
+        let isect = sphere.basic_intersect(&ray, Float::INFINITY).unwrap();
+        // t of hit should be positive
+        assert!(isect.t_hit > 0.0);
+        // Distance between intersection point and sphere center (i.e. object space center)
+        // should be roughly equal to radius
+        assert_relative_eq!(
+            isect.p_obj.distance(Point3f::ZERO),
+            radius,
+            max_relative = 1e-4
+        );
+    }
+
+    #[test]
+    fn interaction_from_intersection() {
+        let radius = 1.0;
+        let (cam_xform, sphere, ray) = setup1(1.0);
+
+        let isect = sphere.basic_intersect(&ray, Float::INFINITY).unwrap();
+        let intr = sphere.interaction_from_intersection(&isect, -ray.dir, 0.0);
+
+        let sphere_center_render = cam_xform.render_from_world(Point3f::ZERO);
+
+        // Distance between interaction point and sphere center
+        // should be roughly equal to radius
+        assert_relative_eq!(
+            intr.pi.midpoints().distance(sphere_center_render),
+            radius,
+            max_relative = 1e-4
+        );
+    }
+
+    fn setup1(radius: Float) -> (CameraTransform, Sphere, Ray) {
+        let world_to_camera = Transform::look_at(
+            Point3f::new(3.0, 4.0, 1.5),
+            Point3f::new(0.5, 0.5, 0.0),
+            Vec3f::new(0.0, 0.0, 1.0),
+        );
+        let cam_xform = CameraTransform::new(world_to_camera.inverse());
+
+        let sphere = Sphere::builder()
+            .radius(radius)
+            .z_min(-1.0)
+            .z_max(1.0)
+            .phi_max(360.0)
+            .render_from_object(cam_xform.render_from_world(Transform::IDENTITY))
+            .reverse_orientation(false)
+            .build()
+            .unwrap();
+        let sphere_center_render = cam_xform.render_from_world(Point3f::ZERO);
+        let vec_to_sphere_center = sphere_center_render - Point3f::ZERO;
+        let ray = Ray::new(Point3f::ZERO, vec_to_sphere_center.normalized(), 0.0, None);
+
+        (cam_xform, sphere, ray)
     }
 }

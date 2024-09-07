@@ -105,6 +105,7 @@ impl ShapeSampleContext {
 }
 
 /// Information about an intersection on a quadric surface.
+#[derive(Clone, Debug)]
 pub struct QuadricIntersection {
     /// The parametric t along the ray where the intersection occurred.
     pub t_hit: Float,

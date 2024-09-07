@@ -37,7 +37,7 @@ impl CameraEnum {
            /// for adjacent pixels.
            ///
            /// `self` might model dispersion in its lens, in which case `wavelengths` may
-           /// be modified via `TerminateSecondary`.
+           /// be modified via `terminate_secondary`.
            ///
            /// The returned ray (if any) will be normalized.
            pub fn generate_ray_differential(
@@ -348,7 +348,7 @@ impl ProjectiveCamera {
         let raster_from_screen = raster_from_ndc * ndc_from_screen;
         let screen_from_raster = raster_from_screen.inverse();
 
-        let camera_from_raster = params.screen_from_camera.inverse() * screen_from_raster.clone();
+        let camera_from_raster = params.screen_from_camera.inverse() * &screen_from_raster;
 
         Self {
             transform: params.transform,

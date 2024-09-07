@@ -1215,7 +1215,7 @@ impl Vec3fi {
         self.x().width() == 0.0 && self.y().width() == 0.0 && self.z().width() == 0.0
     }
 
-    pub fn midpoints_only(&self) -> Vec3f {
+    pub fn midpoints(&self) -> Vec3f {
         Vec3f::new(
             self.x().midpoint(),
             self.y().midpoint(),

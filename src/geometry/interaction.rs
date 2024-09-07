@@ -15,7 +15,7 @@ use crate::{
     Float,
 };
 
-use super::{Ray, RayDifferential};
+use super::{Ray, RayDifferential, Transform};
 
 #[derive(Clone, Debug)]
 pub struct SampleInteraction {
@@ -349,6 +349,23 @@ impl<'a> SurfaceInteraction<'a> {
             diffs.ry_origin += t * diffs.ry_dir;
         }
         new
+    }
+
+    pub fn transform(mut self, t: &Transform) -> Self {
+        self.pi = t * self.pi;
+        self.n = t * self.n.normalized();
+        self.wo = t * self.wo.normalized();
+        self.dpdu = t * self.dpdu;
+        self.dpdv = t * self.dpdv;
+        self.dndu = t * self.dndu;
+        self.dndv = t * self.dndv;
+        self.shading.n = (t * self.shading.n).face_forward(self.n.into());
+        self.shading.dpdu = t * self.shading.dpdu;
+        self.shading.dpdv = t * self.shading.dpdv;
+        self.shading.dndu = t * self.shading.dndu;
+        self.shading.dndv = t * self.shading.dndv;
+
+        self
     }
 }
 

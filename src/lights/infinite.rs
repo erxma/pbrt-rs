@@ -111,3 +111,33 @@ impl Light for UniformInfiniteLight {
         self.scene_radius.set(scene_radius).unwrap();
     }
 }
+
+#[cfg(test)]
+mod test {
+    use approx::assert_relative_eq;
+
+    use crate::{
+        color::{RGB, SRGB},
+        sampling::spectrum::RgbIlluminantSpectrum,
+    };
+
+    use super::*;
+
+    #[test]
+    fn radiance_infinite() {
+        let radiance = RgbIlluminantSpectrum::new(&SRGB, RGB::new(0.4, 0.45, 0.5));
+        let light = UniformInfiniteLight::new(&radiance, 1.0 / radiance.to_photometric());
+
+        let dummy_ray = Ray::new(Point3f::ZERO, Vec3f::new(0.0, 0.0, 1.0), 0.0, None);
+
+        let lambda1 = SampledWavelengths::from_parts(
+            [474.55463, 542.08417, 611.77325, 783.2514],
+            [0.0032198546, 0.0039363992, 0.0030081926, 0.00043523454],
+        );
+        let result1 = light.radiance_infinite(&dummy_ray, &lambda1);
+        assert_relative_eq!(
+            result1,
+            SampledSpectrum::new([0.0052793995, 0.0044468315, 0.0035051198, 0.001987834])
+        );
+    }
+}

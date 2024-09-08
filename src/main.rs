@@ -40,7 +40,7 @@ fn render_cpu() {
         Vec3f::new(0.0, 0.0, 1.0),
     );
 
-    let sampler = IndependentSampler::new(128, None);
+    let sampler = IndependentSampler::new(512, None);
 
     let filter = Arc::new(BoxFilter::new(Vec2f::new(0.5, 0.5)).into());
 
@@ -155,6 +155,31 @@ fn render_cpu() {
     let sphere2_mat = Arc::new(DiffuseMaterial::new(sphere2_mat_tex).into());
     let sphere2_prim = Arc::new(SimplePrimitive::new(sphere2, sphere2_mat).into());
 
+    let sphere3 = Arc::new(
+        Sphere::builder()
+            .radius(0.75)
+            .z_min(-0.75)
+            .z_max(0.75)
+            .phi_max(360.0)
+            .render_from_object(
+                camera
+                    .camera_transform()
+                    .render_from_world(Transform::translate(Vec3f::new(-0.3, -3.0, -0.25))),
+            )
+            .reverse_orientation(false)
+            .build()
+            .unwrap()
+            .into(),
+    );
+    let sphere3_mat_tex = Arc::new(
+        ConstantSpectrumTexture::new(
+            RgbAlbedoSpectrum::new(&SRGB, RGB::new(0.8, 0.25, 0.3)).into(),
+        )
+        .into(),
+    );
+    let sphere3_mat = Arc::new(DiffuseMaterial::new(sphere3_mat_tex).into());
+    let sphere3_prim = Arc::new(SimplePrimitive::new(sphere3, sphere3_mat).into());
+
     let floor_indices = vec![0, 1, 2, 3];
     let floor_pos = vec![
         Point3f::new(-20.0, -20.0, 0.0),
@@ -187,7 +212,7 @@ fn render_cpu() {
     let floor_prim = Arc::new(SimplePrimitive::new(floor_patch, floor_mat).into());
 
     let aggregate = BVHAggregate::new(
-        vec![sphere_prim, floor_prim, sphere2_prim],
+        vec![sphere_prim, floor_prim, sphere2_prim, sphere3_prim],
         255,
         BVHSplitMethod::Middle,
     );

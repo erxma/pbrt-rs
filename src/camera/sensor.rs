@@ -144,3 +144,35 @@ fn project_reflectance<Triplet: Tuple<3, Float>>(
 
     result / g_integral
 }
+
+#[cfg(test)]
+mod test {
+    use approx::assert_relative_eq;
+    use color::SRGB;
+
+    use super::*;
+
+    #[test]
+    fn to_sensor_rgb_srgb() {
+        let sensor = PixelSensor::with_xyz_matching(&SRGB, None, 1.0);
+        let lambda = SampledWavelengths::from_parts(
+            [591.47546, 700.3552, 452.77136, 525.49225],
+            [0.003408977, 0.001265176, 0.0027623207, 0.003908024],
+        );
+        let l = SampledSpectrum::new([0.00357853, 0.0025127477, 0.005482404, 0.004613267]);
+        let result = sensor.to_sensor_rgb(&l, &lambda);
+        assert_relative_eq!(result.r, 0.47140643);
+        assert_relative_eq!(result.g, 0.4532867);
+        assert_relative_eq!(result.b, 0.889924);
+
+        let lambda = SampledWavelengths::from_parts(
+            [507.79996, 572.4091, 658.3696, 425.15646],
+            [0.0037592475, 0.0037075484, 0.0020110987, 0.002166194],
+        );
+        let l = SampledSpectrum::new([0.0047808043, 0.0039641955, 0.002973517, 0.0043246187]);
+        let result = sensor.to_sensor_rgb(&l, &lambda);
+        assert_relative_eq!(result.r, 0.38974532);
+        assert_relative_eq!(result.g, 0.42723745);
+        assert_relative_eq!(result.b, 0.5760964);
+    }
+}

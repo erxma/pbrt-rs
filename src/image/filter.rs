@@ -3,13 +3,15 @@ use enum_dispatch::enum_dispatch;
 
 use crate::{
     math::{lerp, Point2f, Vec2f},
+    sampling::routines::sample_tent,
     Float,
 };
 
 #[enum_dispatch]
 #[derive(Clone, Debug)]
 pub enum FilterEnum {
-    BoxFilter(BoxFilter),
+    Box(BoxFilter),
+    Triangle(TriangleFilter),
 }
 
 impl FilterEnum {
@@ -77,6 +79,39 @@ impl Filter for BoxFilter {
         let p = Point2f::new(
             lerp(-self.radius.x(), self.radius.x(), u[0]),
             lerp(-self.radius.y(), self.radius.y(), u[1]),
+        );
+        FilterSample { p, weight: 1.0 }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct TriangleFilter {
+    radius: Vec2f,
+}
+
+impl TriangleFilter {
+    pub fn new(radius: Vec2f) -> Self {
+        Self { radius }
+    }
+}
+
+impl Filter for TriangleFilter {
+    fn radius(&self) -> Vec2f {
+        self.radius
+    }
+
+    fn eval(&self, p: Point2f) -> Float {
+        (self.radius.x() - p.x().abs()).max(0.0) * (self.radius.y() - p.y().abs()).max(0.0)
+    }
+
+    fn integral(&self) -> Float {
+        self.radius.x().powi(2) * self.radius.y().powi(2)
+    }
+
+    fn sample(&self, u: Point2f) -> FilterSample {
+        let p = Point2f::new(
+            sample_tent(u[0], self.radius.x()),
+            sample_tent(u[1], self.radius.y()),
         );
         FilterSample { p, weight: 1.0 }
     }

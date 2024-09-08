@@ -4,6 +4,7 @@ use crate::{
     util::data::{CIE_ILLUM_D6500, CIE_LAMBDA, CIE_X, CIE_Y, CIE_Z, N_CIE_SPECTRUM_SAMPLES},
     Float,
 };
+use approx::{AbsDiffEq, RelativeEq};
 use delegate::delegate;
 use enum_as_inner::EnumAsInner;
 use enum_dispatch::enum_dispatch;
@@ -60,9 +61,9 @@ pub const CIE_Y_INTEGRAL: Float = 106.856895;
 pub fn visible_wavelengths_pdf(lambda: Float) -> Float {
     if (LAMBDA_MIN..=LAMBDA_MAX).contains(&lambda) {
         #[cfg(not(feature = "use-f64"))]
-        return 0.003939804 / (0.0072 * (lambda - 538.0)).cosh().sqrt();
+        return 0.003939804 / (0.0072 * (lambda - 538.0)).cosh().powi(2);
         #[cfg(feature = "use-f64")]
-        return 0.0039398042 / (0.0072 * (lambda - 538.0)).cosh().sqrt();
+        return 0.0039398042 / (0.0072 * (lambda - 538.0)).cosh().powi(2);
     } else {
         0.0
     }
@@ -780,6 +781,39 @@ impl fmt::Display for SampledSpectrum {
     }
 }
 
+impl AbsDiffEq for SampledSpectrum {
+    type Epsilon = <Float as AbsDiffEq>::Epsilon;
+
+    fn default_epsilon() -> Self::Epsilon {
+        Float::default_epsilon()
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+        self.values
+            .iter()
+            .zip(other.values.iter())
+            .all(|(lhs, rhs)| lhs.abs_diff_eq(rhs, epsilon))
+    }
+}
+
+impl RelativeEq for SampledSpectrum {
+    fn default_max_relative() -> Self::Epsilon {
+        Float::default_max_relative()
+    }
+
+    fn relative_eq(
+        &self,
+        other: &Self,
+        epsilon: Self::Epsilon,
+        max_relative: Self::Epsilon,
+    ) -> bool {
+        self.values
+            .iter()
+            .zip(other.values.iter())
+            .all(|(lhs, rhs)| lhs.relative_eq(rhs, epsilon, max_relative))
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct SampledWavelengths {
     lambdas: [Float; N_SPECTRUM_SAMPLES],
@@ -787,6 +821,13 @@ pub struct SampledWavelengths {
 }
 
 impl SampledWavelengths {
+    pub fn from_parts(
+        lambdas: [Float; N_SPECTRUM_SAMPLES],
+        pdf: [Float; N_SPECTRUM_SAMPLES],
+    ) -> Self {
+        Self { lambdas, pdf }
+    }
+
     pub fn sample_uniform(u: Float, lambda_min: Option<Float>, lambda_max: Option<Float>) -> Self {
         let lambda_min = lambda_min.unwrap_or(LAMBDA_MIN);
         let lambda_max = lambda_max.unwrap_or(LAMBDA_MAX);
@@ -958,5 +999,33 @@ impl Spectrum for RgbIlluminantSpectrum {
 
     fn to_photometric(&self) -> Float {
         self.illuminant.to_photometric()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use approx::assert_relative_eq;
+
+    use crate::color::SRGB;
+
+    use super::*;
+
+    #[test]
+    fn rgb_illuminant_spectrum_photometric() {
+        let spec = RgbIlluminantSpectrum::new(&SRGB, RGB::new(0.4, 0.45, 0.5));
+        assert_relative_eq!(spec.at(360.0), 0.25344774);
+        assert_relative_eq!(spec.at(394.0), 0.34775504);
+        assert_relative_eq!(spec.at(513.0), 0.5024529);
+        assert_relative_eq!(spec.at(644.0), 0.33175462);
+        assert_relative_eq!(spec.at(788.0), 0.2123907);
+        assert_relative_eq!(spec.at(830.0), 0.18764316);
+    }
+
+    #[test]
+    fn test_visible_wavelengths_pdf() {
+        assert_relative_eq!(visible_wavelengths_pdf(529.2491), 0.0039242054);
+        assert_relative_eq!(visible_wavelengths_pdf(620.24963), 0.0028269484);
+        assert_relative_eq!(visible_wavelengths_pdf(760.7133), 0.0005891933);
+        assert_relative_eq!(visible_wavelengths_pdf(394.56876), 0.0015735145);
     }
 }

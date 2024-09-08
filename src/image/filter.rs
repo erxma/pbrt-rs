@@ -237,14 +237,14 @@ impl Clone for FilterSampler {
     }
 }
 
-// Implemented because construction requires the filter that needs it
+// Implemented because `new` requires the filter that needs it
 // to itself be constructed first.
 impl Default for FilterSampler {
     fn default() -> Self {
         Self {
             domain: Default::default(),
             vals: Array2D::fill_default(Bounds2i::empty()),
-            distrib: PiecewiseConstant2D::new(vec![], 0, 0, Bounds2f::empty()),
+            distrib: PiecewiseConstant2D::new(&[], 0, 0, Bounds2f::empty()),
         }
     }
 }

@@ -5,7 +5,7 @@ use pbrt_rs::{
     camera::{Camera, CameraTransform, PerspectiveCamera, PixelSensor, RGBFilm, RGBFilmParams},
     color::{RGB, SRGB},
     geometry::{Bounds2f, Bounds2i, Transform},
-    image::BoxFilter,
+    image::GaussianFilter,
     integrators::{Integrate, SimplePathIntegrator},
     lights::{DirectionalLight, UniformInfiniteLight},
     materials::{
@@ -40,9 +40,9 @@ fn render_cpu() {
         Vec3f::new(0.0, 0.0, 1.0),
     );
 
-    let sampler = IndependentSampler::new(512, None);
+    let sampler = IndependentSampler::new(128, None);
 
-    let filter = Arc::new(BoxFilter::new(Vec2f::new(0.5, 0.5)).into());
+    let filter = Arc::new(GaussianFilter::new(Vec2f::new(1.5, 1.5), 0.5).into());
 
     let sensor = Arc::new(PixelSensor::with_xyz_matching(&SRGB, None, 1.0));
 

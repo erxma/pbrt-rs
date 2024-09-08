@@ -2,8 +2,8 @@ use crate::{
     float::{FRAC_1_PI, FRAC_PI_2, FRAC_PI_4, INV_2_PI, INV_4_PI, PI, SQRT_2},
     geometry::Bounds2f,
     math::{
-        self, gaussian, lerp, next_float_down, safe_sqrt, Array2D, Point2f, Point2i, Point3f,
-        Vec2f, Vec3f, ONE_MINUS_EPSILON,
+        self, find_interval, gaussian, lerp, next_float_down, safe_sqrt, Array2D, Point2f, Point2i,
+        Point3f, Vec2f, Vec3f, ONE_MINUS_EPSILON,
     },
     Float,
 };
@@ -340,14 +340,16 @@ pub fn cosine_hemisphere_pdf(cos_theta: Float) -> Float {
 pub struct PiecewiseConstant1D {
     func_vals: Vec<Float>,
     /// Cumulative distribution function.
-    _cdf: Vec<Float>,
-    _min: Float,
-    _max: Float,
+    cdf: Vec<Float>,
+    min: Float,
+    max: Float,
     integral: Float,
 }
 
 impl PiecewiseConstant1D {
-    pub fn new(mut func_vals: Vec<Float>, min: Float, max: Float) -> Self {
+    pub fn new(func_vals: impl Into<Vec<Float>>, min: Float, max: Float) -> Self {
+        let mut func_vals = func_vals.into();
+
         // Take abs vals of func vals
         for val in func_vals.iter_mut() {
             *val = val.abs();
@@ -358,14 +360,14 @@ impl PiecewiseConstant1D {
         let mut cdf = Vec::with_capacity(n + 1);
         cdf.push(0.0);
         for i in 1..=n {
-            cdf[i] = cdf[i - 1] + func_vals[i - 1] * (max - min) / n as Float;
+            cdf.push(cdf[i - 1] + func_vals[i - 1] * (max - min) / n as Float);
         }
 
         // Then transform step function integral into CDF
         let integral = cdf[n];
         if integral == 0.0 {
-            for i in 1..=n {
-                cdf[i] = i as Float / n as Float;
+            for (i, val) in cdf.iter_mut().enumerate().take(n + 1).skip(1) {
+                *val = i as Float / n as Float;
             }
         } else {
             for val in cdf.iter_mut() {
@@ -375,14 +377,41 @@ impl PiecewiseConstant1D {
 
         Self {
             func_vals,
-            _cdf: cdf,
-            _min: min,
-            _max: max,
+            cdf,
+            min,
+            max,
             integral,
         }
     }
 
-    pub fn sample(&self, _u: Float) -> PiecewiseConstant1DSample {
+    pub fn sample(&self, u: Float) -> PiecewiseConstant1DSample {
+        // Find surrounding CDF segments and offset
+        let offset = find_interval(self.cdf.len(), |i| self.cdf[i] <= u).unwrap();
+
+        // Compute offset along CDF segment
+        let mut du = u - self.cdf[offset];
+        if self.cdf[offset + 1] - self.cdf[offset] > 0.0 {
+            du /= self.cdf[offset + 1] - self.cdf[offset];
+        }
+
+        // Compute PDF for sampled offset
+        let pdf = if self.integral > 0.0 {
+            self.func_vals[offset] / self.integral
+        } else {
+            0.0
+        };
+
+        // Return x corresponding to sample
+        let value = lerp(
+            self.min,
+            self.max,
+            (offset as Float + du) / self.size() as Float,
+        );
+
+        PiecewiseConstant1DSample { value, pdf, offset }
+    }
+
+    pub fn invert(&self, _x: Float) -> Option<Float> {
         todo!()
     }
 
@@ -390,7 +419,7 @@ impl PiecewiseConstant1D {
         self.integral
     }
 
-    pub fn len(&self) -> usize {
+    pub fn size(&self) -> usize {
         self.func_vals.len()
     }
 }
@@ -398,25 +427,71 @@ impl PiecewiseConstant1D {
 #[derive(Clone, Debug)]
 pub struct PiecewiseConstant2D {
     _domain: Bounds2f,
-    _prob_conditional_v: Vec<PiecewiseConstant1D>,
+    prob_conditional_v: Vec<PiecewiseConstant1D>,
     prob_marginal: PiecewiseConstant1D,
 }
 
 impl PiecewiseConstant2D {
-    pub fn new(
-        _func_vals: impl Into<Vec<Float>>,
-        _num_u: usize,
-        _num_v: usize,
-        _domain: Bounds2f,
-    ) -> Self {
+    pub fn new(func_vals: &[Float], num_u: usize, num_v: usize, domain: Bounds2f) -> Self {
+        // Compute conditional sampling distribution for v
+        let prob_conditional_v: Vec<_> = (0..num_v)
+            .map(|v| {
+                PiecewiseConstant1D::new(
+                    &func_vals[v * num_u..(v + 1) * num_u],
+                    domain.p_min[0],
+                    domain.p_max[0],
+                )
+            })
+            .collect();
+
+        // Compute marginal sampling distribution p[v]
+        let marginal_func: Vec<_> = prob_conditional_v
+            .iter()
+            .map(|distrib| distrib.integral())
+            .collect();
+        let prob_marginal =
+            PiecewiseConstant1D::new(marginal_func, domain.p_min[1], domain.p_max[1]);
+
+        Self {
+            _domain: domain,
+            prob_conditional_v,
+            prob_marginal,
+        }
+    }
+
+    pub fn from_array2d(func_vals: &Array2D<Float>, domain: Bounds2f) -> Self {
+        Self::new(
+            func_vals.as_slice(),
+            func_vals.x_size(),
+            func_vals.y_size(),
+            domain,
+        )
+    }
+
+    pub fn sample(&self, u: Point2f) -> PiecewiseConstant2DSample {
+        let PiecewiseConstant1DSample {
+            value: d1,
+            pdf: pdf1,
+            offset: v,
+        } = self.prob_marginal.sample(u[1]);
+        let PiecewiseConstant1DSample {
+            value: d0,
+            pdf: pdf0,
+            offset: u,
+        } = self.prob_conditional_v[v].sample(u[0]);
+
+        let value = Point2f::new(d0, d1);
+        let pdf = pdf0 * pdf1;
+        let offset = Point2i::new(u as i32, v as i32);
+
+        PiecewiseConstant2DSample { value, pdf, offset }
+    }
+
+    pub fn pdf(&self, _pr: Point2f) -> Float {
         todo!()
     }
 
-    pub fn from_array2d(_func_vals: &Array2D<Float>, _domain: Bounds2f) -> Self {
-        todo!()
-    }
-
-    pub fn sample(&self, _u: Point2f) -> PiecewiseConstant2DSample {
+    pub fn invert(&self, _p: Point2f) -> Option<Point2f> {
         todo!()
     }
 

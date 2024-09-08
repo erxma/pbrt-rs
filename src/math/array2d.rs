@@ -108,6 +108,12 @@ impl<T> Array2D<T> {
         }
     }
 
+    pub fn as_slice(&self) -> &[T] {
+        // FIXME: This and the index functions are likely actually unsafe,
+        // for the same reason as clone_unchecked...
+        unsafe { &(*self.values.get()) }
+    }
+
     fn index_linear(&self, index: usize) -> &T {
         debug_assert!(index < self.num_values(), "Index out of bounds for Array2D");
         unsafe { &(*self.values.get())[index] }
@@ -209,6 +215,33 @@ impl<'a, T> Iterator for Iter<'a, T> {
         } else {
             None
         }
+    }
+}
+
+// Iterator is effectively same as the vec's,
+// equivalent to going through each row, "left to right" within each row
+impl<T> IntoIterator for Array2D<T> {
+    type Item = T;
+    type IntoIter = IntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        IntoIter::new(self)
+    }
+}
+
+pub struct IntoIter<T>(std::vec::IntoIter<T>);
+
+impl<T> IntoIter<T> {
+    fn new(arr: Array2D<T>) -> Self {
+        Self(arr.values.into_inner().into_iter())
+    }
+}
+
+impl<T> Iterator for IntoIter<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
     }
 }
 

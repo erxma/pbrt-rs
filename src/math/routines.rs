@@ -2,7 +2,7 @@ use std::ops::{Add, Mul};
 
 use super::float_utility::exponent;
 use crate::{
-    float::{MACHINE_EPSILON, PI},
+    float::{MACHINE_EPSILON, PI, SQRT_2},
     Float,
 };
 use num_traits::{AsPrimitive, Pow};
@@ -74,18 +74,24 @@ pub fn fast_exp(x: f32) -> f32 {
     f32::from_bits(bits)
 }
 
+/// The [Gaussian function](https://en.wikipedia.org/wiki/Gaussian_function).
 #[inline]
-pub fn gaussian(x: Float, mu: Float, sigma: Float) -> Float {
-    1.0 / (2.0 * PI * sigma * sigma).sqrt()
-        * num_traits::cast::<_, Float>(fast_exp(
-            (-(x - mu).pow(2i32) / (2.0 * sigma * sigma)).as_(),
-        ))
-        .unwrap()
+pub fn gaussian(x: Float, mean: Float, std: Float) -> Float {
+    let exp_factor: Float = fast_exp((-(x - mean).pow(2i32) / (2.0 * std * std)).as_()).as_();
+    1.0 / (2.0 * PI * std * std).sqrt() * exp_factor
+}
+
+/// Integral of the Gaussian function over a range `[x_from, x_to]`.
+#[inline]
+pub fn gaussian_integral(x_from: Float, x_to: Float, mean: Float, std: Float) -> Float {
+    let std_root2 = std * SQRT_2;
+    0.5 * erf((mean - x_from) / std_root2) - erf((mean - x_to) / std_root2)
 }
 
 #[inline]
-pub fn erf(x: f64) -> f64 {
-    libm::erf(x)
+pub fn erf(x: Float) -> Float {
+    let x = x.as_();
+    libm::erf(x).as_()
 }
 
 #[inline]

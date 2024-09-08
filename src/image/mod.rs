@@ -2,7 +2,7 @@ mod filter;
 
 use std::path::Path;
 
-pub use filter::{BoxFilter, Filter, FilterEnum};
+pub use filter::{BoxFilter, Filter, FilterEnum, FilterSample, GaussianFilter, TriangleFilter};
 use num_traits::AsPrimitive;
 
 use crate::{color::RGBColorSpace, math::Point2Usize, Float};

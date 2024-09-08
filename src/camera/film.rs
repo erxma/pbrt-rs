@@ -178,6 +178,9 @@ impl FilmTrait for RGBFilm {
         }
 
         // Update pixel values with filtered sample contribution
+        // OPTIMIZATION: It could be possible to remove the need for unsafe here
+        // by carving out each section (i.e. usually tile) used by each thread
+        // and just enforcing safety on those
         unsafe {
             self.pixels.mutate_unchecked(p_film, |pixel| {
                 for i in 0..3 {

@@ -942,7 +942,7 @@ impl Bounds2f {
     /// Linearly interpolate between the min and max points of `self`, on all axes.
     ///
     /// Extrapolates for components of `t` `<0` or `>1`.
-    pub fn lerp(self, t: Point3f) -> Point2f {
+    pub fn lerp(self, t: Point2f) -> Point2f {
         Point2f::new(
             lerp(self.p_min.x(), self.p_max.x(), t.x()),
             lerp(self.p_min.x(), self.p_max.x(), t.y()),

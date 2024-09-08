@@ -387,6 +387,8 @@ impl From<[i32; 2]> for Point2i {
 }
 
 impl Point2i {
+    pub const ZERO: Self = Self::new(0, 0);
+
     /// Construct a new point with given elements.
     pub const fn new(x: i32, y: i32) -> Self {
         Self(Vec2i::new(x, y))

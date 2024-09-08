@@ -22,7 +22,8 @@ pub use octahedral_vec::OctahedralVec;
 pub use point::{Point2Isize, Point2Usize, Point2f, Point2i, Point3f, Point3fi, Point3i};
 pub use routines::{
     difference_of_products, encode_morton_3, erf, erf_inv, erff, evaluate_polynomial, fast_exp,
-    find_interval, gamma, gaussian, lerp, safe_acos, safe_asin, safe_sqrt, solve_quadratic,
+    find_interval, gamma, gaussian, gaussian_integral, lerp, safe_acos, safe_asin, safe_sqrt,
+    solve_quadratic,
 };
 pub use square_matrix::SquareMatrix;
 pub use tuple::Tuple;

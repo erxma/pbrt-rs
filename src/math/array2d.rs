@@ -75,6 +75,22 @@ impl<T> Array2D<T> {
         op(val);
     }
 
+    /// Clone the array in its current state.
+    ///
+    /// # Safety
+    /// Exclusivity on the array's data is ignored by `mutate_unchecked`,
+    /// so data races may occur these two functions are called concurrently.
+    pub unsafe fn clone_unchecked(&self) -> Self
+    where
+        T: Clone,
+    {
+        let values = unsafe { (*self.values.get()).clone() };
+        Self {
+            extent: self.extent,
+            values: UnsafeCell::new(values),
+        }
+    }
+
     pub fn iter(&self) -> Iter<'_, T> {
         Iter {
             arr: self,

@@ -243,7 +243,7 @@ impl Default for FilterSampler {
     fn default() -> Self {
         Self {
             domain: Default::default(),
-            vals: Array2D::fill_default(Bounds2i::empty()),
+            vals: Array2D::fill_default(Bounds2i::default()),
             distrib: PiecewiseConstant2D::new(&[], 0, 0, Bounds2f::empty()),
         }
     }

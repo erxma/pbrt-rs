@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc, time::Instant};
 
 use log::info;
 use pbrt_rs::{
@@ -30,7 +30,16 @@ fn main() {
     env_logger::init_from_env(log_env);
     info!("Initialized logger.");
 
+    let start = Instant::now();
+
     render_cpu();
+
+    let secs_elapsed = start.elapsed().as_secs();
+    let hours = secs_elapsed / 3600;
+    let mins = secs_elapsed % 3600 / 60;
+    let secs = secs_elapsed % 60;
+
+    info!("Render took {hours}h {mins}m {secs}s.");
 }
 
 fn render_cpu() {
@@ -40,7 +49,7 @@ fn render_cpu() {
         Vec3f::new(0.0, 0.0, 1.0),
     );
 
-    let sampler = IndependentSampler::new(128, None);
+    let sampler = IndependentSampler::new(256, None);
 
     let filter = Arc::new(GaussianFilter::new(Vec2f::new(1.5, 1.5), 0.5).into());
 

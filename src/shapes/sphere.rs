@@ -1,6 +1,6 @@
 use std::mem;
 
-use derive_builder::Builder;
+use bon::bon;
 
 use crate::{
     core::{
@@ -10,6 +10,7 @@ use crate::{
     },
     math,
     sampling::routines::sample_uniform_sphere,
+    util::error::BuilderError,
 };
 
 use super::{QuadricIntersection, Shape, ShapeIntersection, ShapeSample, ShapeSampleContext};
@@ -27,51 +28,42 @@ pub struct Sphere {
     reverse_orientation: bool,
 }
 
-#[derive(Builder)]
-#[builder(
-    name = "SphereBuilder",
-    public,
-    build_fn(private, name = "build_params")
-)]
-struct SphereParams {
-    radius: Float,
-    z_min: Float,
-    z_max: Float,
-    phi_max: Float,
-    render_from_object: Transform,
-    reverse_orientation: bool,
-}
-
-impl SphereBuilder {
-    pub fn build(&self) -> Result<Sphere, SphereBuilderError> {
-        let params = self.build_params()?;
-
-        let radius = params.radius;
-
-        if params.z_min > params.z_max {
-            return Err(SphereBuilderError::ValidationError(format!(
-                "Sphere z_min is greater than z_max ({} > {})",
-                params.z_min, params.z_max
+#[bon]
+impl Sphere {
+    #[builder]
+    pub fn new(
+        radius: Float,
+        mut z_min: Float,
+        mut z_max: Float,
+        mut phi_max: Float,
+        render_from_object: Transform,
+        reverse_orientation: bool,
+    ) -> Result<Self, BuilderError> {
+        if z_min > z_max {
+            return Err(BuilderError::ValidationError(format!(
+                "sphere z_min is greater than z_max ({} > {})",
+                z_min, z_max
             )));
         }
 
-        let z_min = params.z_min.clamp(-radius, radius);
-        let z_max = params.z_max.clamp(-radius, radius);
-        let theta_z_min = (params.z_min / radius).clamp(-1.0, 1.0).acos();
-        let theta_z_max = (params.z_max / radius).clamp(-1.0, 1.0).acos();
-        let phi_max = params.phi_max.clamp(0.0, 360.0).to_radians();
-        let object_from_render = params.render_from_object.inverse();
+        z_min = z_min.clamp(-radius, radius);
+        z_max = z_max.clamp(-radius, radius);
+        phi_max = phi_max.clamp(0.0, 360.0).to_radians();
 
-        Ok(Sphere {
-            radius: params.radius,
+        let theta_z_min = (z_min / radius).clamp(-1.0, 1.0).acos();
+        let theta_z_max = (z_max / radius).clamp(-1.0, 1.0).acos();
+        let object_from_render = render_from_object.inverse();
+
+        Ok(Self {
+            radius,
             z_min,
             z_max,
             theta_z_min,
             theta_z_max,
             phi_max,
-            render_from_object: params.render_from_object,
+            render_from_object,
             object_from_render,
-            reverse_orientation: params.reverse_orientation,
+            reverse_orientation,
         })
     }
 }
@@ -269,10 +261,6 @@ impl Shape for Sphere {
 }
 
 impl Sphere {
-    pub fn builder() -> SphereBuilder {
-        SphereBuilder::create_empty()
-    }
-
     /// Perform a basic ray-sphere intersection test, and return basic info about the point if found.
     pub fn basic_intersect(&self, ray: &Ray, t_max: Float) -> Option<QuadricIntersection> {
         // Transform ray's origin, direction to object space

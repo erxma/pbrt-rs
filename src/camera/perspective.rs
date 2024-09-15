@@ -16,7 +16,7 @@ use crate::{
     sampling::spectrum::SampledWavelengths,
 };
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct PerspectiveCamera {
     projective: ProjectiveCamera,
     dx_camera: Vec3f,
@@ -32,7 +32,7 @@ impl PerspectiveCamera {
         transform: CameraTransform,
         shutter_open: Float,
         shutter_close: Float,
-        film: Arc<Film>,
+        film: Film,
         medium: Option<Arc<MediumEnum>>,
 
         // For setting ProjectiveCamera fields

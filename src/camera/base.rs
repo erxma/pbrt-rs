@@ -296,12 +296,12 @@ impl CameraTransform {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub(super) struct ProjectiveCamera {
     pub transform: CameraTransform,
     pub shutter_open: Float,
     pub shutter_close: Float,
-    pub film: Arc<Film>,
+    pub film: Film,
     pub medium: Option<Arc<MediumEnum>>,
     pub min_pos_differential_x: Vec3f,
     pub min_pos_differential_y: Vec3f,
@@ -320,7 +320,7 @@ pub(super) struct ProjectiveCameraParams {
     pub transform: CameraTransform,
     pub shutter_open: Float,
     pub shutter_close: Float,
-    pub film: Arc<Film>,
+    pub film: Film,
     pub medium: Option<Arc<MediumEnum>>,
 
     pub screen_from_camera: Transform,

@@ -53,27 +53,25 @@ fn render_cpu() {
 
     let sensor = Arc::new(PixelSensor::with_xyz_matching(&SRGB, None, 1.0));
 
-    let film = Arc::new(
-        RGBFilm::new(RGBFilmParams {
-            full_resolution: Point2i::new(400, 400),
-            pixel_bounds: Bounds2i::new(Point2i::new(0, 0), Point2i::new(400, 400)),
-            diagonal: 35.0,
-            filter,
-            sensor,
-            filename: PathBuf::from(format!(
-                "render_{}.exr",
-                OffsetDateTime::now_local()
-                    .unwrap()
-                    .format(&format_description!(
-                        "[year]-[month]-[day]T[hour]:[minute]:[second]"
-                    ))
-                    .unwrap()
-            )),
-            color_space: &SRGB,
-            max_component_value: Float::INFINITY,
-        })
-        .into(),
-    );
+    let film = RGBFilm::new(RGBFilmParams {
+        full_resolution: Point2i::new(400, 400),
+        pixel_bounds: Bounds2i::new(Point2i::new(0, 0), Point2i::new(400, 400)),
+        diagonal: 35.0,
+        filter,
+        sensor,
+        filename: PathBuf::from(format!(
+            "render_{}.exr",
+            OffsetDateTime::now_local()
+                .unwrap()
+                .format(&format_description!(
+                    "[year]-[month]-[day]T[hour]:[minute]:[second]"
+                ))
+                .unwrap()
+        )),
+        color_space: &SRGB,
+        max_component_value: Float::INFINITY,
+    })
+    .into();
 
     let camera = PerspectiveCamera::builder()
         .transform(CameraTransform::new(world_to_camera.inverse()))

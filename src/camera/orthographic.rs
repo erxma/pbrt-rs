@@ -14,7 +14,7 @@ use crate::{
 };
 use bon::bon;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct OrthographicCamera {
     projective: ProjectiveCamera,
     _dx_camera: Vec3f,
@@ -28,7 +28,7 @@ impl OrthographicCamera {
         transform: CameraTransform,
         shutter_open: Float,
         shutter_close: Float,
-        film: Arc<Film>,
+        film: Film,
         medium: Option<Arc<MediumEnum>>,
 
         screen_from_camera: Transform,

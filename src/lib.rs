@@ -1,7 +1,7 @@
 pub mod camera;
 pub mod color;
 pub mod core;
-pub mod image;
+pub mod imaging;
 pub mod integrators;
 pub mod lights;
 pub mod materials;

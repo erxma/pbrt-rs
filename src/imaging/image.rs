@@ -1,7 +1,3 @@
-mod filter;
-
-pub use filter::{BoxFilter, Filter, FilterEnum, FilterSample, GaussianFilter, TriangleFilter};
-
 use crate::{
     color::RGBColorSpace,
     core::{Float, Point2Usize},

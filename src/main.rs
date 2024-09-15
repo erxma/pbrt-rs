@@ -5,7 +5,7 @@ use pbrt_rs::{
     camera::{Camera, CameraTransform, PerspectiveCamera, PixelSensor, RGBFilm, RGBFilmParams},
     color::{RGB, SRGB},
     core::{Bounds2f, Bounds2i, Float, Point2f, Point2i, Point3f, Transform, Vec2f, Vec3f},
-    image::GaussianFilter,
+    imaging::GaussianFilter,
     integrators::{Integrate, SimplePathIntegrator},
     lights::{DirectionalLight, UniformInfiniteLight},
     materials::{

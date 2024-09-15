@@ -1,7 +1,7 @@
 use crate::{
     camera::CameraSample,
     core::{Float, Point2f, Point2i, Vec2f},
-    image::Filter,
+    imaging::Filter,
     util::rng::{self, Rng},
 };
 use enum_dispatch::enum_dispatch;

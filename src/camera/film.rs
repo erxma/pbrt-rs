@@ -14,7 +14,7 @@ use crate::{
         Array2D, Bounds2i, Float, Point2Isize, Point2Usize, Point2f, Point2i, SquareMatrix, Tuple,
         Vec2f, Vec2i,
     },
-    image::{FilterEnum, Image, ImageMetadata},
+    imaging::{FilterEnum, Image, ImageMetadata},
     parallel::AtomicF64,
     sampling::spectrum::{SampledSpectrum, SampledWavelengths},
 };

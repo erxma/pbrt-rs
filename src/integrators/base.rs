@@ -8,7 +8,7 @@ use crate::{
         constants::SHADOW_EPSILON, Float, Point2i, Point3f, Ray, RayDifferential,
         SurfaceInteraction,
     },
-    image::ImageMetadata,
+    imaging::ImageMetadata,
     lights::{LightEnum, LightType},
     memory::ScratchBuffer,
     parallel::parallel_for_2d_tiled_with,

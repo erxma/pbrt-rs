@@ -3,7 +3,6 @@ use std::{
     str::FromStr,
 };
 
-use derive_builder::Builder;
 use enum_as_inner::EnumAsInner;
 use itertools::Itertools;
 use strum::{EnumDiscriminants, EnumString};
@@ -29,15 +28,13 @@ pub struct Scene {
     world: World,
 }
 
-#[derive(Debug, Builder)]
+#[derive(Debug)]
 pub struct Options {
-    #[builder(private)]
     camera: Camera,
 }
 
-#[derive(Debug, Builder)]
+#[derive(Debug, Default)]
 pub struct World {
-    #[builder(private, default)]
     shapes: Vec<Shape>,
 }
 
@@ -197,11 +194,8 @@ fn global_options(
         let dirs: Vec<_> = terminated(separated(0.., unseen_directive, multispace1), multispace0)
             .parse_next(input)?;
 
-        let mut options = OptionsBuilder::create_empty();
-        for dir in dirs {
-            options.add_option(dir);
-        }
-        options.build().map_err(|_| {
+        let options = Options::new(dirs);
+        options.map_err(|_| {
             ErrMode::from_error_kind(input, ErrorKind::Verify)
                 .add_context(
                     input,
@@ -226,29 +220,37 @@ fn world(ignore_unrecognized_directives: bool) -> impl FnMut(&mut &str) -> PResu
             (multispace0, peek(eof)),
         )
         .map(|dirs: Vec<_>| {
-            let mut options = WorldBuilder::create_empty();
+            let mut world = World::default();
             for d in dirs {
-                options.add_option(d);
+                world.add_option(d);
             }
-            options.build().unwrap()
+            world
         })
         .parse_next(input)
     }
 }
 
-impl WorldBuilder {
+impl World {
     pub fn add_option(&mut self, directive: WorldDirective) {
         match directive {
-            WorldDirective::Shape(s) => self.shapes.get_or_insert(Vec::new()).push(s),
+            WorldDirective::Shape(s) => self.shapes.push(s),
         };
     }
 }
 
-impl OptionsBuilder {
-    pub fn add_option(&mut self, directive: GlobalDirective) {
-        match directive {
-            GlobalDirective::Camera(cam) => self.camera(cam),
-        };
+impl Options {
+    pub fn new(directives: Vec<GlobalDirective>) -> Result<Self, String> {
+        let mut camera = None;
+
+        for directive in directives {
+            match directive {
+                GlobalDirective::Camera(cam) => camera = Some(cam),
+            };
+        }
+
+        Ok(Self {
+            camera: camera.ok_or("camera must be set in options")?,
+        })
     }
 }
 

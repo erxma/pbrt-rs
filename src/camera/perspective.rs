@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use derive_builder::Builder;
+use bon::bon;
 
 use super::{
     base::{find_minimum_differentials, ProjectiveCamera, ProjectiveCameraParams},
@@ -24,46 +24,37 @@ pub struct PerspectiveCamera {
     cos_total_width: Float,
 }
 
-#[derive(Builder)]
-#[builder(
-    name = "PerspectiveCameraBuilder",
-    public,
-    build_fn(private, name = "build_params")
-)]
-struct PerspectiveCameraParams {
-    // Camera base fields
-    transform: CameraTransform,
-    shutter_open: Float,
-    shutter_close: Float,
-    film: Arc<Film>,
-    #[builder(default)]
-    medium: Option<Arc<MediumEnum>>,
+#[bon]
+impl PerspectiveCamera {
+    #[builder]
+    pub fn new(
+        // Camera base fields
+        transform: CameraTransform,
+        shutter_open: Float,
+        shutter_close: Float,
+        film: Arc<Film>,
+        medium: Option<Arc<MediumEnum>>,
 
-    // For setting ProjectiveCamera fields
-    fov: Float,
-    screen_window: Bounds2f,
-    lens_radius: Float,
-    focal_distance: Float,
-}
-
-impl PerspectiveCameraBuilder {
-    pub fn build(&self) -> Result<PerspectiveCamera, PerspectiveCameraBuilderError> {
-        let params = self.build_params()?;
-
+        // For setting ProjectiveCamera fields
+        fov: Float,
+        screen_window: Bounds2f,
+        lens_radius: Float,
+        focal_distance: Float,
+    ) -> Self {
         // Perspective transform
-        let screen_from_camera = Transform::perspective(params.fov, 0.01, 1000.0);
+        let screen_from_camera = Transform::perspective(fov, 0.01, 1000.0);
 
         // Build projective base
         let projective_params = ProjectiveCameraParams {
-            transform: params.transform,
-            shutter_open: params.shutter_open,
-            shutter_close: params.shutter_close,
-            film: params.film,
-            medium: params.medium,
+            transform,
+            shutter_open,
+            shutter_close,
+            film,
+            medium,
             screen_from_camera,
-            screen_window: params.screen_window,
-            lens_radius: params.lens_radius,
-            focal_distance: params.focal_distance,
+            screen_window,
+            lens_radius,
+            focal_distance,
         };
         let projective = ProjectiveCamera::new(projective_params);
 
@@ -93,13 +84,7 @@ impl PerspectiveCameraBuilder {
         result.projective.min_dir_differential_x = min_dir_diff_x;
         result.projective.min_dir_differential_y = min_dir_diff_y;
 
-        Ok(result)
-    }
-}
-
-impl PerspectiveCamera {
-    pub fn builder() -> PerspectiveCameraBuilder {
-        Default::default()
+        result
     }
 }
 

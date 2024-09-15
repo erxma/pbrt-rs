@@ -12,7 +12,7 @@ use crate::{
     media::MediumEnum,
     sampling::spectrum::SampledWavelengths,
 };
-use derive_builder::Builder;
+use bon::bon;
 
 #[derive(Clone, Debug)]
 pub struct OrthographicCamera {
@@ -21,39 +21,31 @@ pub struct OrthographicCamera {
     _dy_camera: Vec3f,
 }
 
-#[derive(Builder)]
-#[builder(
-    name = "OrthographicCameraBuilder",
-    public,
-    build_fn(private, name = "build_params")
-)]
-struct OrthographicCameraParams {
-    transform: CameraTransform,
-    shutter_open: Float,
-    shutter_close: Float,
-    film: Arc<Film>,
-    medium: Option<Arc<MediumEnum>>,
+#[bon]
+impl OrthographicCamera {
+    #[builder]
+    pub fn new(
+        transform: CameraTransform,
+        shutter_open: Float,
+        shutter_close: Float,
+        film: Arc<Film>,
+        medium: Option<Arc<MediumEnum>>,
 
-    screen_from_camera: Transform,
-    screen_window: Bounds2f,
-    lens_radius: Float,
-    focal_distance: Float,
-}
-
-impl OrthographicCameraBuilder {
-    pub fn build(&self) -> Result<OrthographicCamera, OrthographicCameraBuilderError> {
-        let params = self.build_params()?;
-
+        screen_from_camera: Transform,
+        screen_window: Bounds2f,
+        lens_radius: Float,
+        focal_distance: Float,
+    ) -> Self {
         let projective_params = ProjectiveCameraParams {
-            transform: params.transform,
-            shutter_open: params.shutter_open,
-            shutter_close: params.shutter_close,
-            film: params.film,
-            medium: params.medium,
-            screen_from_camera: params.screen_from_camera,
-            screen_window: params.screen_window,
-            lens_radius: params.lens_radius,
-            focal_distance: params.focal_distance,
+            transform,
+            shutter_open,
+            shutter_close,
+            film,
+            medium,
+            screen_from_camera,
+            screen_window,
+            lens_radius,
+            focal_distance,
         };
         let projective = ProjectiveCamera::new(projective_params);
 
@@ -73,13 +65,7 @@ impl OrthographicCameraBuilder {
         result.projective.min_dir_differential_x = Vec3f::ZERO;
         result.projective.min_dir_differential_y = Vec3f::ZERO;
 
-        Ok(result)
-    }
-}
-
-impl OrthographicCamera {
-    pub fn builder() -> OrthographicCameraBuilder {
-        OrthographicCameraBuilder::create_empty()
+        result
     }
 }
 

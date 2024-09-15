@@ -87,8 +87,7 @@ fn render_cpu() {
         ))
         .lens_radius(0.0)
         .focal_distance(10e30)
-        .build()
-        .unwrap();
+        .build();
 
     let inf_spec = RgbIlluminantSpectrum::new(&SRGB, RGB::new(0.4, 0.45, 0.5));
     let inf_light =

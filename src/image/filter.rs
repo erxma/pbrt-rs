@@ -2,10 +2,8 @@ use delegate::delegate;
 use enum_dispatch::enum_dispatch;
 
 use crate::{
-    core::{
-        gaussian, gaussian_integral, lerp, Array2D, Bounds2f, Bounds2i, Float, Point2f, Point2i,
-        Vec2f,
-    },
+    core::{lerp, Array2D, Bounds2f, Bounds2i, Float, Point2f, Point2i, Vec2f},
+    math,
     sampling::routines::{sample_tent, PiecewiseConstant2D, PiecewiseConstant2DSample},
 };
 
@@ -138,8 +136,8 @@ pub struct GaussianFilter {
 
 impl GaussianFilter {
     pub fn new(radius: Vec2f, std: Float) -> Self {
-        let exp_x = gaussian(radius.x(), 0.0, std);
-        let exp_y = gaussian(radius.y(), 0.0, std);
+        let exp_x = math::gaussian(radius.x(), 0.0, std);
+        let exp_y = math::gaussian(radius.y(), 0.0, std);
 
         let mut result = Self {
             radius,
@@ -160,15 +158,15 @@ impl Filter for GaussianFilter {
     }
 
     fn eval(&self, p: Point2f) -> Float {
-        (gaussian(p.x(), 0.0, self.std) - self.exp_x).max(0.0)
-            * (gaussian(p.y(), 0.0, self.std) - self.exp_y).max(0.0)
+        (math::gaussian(p.x(), 0.0, self.std) - self.exp_x).max(0.0)
+            * (math::gaussian(p.y(), 0.0, self.std) - self.exp_y).max(0.0)
     }
 
     fn integral(&self) -> Float {
         let rad_x = self.radius.x();
         let rad_y = self.radius.y();
-        (gaussian_integral(-rad_x, rad_x, 0.0, self.std) - 2.0 * rad_x * self.exp_x)
-            * (gaussian_integral(-rad_y, rad_y, 0.0, self.std) - 2.0 * rad_y * self.exp_y)
+        (math::gaussian_integral(-rad_x, rad_x, 0.0, self.std) - 2.0 * rad_x * self.exp_x)
+            * (math::gaussian_integral(-rad_y, rad_y, 0.0, self.std) - 2.0 * rad_y * self.exp_y)
     }
 
     fn sample(&self, u: Point2f) -> FilterSample {

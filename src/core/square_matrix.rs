@@ -6,9 +6,9 @@ use std::{
 use inherent::inherent;
 use itertools::iproduct;
 
-use crate::core::Float;
+use crate::{core::Float, math};
 
-use super::{difference_of_products, inner_product, Tuple};
+use super::Tuple;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SquareMatrix<const N: usize> {
@@ -116,7 +116,7 @@ impl SquareMatrix<1> {
 impl SquareMatrix<2> {
     #[inline]
     pub fn determinant(&self) -> Float {
-        difference_of_products(self.m[0][0], self.m[1][1], self.m[0][1], self.m[1][0])
+        math::difference_of_products(self.m[0][0], self.m[1][1], self.m[0][1], self.m[1][0])
     }
 }
 
@@ -124,15 +124,15 @@ impl SquareMatrix<3> {
     #[inline]
     pub fn determinant(&self) -> Float {
         let minor12 =
-            difference_of_products(self.m[1][1], self.m[2][2], self.m[1][2], self.m[2][1]);
+            math::difference_of_products(self.m[1][1], self.m[2][2], self.m[1][2], self.m[2][1]);
         let minor02 =
-            difference_of_products(self.m[1][0], self.m[2][2], self.m[1][2], self.m[2][0]);
+            math::difference_of_products(self.m[1][0], self.m[2][2], self.m[1][2], self.m[2][0]);
         let minor01 =
-            difference_of_products(self.m[1][0], self.m[2][1], self.m[1][1], self.m[2][0]);
+            math::difference_of_products(self.m[1][0], self.m[2][1], self.m[1][1], self.m[2][0]);
 
         self.m[0][2].mul_add(
             minor01,
-            difference_of_products(self.m[0][0], minor12, self.m[0][1], minor02),
+            math::difference_of_products(self.m[0][0], minor12, self.m[0][1], minor02),
         )
     }
 }
@@ -150,15 +150,15 @@ impl Invert for SquareMatrix<3> {
         let m = &self.m;
         let mut ret = *m;
 
-        ret[0][0] = inv_det * difference_of_products(m[1][1], m[2][2], m[1][2], m[2][1]);
-        ret[1][0] = inv_det * difference_of_products(m[1][2], m[2][0], m[1][0], m[2][2]);
-        ret[2][0] = inv_det * difference_of_products(m[1][0], m[2][1], m[1][1], m[2][0]);
-        ret[0][1] = inv_det * difference_of_products(m[0][2], m[2][1], m[0][1], m[2][2]);
-        ret[1][1] = inv_det * difference_of_products(m[0][0], m[2][2], m[0][2], m[2][0]);
-        ret[2][1] = inv_det * difference_of_products(m[0][1], m[2][0], m[0][0], m[2][1]);
-        ret[0][2] = inv_det * difference_of_products(m[0][1], m[1][2], m[0][2], m[1][1]);
-        ret[1][2] = inv_det * difference_of_products(m[0][2], m[1][0], m[0][0], m[1][2]);
-        ret[2][2] = inv_det * difference_of_products(m[0][0], m[1][1], m[0][1], m[1][0]);
+        ret[0][0] = inv_det * math::difference_of_products(m[1][1], m[2][2], m[1][2], m[2][1]);
+        ret[1][0] = inv_det * math::difference_of_products(m[1][2], m[2][0], m[1][0], m[2][2]);
+        ret[2][0] = inv_det * math::difference_of_products(m[1][0], m[2][1], m[1][1], m[2][0]);
+        ret[0][1] = inv_det * math::difference_of_products(m[0][2], m[2][1], m[0][1], m[2][2]);
+        ret[1][1] = inv_det * math::difference_of_products(m[0][0], m[2][2], m[0][2], m[2][0]);
+        ret[2][1] = inv_det * math::difference_of_products(m[0][1], m[2][0], m[0][0], m[2][1]);
+        ret[0][2] = inv_det * math::difference_of_products(m[0][1], m[1][2], m[0][2], m[1][1]);
+        ret[1][2] = inv_det * math::difference_of_products(m[0][2], m[1][0], m[0][0], m[1][2]);
+        ret[2][2] = inv_det * math::difference_of_products(m[0][0], m[1][1], m[0][1], m[1][0]);
 
         Some(Self::new(ret))
     }
@@ -170,25 +170,25 @@ impl SquareMatrix<4> {
     // But it isn't expected to be used anyway
     pub fn determinant(&self) -> Float {
         let m = &self.m;
-        let s0 = difference_of_products(m[0][0], m[1][1], m[1][0], m[0][1]);
-        let s1 = difference_of_products(m[0][0], m[1][2], m[1][0], m[0][2]);
-        let s2 = difference_of_products(m[0][0], m[1][3], m[1][0], m[0][3]);
+        let s0 = math::difference_of_products(m[0][0], m[1][1], m[1][0], m[0][1]);
+        let s1 = math::difference_of_products(m[0][0], m[1][2], m[1][0], m[0][2]);
+        let s2 = math::difference_of_products(m[0][0], m[1][3], m[1][0], m[0][3]);
 
-        let s3 = difference_of_products(m[0][1], m[1][2], m[1][1], m[0][2]);
-        let s4 = difference_of_products(m[0][1], m[1][3], m[1][1], m[0][3]);
-        let s5 = difference_of_products(m[0][2], m[1][3], m[1][2], m[0][3]);
+        let s3 = math::difference_of_products(m[0][1], m[1][2], m[1][1], m[0][2]);
+        let s4 = math::difference_of_products(m[0][1], m[1][3], m[1][1], m[0][3]);
+        let s5 = math::difference_of_products(m[0][2], m[1][3], m[1][2], m[0][3]);
 
-        let c0 = difference_of_products(m[2][0], m[3][1], m[3][0], m[2][1]);
-        let c1 = difference_of_products(m[2][0], m[3][2], m[3][0], m[2][2]);
-        let c2 = difference_of_products(m[2][0], m[3][3], m[3][0], m[2][3]);
+        let c0 = math::difference_of_products(m[2][0], m[3][1], m[3][0], m[2][1]);
+        let c1 = math::difference_of_products(m[2][0], m[3][2], m[3][0], m[2][2]);
+        let c2 = math::difference_of_products(m[2][0], m[3][3], m[3][0], m[2][3]);
 
-        let c3 = difference_of_products(m[2][1], m[3][2], m[3][1], m[2][2]);
-        let c4 = difference_of_products(m[2][1], m[3][3], m[3][1], m[2][3]);
-        let c5 = difference_of_products(m[2][2], m[3][3], m[3][2], m[2][3]);
+        let c3 = math::difference_of_products(m[2][1], m[3][2], m[3][1], m[2][2]);
+        let c4 = math::difference_of_products(m[2][1], m[3][3], m[3][1], m[2][3]);
+        let c5 = math::difference_of_products(m[2][2], m[3][3], m[3][2], m[2][3]);
 
-        difference_of_products(s0, c5, s1, c4)
-            + difference_of_products(s2, c3, -s3, c2)
-            + difference_of_products(s5, c0, s4, c1)
+        math::difference_of_products(s0, c5, s1, c4)
+            + math::difference_of_products(s2, c3, -s3, c2)
+            + math::difference_of_products(s5, c0, s4, c1)
     }
 }
 
@@ -208,23 +208,23 @@ impl Invert for SquareMatrix<4> {
         //   http://www.geometrictools.com/Documentation/LaplaceExpansionTheorem.pdf
         let m = &self.m;
 
-        let s0 = difference_of_products(m[0][0], m[1][1], m[1][0], m[0][1]);
-        let s1 = difference_of_products(m[0][0], m[1][2], m[1][0], m[0][2]);
-        let s2 = difference_of_products(m[0][0], m[1][3], m[1][0], m[0][3]);
+        let s0 = math::difference_of_products(m[0][0], m[1][1], m[1][0], m[0][1]);
+        let s1 = math::difference_of_products(m[0][0], m[1][2], m[1][0], m[0][2]);
+        let s2 = math::difference_of_products(m[0][0], m[1][3], m[1][0], m[0][3]);
 
-        let s3 = difference_of_products(m[0][1], m[1][2], m[1][1], m[0][2]);
-        let s4 = difference_of_products(m[0][1], m[1][3], m[1][1], m[0][3]);
-        let s5 = difference_of_products(m[0][2], m[1][3], m[1][2], m[0][3]);
+        let s3 = math::difference_of_products(m[0][1], m[1][2], m[1][1], m[0][2]);
+        let s4 = math::difference_of_products(m[0][1], m[1][3], m[1][1], m[0][3]);
+        let s5 = math::difference_of_products(m[0][2], m[1][3], m[1][2], m[0][3]);
 
-        let c0 = difference_of_products(m[2][0], m[3][1], m[3][0], m[2][1]);
-        let c1 = difference_of_products(m[2][0], m[3][2], m[3][0], m[2][2]);
-        let c2 = difference_of_products(m[2][0], m[3][3], m[3][0], m[2][3]);
+        let c0 = math::difference_of_products(m[2][0], m[3][1], m[3][0], m[2][1]);
+        let c1 = math::difference_of_products(m[2][0], m[3][2], m[3][0], m[2][2]);
+        let c2 = math::difference_of_products(m[2][0], m[3][3], m[3][0], m[2][3]);
 
-        let c3 = difference_of_products(m[2][1], m[3][2], m[3][1], m[2][2]);
-        let c4 = difference_of_products(m[2][1], m[3][3], m[3][1], m[2][3]);
-        let c5 = difference_of_products(m[2][2], m[3][3], m[3][2], m[2][3]);
+        let c3 = math::difference_of_products(m[2][1], m[3][2], m[3][1], m[2][2]);
+        let c4 = math::difference_of_products(m[2][1], m[3][3], m[3][1], m[2][3]);
+        let c5 = math::difference_of_products(m[2][2], m[3][3], m[3][2], m[2][3]);
 
-        let det = inner_product!(s0, c5, -s1, c4, s2, c3, s3, c2, s5, c0, -s4, c1).val;
+        let det = math::inner_product!(s0, c5, -s1, c4, s2, c3, s3, c2, s5, c0, -s4, c1).val;
         if det == 0.0 {
             return None;
         }
@@ -232,28 +232,28 @@ impl Invert for SquareMatrix<4> {
 
         let inv = [
             [
-                s * inner_product!(m[1][1], c5, m[1][3], c3, -m[1][2], c4).val,
-                s * inner_product!(-m[0][1], c5, m[0][2], c4, -m[0][3], c3).val,
-                s * inner_product!(m[3][1], s5, m[3][3], s3, -m[3][2], s4).val,
-                s * inner_product!(-m[2][1], s5, m[2][2], s4, -m[2][3], s3).val,
+                s * math::inner_product!(m[1][1], c5, m[1][3], c3, -m[1][2], c4).val,
+                s * math::inner_product!(-m[0][1], c5, m[0][2], c4, -m[0][3], c3).val,
+                s * math::inner_product!(m[3][1], s5, m[3][3], s3, -m[3][2], s4).val,
+                s * math::inner_product!(-m[2][1], s5, m[2][2], s4, -m[2][3], s3).val,
             ],
             [
-                s * inner_product!(-m[1][0], c5, m[1][2], c2, -m[1][3], c1).val,
-                s * inner_product!(m[0][0], c5, m[0][3], c1, -m[0][2], c2).val,
-                s * inner_product!(-m[3][0], s5, m[3][2], s2, -m[3][3], s1).val,
-                s * inner_product!(m[2][0], s5, m[2][3], s1, -m[2][2], s2).val,
+                s * math::inner_product!(-m[1][0], c5, m[1][2], c2, -m[1][3], c1).val,
+                s * math::inner_product!(m[0][0], c5, m[0][3], c1, -m[0][2], c2).val,
+                s * math::inner_product!(-m[3][0], s5, m[3][2], s2, -m[3][3], s1).val,
+                s * math::inner_product!(m[2][0], s5, m[2][3], s1, -m[2][2], s2).val,
             ],
             [
-                s * inner_product!(m[1][0], c4, m[1][3], c0, -m[1][1], c2).val,
-                s * inner_product!(-m[0][0], c4, m[0][1], c2, -m[0][3], c0).val,
-                s * inner_product!(m[3][0], s4, m[3][3], s0, -m[3][1], s2).val,
-                s * inner_product!(-m[2][0], s4, m[2][1], s2, -m[2][3], s0).val,
+                s * math::inner_product!(m[1][0], c4, m[1][3], c0, -m[1][1], c2).val,
+                s * math::inner_product!(-m[0][0], c4, m[0][1], c2, -m[0][3], c0).val,
+                s * math::inner_product!(m[3][0], s4, m[3][3], s0, -m[3][1], s2).val,
+                s * math::inner_product!(-m[2][0], s4, m[2][1], s2, -m[2][3], s0).val,
             ],
             [
-                s * inner_product!(-m[1][0], c3, m[1][1], c1, -m[1][2], c0).val,
-                s * inner_product!(m[0][0], c3, m[0][2], c0, -m[0][1], c1).val,
-                s * inner_product!(-m[3][0], s3, m[3][1], s1, -m[3][2], s0).val,
-                s * inner_product!(m[2][0], s3, m[2][2], s0, -m[2][1], s1).val,
+                s * math::inner_product!(-m[1][0], c3, m[1][1], c1, -m[1][2], c0).val,
+                s * math::inner_product!(m[0][0], c3, m[0][2], c0, -m[0][1], c1).val,
+                s * math::inner_product!(-m[3][0], s3, m[3][1], s1, -m[3][2], s0).val,
+                s * math::inner_product!(m[2][0], s3, m[2][2], s0, -m[2][1], s1).val,
             ],
         ];
 

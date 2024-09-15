@@ -1,8 +1,9 @@
-use crate::{core::constants::PI, core::Float};
-
-use super::{
-    evaluate_polynomial, safe_acos, safe_sqrt, Bounds3f, Point2f, Point3f, Transform, Vec3f,
+use crate::{
+    core::{constants::PI, Float},
+    math,
 };
+
+use super::{safe_acos, safe_sqrt, Bounds3f, Point2f, Point3f, Transform, Vec3f};
 
 pub fn equal_area_square_to_sphere(p: Point2f) -> Vec3f {
     assert!(
@@ -67,7 +68,7 @@ pub fn equal_area_sphere_to_square(d: Vec3f) -> Point2f {
         -0.251390972343483509333252996350e-1,
     ];
 
-    let mut phi = evaluate_polynomial(b, &COEFFICENTS);
+    let mut phi = math::evaluate_polynomial(b, &COEFFICENTS);
 
     // Extend phi if input is in the range 45-90 deg (u < v)
     if x < y {

@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
-use super::{difference_of_products, Float, Normal3f, Point2f, Point3f, Point3fi, Vec3f};
+use super::{Float, Normal3f, Point2f, Point3f, Point3fi, Vec3f};
 use crate::{
     camera::Camera,
     lights::LightEnum,
     materials::{Material, MaterialEnum, MaterialEvalContext, UniversalTextureEvaluator},
+    math,
     media::{MediumEnum, MediumInterface, PhaseFunctionEnum},
     memory::ScratchBuffer,
     reflection::{BxDFEnum, BSDF},
@@ -268,7 +269,7 @@ impl<'a> SurfaceInteraction<'a> {
         let ata01 = self.dpdu.dot(self.dpdv);
         let ata11 = self.dpdv.dot(self.dpdv);
         let inv_det = {
-            let inv_det = 1.0 / difference_of_products(ata00, ata11, ata01, ata01);
+            let inv_det = 1.0 / math::difference_of_products(ata00, ata11, ata01, ata01);
             if inv_det.is_finite() {
                 inv_det
             } else {
@@ -283,10 +284,10 @@ impl<'a> SurfaceInteraction<'a> {
         let atb1y = self.dpdv.dot(dpdy);
 
         // Compute u, v deriatives with respect to x, y
-        let mut dudx = difference_of_products(ata11, atb0x, ata01, atb1x) * inv_det;
-        let mut dvdx = difference_of_products(ata00, atb1x, ata01, atb0x) * inv_det;
-        let mut dudy = difference_of_products(ata11, atb0y, ata01, atb1y) * inv_det;
-        let mut dvdy = difference_of_products(ata00, atb1y, ata01, atb0y) * inv_det;
+        let mut dudx = math::difference_of_products(ata11, atb0x, ata01, atb1x) * inv_det;
+        let mut dvdx = math::difference_of_products(ata00, atb1x, ata01, atb0x) * inv_det;
+        let mut dudy = math::difference_of_products(ata11, atb0y, ata01, atb1y) * inv_det;
+        let mut dvdy = math::difference_of_products(ata00, atb1y, ata01, atb0y) * inv_det;
 
         // Clamp derivatives to reasonable values, in case of very large values or inf,
         // e.g. with highly distorted (u, v) or at silhouette edges

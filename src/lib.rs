@@ -5,6 +5,7 @@ pub mod image;
 pub mod integrators;
 pub mod lights;
 pub mod materials;
+pub mod math;
 pub mod media;
 pub mod memory;
 pub mod parallel;

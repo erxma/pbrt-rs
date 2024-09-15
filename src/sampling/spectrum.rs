@@ -1,7 +1,10 @@
 use crate::{
     color::{RGBColorSpace, RGBSigmoidPolynomial, RGB, XYZ},
-    core::{find_interval, lerp, Float},
-    util::data::{CIE_ILLUM_D6500, CIE_LAMBDA, CIE_X, CIE_Y, CIE_Z, N_CIE_SPECTRUM_SAMPLES},
+    core::{lerp, Float},
+    util::{
+        data::{CIE_ILLUM_D6500, CIE_LAMBDA, CIE_X, CIE_Y, CIE_Z, N_CIE_SPECTRUM_SAMPLES},
+        routines::find_interval,
+    },
 };
 use approx::{AbsDiffEq, RelativeEq};
 use delegate::delegate;

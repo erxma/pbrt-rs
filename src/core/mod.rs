@@ -17,7 +17,7 @@ mod vec;
 mod vec_math;
 
 pub use array2d::Array2D;
-pub use bounds::{Bounds2f, Bounds2i, Bounds2iIterator, Bounds3f, Bounds3i};
+pub use bounds::{Bounds2f, Bounds2i, Bounds3f, Bounds3i};
 pub use float::{exponent, next_float_down, next_float_up, CompensatedFloat, Float};
 pub use frame::{Frame, FrameTransform};
 pub use interaction::{
@@ -28,12 +28,7 @@ pub use interval::Interval;
 pub use normal3::Normal3f;
 pub use point::{Point2Isize, Point2Usize, Point2f, Point2i, Point3f, Point3fi, Point3i};
 pub use ray::{Differentials, Ray, RayDifferential};
-pub(crate) use routines::inner_product;
-pub use routines::{
-    difference_of_products, encode_morton_3, erf, erf_inv, erff, evaluate_polynomial, fast_exp,
-    find_interval, gamma, gaussian, gaussian_integral, lerp, safe_acos, safe_asin, safe_sqrt,
-    solve_quadratic,
-};
+pub use routines::{erf, erf_inv, erff, fast_exp, gamma, lerp, safe_acos, safe_asin, safe_sqrt};
 pub use spherical::{
     equal_area_sphere_to_square, equal_area_square_to_sphere, wrap_equal_area_square,
     DirectionCone, OctahedralVec,

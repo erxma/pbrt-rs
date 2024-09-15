@@ -4,10 +4,11 @@ use itertools::iproduct;
 
 use crate::{
     core::{
-        difference_of_products, gamma, lerp, solve_quadratic, spherical_quad_area, Bounds3f,
-        DirectionCone, Float, Normal3f, Point2f, Point3f, Point3fi, Ray, SampleInteraction,
-        SquareMatrix, SurfaceInteraction, SurfaceInteractionParams, Transform, Tuple, Vec3f,
+        gamma, lerp, spherical_quad_area, Bounds3f, DirectionCone, Float, Normal3f, Point2f,
+        Point3f, Point3fi, Ray, SampleInteraction, SquareMatrix, SurfaceInteraction,
+        SurfaceInteractionParams, Transform, Tuple, Vec3f,
     },
+    math,
     memory::{
         NORMAL3F_BUFFER_CACHE, POINT2F_BUFFER_CACHE, POINT3F_BUFFER_CACHE, USIZE_BUFFER_CACHE,
     },
@@ -123,7 +124,7 @@ impl BilinearPatch {
         let f = n.dot(d2p_duv);
         let g = n.dot(d2p_dvv);
         // Compute dn/du and dn/dv from coeffs
-        let EGF2 = difference_of_products(E, G, F, F);
+        let EGF2 = math::difference_of_products(E, G, F, F);
         let inv_EGF2 = if EGF2 != 0.0 { 1.0 / EGF2 } else { 0.0 };
         let dndu: Normal3f =
             ((f * F - e * G) * inv_EGF2 * dpdu + (e * F - f * E) * inv_EGF2 * dpdv).into();
@@ -516,7 +517,7 @@ pub fn intersect_bilinear_patch(
     let b = (p10 - ray.o).cross(ray.dir).dot(p11 - p10) - (a + c);
 
     // Solve quadratic for patch u intersection
-    let (u1, u2) = solve_quadratic(a, b, c)?;
+    let (u1, u2) = math::solve_quadratic(a, b, c)?;
 
     // Find epsilon to ensure that candidate is greater than zero
     let epsilon = gamma(10)

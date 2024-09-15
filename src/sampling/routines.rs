@@ -1,9 +1,13 @@
-use crate::core::{
-    constants::{
-        FRAC_1_PI, FRAC_PI_2, FRAC_PI_4, INV_2_PI, INV_4_PI, ONE_MINUS_EPSILON, PI, SQRT_2,
+use crate::{
+    core::{
+        constants::{
+            FRAC_1_PI, FRAC_PI_2, FRAC_PI_4, INV_2_PI, INV_4_PI, ONE_MINUS_EPSILON, PI, SQRT_2,
+        },
+        lerp, next_float_down, safe_sqrt, Array2D, Bounds2f, Float, Point2f, Point2i, Point3f,
+        Vec2f, Vec3f,
     },
-    find_interval, gaussian, lerp, next_float_down, safe_sqrt, Array2D, Bounds2f, Float, Point2f,
-    Point2i, Point3f, Vec2f, Vec3f,
+    math,
+    util::routines::find_interval,
 };
 
 #[inline]
@@ -151,7 +155,7 @@ pub fn invert_exponential_sample(x: Float, a: Float) -> Float {
 
 #[inline]
 pub fn normal_pdf(x: Float, mu: Float, sigma: Float) -> Float {
-    gaussian(x, mu, sigma)
+    math::gaussian(x, mu, sigma)
 }
 
 #[inline]

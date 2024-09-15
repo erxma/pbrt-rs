@@ -5,9 +5,10 @@ use std::{
 };
 
 use crate::{
-    core::{evaluate_polynomial, find_interval, lerp, Float, Point2f, SquareMatrix},
+    core::{lerp, Float, Point2f, SquareMatrix},
+    math,
     sampling::spectrum::{DenselySampledSpectrum, Spectrum, ILLUMD65},
-    util::data::SRGB_TABLE,
+    util::{data::SRGB_TABLE, routines::find_interval},
 };
 
 use super::{RGB, XYZ};
@@ -240,7 +241,10 @@ impl RGBSigmoidPolynomial {
     }
 
     pub fn at(&self, lambda: Float) -> Float {
-        Self::sigmoid(evaluate_polynomial(lambda, &[self.c2, self.c1, self.c0]))
+        Self::sigmoid(math::evaluate_polynomial(
+            lambda,
+            &[self.c2, self.c1, self.c0],
+        ))
     }
 
     /// Max value of the spectral distribution over the visible wavelength range (360-830nm),

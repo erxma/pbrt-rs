@@ -4,11 +4,11 @@ use derive_builder::Builder;
 
 use crate::{
     core::{
-        constants::PI, difference_of_products, gamma, safe_acos, safe_sqrt, spherical_direction,
-        Bounds3f, DirectionCone, Float, Frame, Interval, Normal3f, Point2f, Point3f, Point3fi, Ray,
-        SampleInteraction, SurfaceInteraction, SurfaceInteractionParams, Transform, Tuple, Vec3f,
-        Vec3fi,
+        constants::PI, gamma, safe_acos, safe_sqrt, spherical_direction, Bounds3f, DirectionCone,
+        Float, Frame, Interval, Normal3f, Point2f, Point3f, Point3fi, Ray, SampleInteraction,
+        SurfaceInteraction, SurfaceInteractionParams, Transform, Tuple, Vec3f, Vec3fi,
     },
+    math,
     sampling::routines::sample_uniform_sphere,
 };
 
@@ -425,7 +425,7 @@ impl Sphere {
         let f = n.dot(d2p_duv);
         let g = n.dot(d2p_dvv);
         // Compute dn/du and dn/dv from fundamental form
-        let EGF2 = difference_of_products(E, G, F, F);
+        let EGF2 = math::difference_of_products(E, G, F, F);
         let inv_EGF2 = if EGF2 == 0.0 { 0.0 } else { 1.0 / EGF2 };
         let dndu =
             Normal3f::from((f * F - e * G) * inv_EGF2 * dpdu + (e * F - f * E) * inv_EGF2 * dpdv);

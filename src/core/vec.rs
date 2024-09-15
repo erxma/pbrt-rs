@@ -962,7 +962,7 @@ pub(crate) mod custom_impl {
 mod glam_impl {
     use super::Vec2 as Vec2Trait;
     use super::Vec3 as Vec3Trait;
-    use crate::{self as pbrt, math::tuple::Tuple};
+    use crate::core::{Float, Tuple};
 
     use delegate::delegate;
 

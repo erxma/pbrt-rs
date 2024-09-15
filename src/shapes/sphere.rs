@@ -3,17 +3,13 @@ use std::mem;
 use derive_builder::Builder;
 
 use crate::{
-    float::PI,
-    geometry::{
-        Bounds3f, DirectionCone, Frame, Ray, SampleInteraction, SurfaceInteraction,
-        SurfaceInteractionParams, Transform,
-    },
-    math::{
-        difference_of_products, gamma, safe_acos, safe_sqrt, spherical_direction, Interval,
-        Normal3f, Point2f, Point3f, Point3fi, Tuple, Vec3f, Vec3fi,
+    core::{
+        constants::PI, difference_of_products, gamma, safe_acos, safe_sqrt, spherical_direction,
+        Bounds3f, DirectionCone, Float, Frame, Interval, Normal3f, Point2f, Point3f, Point3fi, Ray,
+        SampleInteraction, SurfaceInteraction, SurfaceInteractionParams, Transform, Tuple, Vec3f,
+        Vec3fi,
     },
     sampling::routines::sample_uniform_sphere,
-    Float,
 };
 
 use super::{QuadricIntersection, Shape, ShapeIntersection, ShapeSample, ShapeSampleContext};

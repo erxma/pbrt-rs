@@ -5,10 +5,9 @@ use std::{
 };
 
 use crate::{
-    math::{evaluate_polynomial, find_interval, lerp, Point2f, SquareMatrix},
+    core::{evaluate_polynomial, find_interval, lerp, Float, Point2f, SquareMatrix},
     sampling::spectrum::{DenselySampledSpectrum, Spectrum, ILLUMD65},
     util::data::SRGB_TABLE,
-    Float,
 };
 
 use super::{RGB, XYZ};

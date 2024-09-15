@@ -4,7 +4,7 @@ use bytemuck::NoUninit;
 use rand::{distributions::Uniform, Rng as _, SeedableRng};
 use rand_pcg::Pcg32;
 
-use crate::{math::ONE_MINUS_EPSILON, Float};
+use crate::core::{constants::ONE_MINUS_EPSILON, Float};
 
 #[derive(Clone)]
 pub struct Rng {

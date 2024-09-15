@@ -2,10 +2,8 @@ use bitflags::bitflags;
 use enum_dispatch::enum_dispatch;
 
 use crate::{
-    geometry::Frame,
-    math::{Normal3f, Point2f, Vec3f},
+    core::{Float, Frame, Normal3f, Point2f, Vec3f},
     sampling::spectrum::SampledSpectrum,
-    Float,
 };
 
 use super::{DielectricBxDF, DiffuseBxDF};

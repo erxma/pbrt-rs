@@ -8,11 +8,9 @@ use super::{
     film::Film,
 };
 use crate::{
-    geometry::{Bounds2f, Transform},
-    math::Vec3f,
+    core::{Bounds2f, Float, Transform, Vec3f},
     media::MediumEnum,
     sampling::spectrum::SampledWavelengths,
-    Float,
 };
 use derive_builder::Builder;
 

@@ -3,10 +3,7 @@ use std::{
     ops::{Div, DivAssign, Index, IndexMut, Mul, MulAssign},
 };
 
-use crate::{
-    math::{impl_tuple_math_ops, Point2f, Tuple},
-    Float,
-};
+use crate::core::{impl_tuple_math_ops, Float, Point2f, Tuple};
 
 #[derive(
     Clone, Copy, Debug, Default, PartialEq, derive_more::Add, derive_more::Sub, derive_more::Neg,

@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
+use super::{difference_of_products, Float, Normal3f, Point2f, Point3f, Point3fi, Vec3f};
 use crate::{
     camera::Camera,
     lights::LightEnum,
     materials::{Material, MaterialEnum, MaterialEvalContext, UniversalTextureEvaluator},
-    math::{difference_of_products, Normal3f, Point2f, Point3f, Point3fi, Vec3f},
     media::{MediumEnum, MediumInterface, PhaseFunctionEnum},
     memory::ScratchBuffer,
     reflection::{BxDFEnum, BSDF},
@@ -12,7 +12,6 @@ use crate::{
         spectrum::{SampledSpectrum, SampledWavelengths},
         Sampler,
     },
-    Float,
 };
 
 use super::{Ray, RayDifferential, Transform};

@@ -3,16 +3,10 @@ use std::ops::{Index, IndexMut, Range};
 
 use itertools::iproduct;
 
-use crate::{
-    self as pbrt,
-    math::{
-        gamma, lerp, Point2f, Point2i, Point3f, Point3i, Vec2f, Vec2i, Vec3B, Vec3Usize, Vec3f,
-        Vec3i,
-    },
-    Float,
+use super::{
+    gamma, lerp, Float, Point2f, Point2i, Point3f, Point3i, Ray, Vec2f, Vec2i, Vec3B, Vec3Usize,
+    Vec3f, Vec3i,
 };
-
-use super::ray::Ray;
 
 /// A 3D axis-aligned bounding box (AABB) of `i32`.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -75,7 +69,7 @@ impl Bounds3i {
     /// Checks for a ray-box intersection and returns the the two parametric `t`
     /// values of the intersection, if any, as `(lower, higher)`.
     #[inline]
-    pub fn intersect_p(&self, ray: &Ray, t_max: Float) -> Option<(pbrt::Float, pbrt::Float)> {
+    pub fn intersect_p(&self, ray: &Ray, t_max: Float) -> Option<(Float, Float)> {
         // Convert to Float
         let bounds: Bounds3f = self.to_owned().into();
 
@@ -336,8 +330,8 @@ impl Bounds3f {
     /// This is done by setting the extents to an invalid config,
     /// such that any operations with it would yield the expected result.
     pub const EMPTY: Self = {
-        let min_val = pbrt::Float::MIN;
-        let max_val = pbrt::Float::MAX;
+        let min_val = Float::MIN;
+        let max_val = Float::MAX;
         let p_min = Point3f::new(max_val, max_val, max_val);
         let p_max = Point3f::new(min_val, min_val, min_val);
 
@@ -374,7 +368,7 @@ impl Bounds3f {
     /// Construct a new bounding box that is `self` but expanded by `delta`
     /// on all axes, in both directions on the axis.
     #[inline]
-    pub fn expand(self, delta: pbrt::Float) -> Self {
+    pub fn expand(self, delta: Float) -> Self {
         Self {
             p_min: self.p_min - Vec3f::new(delta, delta, delta),
             p_max: self.p_max + Vec3f::new(delta, delta, delta),
@@ -384,7 +378,7 @@ impl Bounds3f {
     /// Checks for a ray-box intersection and returns the the two parametric `t`
     /// values of the intersection, if any, as `(lower, higher)`.
     #[inline]
-    pub fn intersect_p(&self, ray: &Ray, t_max: Float) -> Option<(pbrt::Float, pbrt::Float)> {
+    pub fn intersect_p(&self, ray: &Ray, t_max: Float) -> Option<(Float, Float)> {
         let (mut t0, mut t1) = (0.0, t_max);
         for i in 0..3 {
             // Update interval for ith bounding box slab:
@@ -451,14 +445,14 @@ impl Bounds3f {
     }
 
     /// Compute the surface area of `self`.
-    pub fn surface_area(&self) -> pbrt::Float {
+    pub fn surface_area(&self) -> Float {
         let d = self.diagonal();
 
         (d.x() * d.y() + d.x() * d.z() + d.y() * d.z()) * 2.0
     }
 
     /// Compute the volume of `self`.
-    pub fn volume(&self) -> pbrt::Float {
+    pub fn volume(&self) -> Float {
         let d = self.diagonal();
         d.x() * d.y() * d.z()
     }
@@ -591,7 +585,7 @@ impl Bounds3f {
 
     // TODO: Does this have to for 3f only?
     /// Return the bounding sphere of `self`, as the `(center, radius)` of the sphere.
-    pub fn bounding_sphere(&self) -> (Point3f, pbrt::Float) {
+    pub fn bounding_sphere(&self) -> (Point3f, Float) {
         let center = (self.p_min + self.p_max) / 2.0;
         let radius = if self.contains(center) {
             center.distance(self.p_max)
@@ -894,7 +888,7 @@ impl Bounds2f {
     /// Construct a new bounding box that is `self` but expanded by `delta`
     /// on all axes, in both directions on the axis.
     #[inline]
-    pub fn expand(self, delta: pbrt::Float) -> Self {
+    pub fn expand(self, delta: Float) -> Self {
         Self {
             p_min: self.p_min - Vec2f::new(delta, delta),
             p_max: self.p_max + Vec2f::new(delta, delta),
@@ -908,7 +902,7 @@ impl Bounds2f {
     }
 
     /// Compute the area of `self`.
-    pub fn area(&self) -> pbrt::Float {
+    pub fn area(&self) -> Float {
         let d = self.diagonal();
         d.x() * d.y()
     }
@@ -997,8 +991,8 @@ impl Bounds2f {
     /// This is done by setting the extents to an invalid config,
     /// such that any operations with it would yield the expected result.
     pub fn empty() -> Self {
-        let min_val = pbrt::Float::MIN;
-        let max_val = pbrt::Float::MAX;
+        let min_val = Float::MIN;
+        let max_val = Float::MAX;
         let p_min = Point2f::new(max_val, max_val);
         let p_max = Point2f::new(min_val, min_val);
 
@@ -1006,7 +1000,7 @@ impl Bounds2f {
     }
 
     /// Return the bounding sphere of `self`, as the (center, radius) of the sphere.
-    pub fn bounding_sphere(&self) -> (Point2f, pbrt::Float) {
+    pub fn bounding_sphere(&self) -> (Point2f, Float) {
         let center = (self.p_min + self.p_max) / 2.0;
         let radius = if self.contains(center) {
             center.distance(self.p_max)

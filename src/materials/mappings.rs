@@ -1,8 +1,4 @@
-use crate::{
-    geometry::SurfaceInteraction,
-    math::{Normal3f, Point2f, Point3f, Vec3f},
-    Float,
-};
+use crate::core::{Float, Normal3f, Point2f, Point3f, SurfaceInteraction, Vec3f};
 
 pub trait TextureMapping2D {
     fn map(&self, ctx: TextureEvalContext) -> TexCoord2D;

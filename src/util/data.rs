@@ -12,7 +12,7 @@ use std::{
 use crate::{
     camera::PixelSensor,
     color::{CoefficientTable, RGBToSpectrumTable},
-    Float,
+    core::Float,
 };
 
 pub const N_CIE_SPECTRUM_SAMPLES: usize = 471;

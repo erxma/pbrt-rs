@@ -1,7 +1,4 @@
-use crate::{
-    math::{Normal3f, Tuple, Vec3f},
-    Float,
-};
+use super::{Float, Normal3f, Tuple, Vec3f};
 
 /// Represents a transformation that aligns three orthonormal vectors
 /// in a coordinate system with the x, y, z axes.

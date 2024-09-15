@@ -1,12 +1,14 @@
 mod filter;
 
-use std::path::Path;
-
 pub use filter::{BoxFilter, Filter, FilterEnum, FilterSample, GaussianFilter, TriangleFilter};
-use num_traits::AsPrimitive;
 
-use crate::{color::RGBColorSpace, math::Point2Usize, Float};
+use crate::{
+    color::RGBColorSpace,
+    core::{Float, Point2Usize},
+};
 use exr::prelude::write_rgb_file;
+use num_traits::AsPrimitive;
+use std::path::Path;
 
 pub struct Image {
     resolution: Point2Usize,

@@ -1,9 +1,8 @@
 use std::ops::{Add, Mul};
 
-use super::float_utility::exponent;
-use crate::{
-    float::{MACHINE_EPSILON, PI, SQRT_2},
-    Float,
+use super::{
+    constants::{MACHINE_EPSILON, PI, SQRT_2},
+    exponent, Float,
 };
 use num_traits::{AsPrimitive, Pow};
 
@@ -207,17 +206,18 @@ macro_rules! inner_product {
         compile_error!("inner_product must receive an even number of arguments")
     };
     ($a:expr, $b:expr $(,)?) => {
-        crate::math::CompensatedFloat::from_mul($a, $b)
+        crate::core::CompensatedFloat::from_mul($a, $b)
     };
     ($a: expr, $b:expr, $($rest:expr),+ $(,)?) => {
         {
-            let ab = crate::math::CompensatedFloat::from_mul($a, $b);
+            let ab = crate::core::CompensatedFloat::from_mul($a, $b);
             let tp = inner_product!($($rest),+);
-            let sum = crate::math::CompensatedFloat::from_add(ab.val, tp.val);
-            crate::math::CompensatedFloat::new(sum.val, tp.err + sum.err)
+            let sum = crate::core::CompensatedFloat::from_add(ab.val, tp.val);
+            crate::core::CompensatedFloat::new(sum.val, tp.err + sum.err)
         }
     }
 }
+pub(crate) use inner_product;
 
 #[inline]
 pub fn encode_morton_3(x: f32, y: f32, z: f32) -> u32 {
@@ -270,15 +270,13 @@ pub fn find_interval(size: usize, pred: impl Fn(usize) -> bool) -> Option<usize>
     }
 }
 
-pub(crate) use inner_product;
-
 #[cfg(test)]
 mod test {
     use super::*;
 
     use approx::assert_relative_eq;
 
-    use crate::Float;
+    use crate::core::Float;
 
     #[test]
     fn test_fast_exp() {

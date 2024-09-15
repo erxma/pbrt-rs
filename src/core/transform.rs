@@ -7,12 +7,11 @@ use approx::abs_diff_ne;
 use itertools::iproduct;
 use overload::overload;
 
-use crate::{
-    math::{gamma, Normal3f, Point3f, Point3fi, SquareMatrix, Tuple, Vec3f, Vec3fi},
-    Float,
+use super::{
+    bounds::Bounds3f, gamma, ray::Ray, Differentials, Normal3f, Point3f, Point3fi, RayDifferential,
+    SquareMatrix, Tuple, Vec3f, Vec3fi,
 };
-
-use super::{bounds::Bounds3f, ray::Ray, Differentials, RayDifferential};
+use crate::core::Float;
 
 /// Represents a 3D transformation.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -584,21 +583,19 @@ impl fmt::Display for Transform {
 mod test {
     use approx::{assert_relative_eq, AbsDiffEq, RelativeEq};
 
-    use crate::{self as pbrt, geometry::bounds::Bounds3f};
-
     use super::*;
 
     impl AbsDiffEq for Bounds3f {
-        type Epsilon = <pbrt::Float as AbsDiffEq>::Epsilon;
+        type Epsilon = <Float as AbsDiffEq>::Epsilon;
 
         fn default_epsilon() -> Self::Epsilon {
-            pbrt::Float::default_epsilon()
+            Float::default_epsilon()
         }
 
         fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
             for p in 0..2 {
                 for i in 0..3 {
-                    if pbrt::Float::abs_diff_ne(&self[p][i], &other[p][i], epsilon) {
+                    if Float::abs_diff_ne(&self[p][i], &other[p][i], epsilon) {
                         return false;
                     }
                 }
@@ -610,7 +607,7 @@ mod test {
 
     impl RelativeEq for Bounds3f {
         fn default_max_relative() -> Self::Epsilon {
-            pbrt::Float::default_max_relative()
+            Float::default_max_relative()
         }
 
         fn relative_eq(
@@ -621,7 +618,7 @@ mod test {
         ) -> bool {
             for p in 0..2 {
                 for i in 0..3 {
-                    if pbrt::Float::relative_ne(&self[p][i], &other[p][i], epsilon, max_relative) {
+                    if Float::relative_ne(&self[p][i], &other[p][i], epsilon, max_relative) {
                         return false;
                     }
                 }

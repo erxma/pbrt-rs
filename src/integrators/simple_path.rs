@@ -5,9 +5,8 @@ use log::info;
 
 use crate::{
     camera::{CameraEnum, VisibleSurface},
-    geometry::{Ray, RayDifferential},
+    core::{Float, Point2i, Ray, RayDifferential},
     lights::{LightEnum, LightSampleContext},
-    math::Point2i,
     memory::ScratchBuffer,
     primitives::{Primitive, PrimitiveEnum},
     reflection::{BxDFFlags, BxDFReflTransFlags, TransportMode},
@@ -20,7 +19,6 @@ use crate::{
         LightSampler, Sampler, SamplerEnum, UniformLightSampler,
     },
     shapes::ShapeIntersection,
-    Float,
 };
 
 use super::{

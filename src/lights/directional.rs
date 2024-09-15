@@ -1,12 +1,9 @@
 use std::sync::OnceLock;
 
 use crate::{
-    float::PI,
-    geometry::{Bounds3f, Ray, Transform},
-    math::{Normal3f, Point2f, Point3f, Vec3f},
+    core::{constants::PI, Bounds3f, Float, Normal3f, Point2f, Point3f, Ray, Transform, Vec3f},
     memory::ArcIntern,
     sampling::spectrum::{DenselySampledSpectrum, SampledSpectrum, SampledWavelengths, Spectrum},
-    Float,
 };
 
 use super::{base::SpectrumCache, Light, LightLiSample, LightSampleContext, LightType};

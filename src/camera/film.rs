@@ -10,14 +10,13 @@ use num_traits::AsPrimitive;
 
 use crate::{
     color::{RGBColorSpace, RGB},
-    geometry::Bounds2i,
-    image::{FilterEnum, Image, ImageMetadata},
-    math::{
-        Array2D, Point2Isize, Point2Usize, Point2f, Point2i, SquareMatrix, Tuple, Vec2f, Vec2i,
+    core::{
+        Array2D, Bounds2i, Float, Point2Isize, Point2Usize, Point2f, Point2i, SquareMatrix, Tuple,
+        Vec2f, Vec2i,
     },
+    image::{FilterEnum, Image, ImageMetadata},
     parallel::AtomicF64,
     sampling::spectrum::{SampledSpectrum, SampledWavelengths},
-    Float,
 };
 
 use super::sensor::PixelSensor;

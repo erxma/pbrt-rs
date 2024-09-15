@@ -3,13 +3,10 @@ use std::sync::{Arc, OnceLock};
 use itertools::iproduct;
 
 use crate::{
-    geometry::{
-        Bounds3f, DirectionCone, Ray, SampleInteraction, SurfaceInteraction,
-        SurfaceInteractionParams, Transform,
-    },
-    math::{
-        difference_of_products, gamma, lerp, solve_quadratic, spherical_quad_area, Normal3f,
-        Point2f, Point3f, Point3fi, SquareMatrix, Tuple, Vec3f,
+    core::{
+        difference_of_products, gamma, lerp, solve_quadratic, spherical_quad_area, Bounds3f,
+        DirectionCone, Float, Normal3f, Point2f, Point3f, Point3fi, Ray, SampleInteraction,
+        SquareMatrix, SurfaceInteraction, SurfaceInteractionParams, Transform, Tuple, Vec3f,
     },
     memory::{
         NORMAL3F_BUFFER_CACHE, POINT2F_BUFFER_CACHE, POINT3F_BUFFER_CACHE, USIZE_BUFFER_CACHE,
@@ -18,7 +15,6 @@ use crate::{
         bilinear_pdf, invert_bilinear, invert_spherical_rectangle_sample, sample_bilinear,
         sample_spherical_rectangle, PiecewiseConstant2D,
     },
-    Float,
 };
 
 use super::{Shape, ShapeIntersection, ShapeSample, ShapeSampleContext};

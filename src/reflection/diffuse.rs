@@ -1,11 +1,9 @@
 use crate::{
-    float::FRAC_1_PI,
-    math::{Point2f, Vec3f},
+    core::{constants::FRAC_1_PI, Float, Point2f, Vec3f},
     sampling::{
         routines::{cosine_hemisphere_pdf, sample_cosine_hemisphere},
         spectrum::SampledSpectrum,
     },
-    Float,
 };
 
 use super::{

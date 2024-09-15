@@ -3,9 +3,11 @@ use std::{
     ops::{Add, AddAssign},
 };
 
-use crate::Float;
-
-pub const ONE_MINUS_EPSILON: Float = 1.0 - Float::EPSILON;
+// Choice of representation of floats
+#[cfg(feature = "use-f64")]
+pub type Float = f64;
+#[cfg(not(feature = "use-f64"))]
+pub type Float = f32;
 
 // Returns the least number greater than `v`.
 #[inline]

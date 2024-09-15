@@ -1,4 +1,4 @@
-use std::{
+use core::{
     fmt,
     ops::{Add, Mul, Sub},
 };
@@ -7,11 +7,9 @@ use bytemuck::{Pod, Zeroable};
 use delegate::delegate;
 use num_traits::{NumCast, Signed, ToPrimitive};
 
-use crate::{self as pbrt};
-
 use super::{
-    impl_tuple_math_ops, Interval, Normal3f, Point2f, Point2i, Point3f, Point3fi, Point3i, Tuple,
-    TupleElement,
+    impl_tuple_math_ops, Float, Interval, Normal3f, Point2f, Point2i, Point3f, Point3fi, Point3i,
+    Tuple, TupleElement,
 };
 
 // To facilitate choosing between the implementation from scratch
@@ -105,11 +103,11 @@ impl Vec3i {
             #[into]
             pub fn cross(self, #[newtype] rhs: Self) -> Self;
             /// The length of a vector.
-            pub fn length(self) -> pbrt::Float;
+            pub fn length(self) -> Float;
             /// Returns the normalization of a vector.
             #[into]
             pub fn normalized(self) -> Vec3f;
-            pub fn angle_between(self, #[newtype] other: Self) -> pbrt::Float;
+            pub fn angle_between(self, #[newtype] other: Self) -> Float;
     }}
 
     /// Construct a local coordinate system given a vector.
@@ -184,57 +182,53 @@ pub struct Vec3f(inner::Vec3f);
 
 impl Vec3f {
     pub const ZERO: Self = Self::new(0.0, 0.0, 0.0);
-    pub const INFINITY: Self = Self::new(
-        pbrt::Float::INFINITY,
-        pbrt::Float::INFINITY,
-        pbrt::Float::INFINITY,
-    );
+    pub const INFINITY: Self = Self::new(Float::INFINITY, Float::INFINITY, Float::INFINITY);
     pub const FORWARD: Self = Self::new(0.0, 0.0, 1.0);
     pub const UP: Self = Self::new(0.0, 1.0, 0.0);
     pub const RIGHT: Self = Self::new(1.0, 0.0, 0.0);
 
-    pub const fn new(x: pbrt::Float, y: pbrt::Float, z: pbrt::Float) -> Self {
+    pub const fn new(x: Float, y: Float, z: Float) -> Self {
         Self(inner::Vec3f::new(x, y, z))
     }
 
     #[inline(always)]
-    pub fn x(&self) -> pbrt::Float {
+    pub fn x(&self) -> Float {
         self.0.x
     }
 
     #[inline(always)]
-    pub fn y(&self) -> pbrt::Float {
+    pub fn y(&self) -> Float {
         self.0.y
     }
 
     #[inline(always)]
-    pub fn z(&self) -> pbrt::Float {
+    pub fn z(&self) -> Float {
         self.0.z
     }
 
     #[inline(always)]
-    pub fn x_mut(&mut self) -> &mut pbrt::Float {
+    pub fn x_mut(&mut self) -> &mut Float {
         &mut self.0.x
     }
 
     #[inline(always)]
-    pub fn y_mut(&mut self) -> &mut pbrt::Float {
+    pub fn y_mut(&mut self) -> &mut Float {
         &mut self.0.y
     }
 
     #[inline(always)]
-    pub fn z_mut(&mut self) -> &mut pbrt::Float {
+    pub fn z_mut(&mut self) -> &mut Float {
         &mut self.0.z
     }
 
     delegate! {
         to self.0 {
             /// The squared length of a vector.
-            pub fn length_squared(self) -> pbrt::Float;
+            pub fn length_squared(self) -> Float;
             /// Returns the dot product of two vectors.
-            pub fn dot(self, #[newtype] rhs: Self) -> pbrt::Float;
+            pub fn dot(self, #[newtype] rhs: Self) -> Float;
             /// The absolute value of the dot product of two vectors.
-            pub fn absdot(self, #[newtype] rhs: Self) -> pbrt::Float;
+            pub fn absdot(self, #[newtype] rhs: Self) -> Float;
             /// The cross product of two vectors.
             ///
             /// May have precision loss or truncation if required to fit the result in `T`.
@@ -242,11 +236,11 @@ impl Vec3f {
             #[into]
             pub fn cross(self, #[newtype] rhs: Self) -> Self;
             /// The length of a vector.
-            pub fn length(self) -> pbrt::Float;
+            pub fn length(self) -> Float;
             /// Returns the normalization of a vector.
             #[into]
             pub fn normalized(self) -> Self;
-            pub fn angle_between(self, #[newtype] other: Self) -> pbrt::Float;
+            pub fn angle_between(self, #[newtype] other: Self) -> Float;
     }}
 
     /// Construct a local coordinate system given a vector.
@@ -259,11 +253,11 @@ impl Vec3f {
     }
 }
 
-impl Tuple<3, pbrt::Float> for Vec3f {}
-impl_tuple_math_ops!(Vec3f; 3; pbrt::Float);
+impl Tuple<3, Float> for Vec3f {}
+impl_tuple_math_ops!(Vec3f; 3; Float);
 
-impl From<[pbrt::Float; 3]> for Vec3f {
-    fn from(arr: [pbrt::Float; 3]) -> Self {
+impl From<[Float; 3]> for Vec3f {
+    fn from(arr: [Float; 3]) -> Self {
         let [x, y, z] = arr;
         Self::new(x, y, z)
     }
@@ -284,11 +278,7 @@ impl From<Point3f> for Vec3f {
 
 impl From<Vec3i> for Vec3f {
     fn from(value: Vec3i) -> Self {
-        Self::new(
-            value.x() as pbrt::Float,
-            value.y() as pbrt::Float,
-            value.z() as pbrt::Float,
-        )
+        Self::new(value.x() as Float, value.y() as Float, value.z() as Float)
     }
 }
 
@@ -330,7 +320,7 @@ impl fmt::Display for Vec3f {
 }
 
 // ==================== HELPER TRAIT FOR VEC3 INNER TYPES ====================
-pub(in crate::math) trait Vec3<T: TupleElement>: Tuple<3, T> {
+pub(super) trait Vec3<T: TupleElement>: Tuple<3, T> {
     /// The type to be used for vecs of float where necessary.
     /// Should always be set to "Self" with T = Float.
     ///
@@ -353,7 +343,7 @@ pub(in crate::math) trait Vec3<T: TupleElement>: Tuple<3, T> {
     where
         T: Into<f64> + NumCast;
 
-    fn length(self) -> pbrt::Float
+    fn length(self) -> Float
     where
         T: ToPrimitive;
 
@@ -361,7 +351,7 @@ pub(in crate::math) trait Vec3<T: TupleElement>: Tuple<3, T> {
     where
         T: ToPrimitive;
 
-    fn angle_between(self, other: Self) -> pbrt::Float
+    fn angle_between(self, other: Self) -> Float
     where
         T: ToPrimitive;
 
@@ -426,7 +416,7 @@ impl Vec2i {
             /// The absolute value of the dot product of two vectors.
             pub fn absdot(self, #[newtype] rhs: Self) -> i32;
             /// The length of a vector.
-            pub fn length(self) -> pbrt::Float;
+            pub fn length(self) -> Float;
             /// Returns the normalization of a vector.
             #[into]
             pub fn normalized(self) -> Vec2f;
@@ -494,51 +484,51 @@ impl fmt::Display for Vec2i {
 pub struct Vec2f(inner::Vec2f);
 
 impl Vec2f {
-    pub const fn new(x: pbrt::Float, y: pbrt::Float) -> Self {
+    pub const fn new(x: Float, y: Float) -> Self {
         Self(inner::Vec2f::new(x, y))
     }
 
     #[inline(always)]
-    pub fn x(&self) -> pbrt::Float {
+    pub fn x(&self) -> Float {
         self.0.x
     }
 
     #[inline(always)]
-    pub fn y(&self) -> pbrt::Float {
+    pub fn y(&self) -> Float {
         self.0.y
     }
 
     #[inline(always)]
-    pub fn x_mut(&mut self) -> &mut pbrt::Float {
+    pub fn x_mut(&mut self) -> &mut Float {
         &mut self.0.x
     }
 
     #[inline(always)]
-    pub fn y_mut(&mut self) -> &mut pbrt::Float {
+    pub fn y_mut(&mut self) -> &mut Float {
         &mut self.0.y
     }
 
     delegate! {
         to self.0 {
             /// The squared length of a vector.
-            pub fn length_squared(self) -> pbrt::Float;
+            pub fn length_squared(self) -> Float;
             /// Returns the dot product of two vectors.
-            pub fn dot(self, #[newtype] rhs: Self) -> pbrt::Float;
+            pub fn dot(self, #[newtype] rhs: Self) -> Float;
             /// The absolute value of the dot product of two vectors.
-            pub fn absdot(self, #[newtype] rhs: Self) -> pbrt::Float;
+            pub fn absdot(self, #[newtype] rhs: Self) -> Float;
             /// The length of a vector.
-            pub fn length(self) -> pbrt::Float;
+            pub fn length(self) -> Float;
             /// Returns the normalization of a vector.
             #[into]
             pub fn normalized(self) -> Self;
     }}
 }
 
-impl Tuple<2, pbrt::Float> for Vec2f {}
-impl_tuple_math_ops!(Vec2f; 2; pbrt::Float);
+impl Tuple<2, Float> for Vec2f {}
+impl_tuple_math_ops!(Vec2f; 2; Float);
 
-impl From<[pbrt::Float; 2]> for Vec2f {
-    fn from(arr: [pbrt::Float; 2]) -> Self {
+impl From<[Float; 2]> for Vec2f {
+    fn from(arr: [Float; 2]) -> Self {
         let [x, y] = arr;
         Self::new(x, y)
     }
@@ -546,7 +536,7 @@ impl From<[pbrt::Float; 2]> for Vec2f {
 
 impl From<Vec2i> for Vec2f {
     fn from(value: Vec2i) -> Self {
-        Self::new(value.x() as pbrt::Float, value.y() as pbrt::Float)
+        Self::new(value.x() as Float, value.y() as Float)
     }
 }
 
@@ -585,7 +575,7 @@ impl fmt::Display for Vec2f {
 }
 
 // ==================== HELPER TRAIT FOR VEC2 INNER TYPES ====================
-pub(in crate::math) trait Vec2<T: TupleElement>: Tuple<2, T> {
+pub(super) trait Vec2<T: TupleElement>: Tuple<2, T> {
     /// The type to be used for vecs of float where necessary.
     /// Should always be set to "Self" with T = Float.
     ///
@@ -604,7 +594,7 @@ pub(in crate::math) trait Vec2<T: TupleElement>: Tuple<2, T> {
     where
         T: Signed;
 
-    fn length(self) -> pbrt::Float
+    fn length(self) -> Float
     where
         T: ToPrimitive;
 
@@ -632,13 +622,11 @@ pub(crate) mod custom_impl {
     use num_traits::{NumCast, Signed, ToPrimitive};
 
     use crate::{
-        self as pbrt,
-        float::PI,
-        math::{impl_tuple_math_ops_generic, safe_asin, Tuple, TupleElement},
+        core::constants::PI,
+        core::{impl_tuple_math_ops_generic, safe_asin, Float, Tuple, TupleElement},
     };
 
-    use super::Vec2 as Vec2Trait;
-    use super::Vec3 as Vec3Trait;
+    use super::{Vec2 as Vec2Trait, Vec3 as Vec3Trait};
 
     /// A 3D vector.
     #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Zeroable)]
@@ -651,7 +639,7 @@ pub(crate) mod custom_impl {
 
     #[allow(dead_code)]
     pub type Vec3i = Vec3<i32>;
-    pub type Vec3f = Vec3<pbrt::Float>;
+    pub type Vec3f = Vec3<Float>;
 
     unsafe impl Pod for Vec3i {}
     unsafe impl Pod for Vec3f {}
@@ -696,7 +684,7 @@ pub(crate) mod custom_impl {
     }
 
     impl<T: TupleElement> Vec3Trait<T> for Vec3<T> {
-        type VecFloat = Vec3<pbrt::Float>;
+        type VecFloat = Vec3<Float>;
 
         fn dot(self, rhs: Self) -> T {
             self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
@@ -723,11 +711,11 @@ pub(crate) mod custom_impl {
             }
         }
 
-        fn length(self) -> pbrt::Float
+        fn length(self) -> Float
         where
             T: ToPrimitive,
         {
-            let sqlen: pbrt::Float = NumCast::from(self.length_squared()).unwrap();
+            let sqlen: Float = NumCast::from(self.length_squared()).unwrap();
             sqlen.sqrt()
         }
 
@@ -740,11 +728,11 @@ pub(crate) mod custom_impl {
         }
 
         #[inline]
-        fn angle_between(self, other: Self) -> pbrt::Float
+        fn angle_between(self, other: Self) -> Float
         where
             T: ToPrimitive,
         {
-            let dot: pbrt::Float = NumCast::from(self.dot(other)).unwrap();
+            let dot: Float = NumCast::from(self.dot(other)).unwrap();
             if dot < 0.0 {
                 PI - 2.0 * safe_asin((self + other).length() / 2.0)
             } else {
@@ -842,7 +830,7 @@ pub(crate) mod custom_impl {
 
     #[allow(dead_code)]
     pub type Vec2i = Vec2<i32>;
-    pub type Vec2f = Vec2<pbrt::Float>;
+    pub type Vec2f = Vec2<Float>;
 
     unsafe impl Pod for Vec2i {}
     unsafe impl Pod for Vec2f {}
@@ -877,7 +865,7 @@ pub(crate) mod custom_impl {
     }
 
     impl<T: TupleElement> Vec2Trait<T> for Vec2<T> {
-        type VecFloat = Vec2<pbrt::Float>;
+        type VecFloat = Vec2<Float>;
 
         fn dot(self, rhs: Self) -> T {
             self.x * rhs.x + self.y * rhs.y
@@ -890,11 +878,11 @@ pub(crate) mod custom_impl {
             self.dot(rhs).abs()
         }
 
-        fn length(self) -> pbrt::Float
+        fn length(self) -> Float
         where
             T: ToPrimitive,
         {
-            let sqlen: pbrt::Float = NumCast::from(self.length_squared()).unwrap();
+            let sqlen: Float = NumCast::from(self.length_squared()).unwrap();
             sqlen.sqrt()
         }
 
@@ -999,7 +987,7 @@ mod glam_impl {
             self.dot(rhs).abs()
         }
 
-        fn length(self) -> pbrt::Float {
+        fn length(self) -> Float {
             #[cfg(feature = "use-f64")]
             return self.as_dvec3().length();
             #[cfg(not(feature = "use-f64"))]
@@ -1013,7 +1001,7 @@ mod glam_impl {
             return self.as_vec3().normalize();
         }
 
-        fn angle_between(self, other: Self) -> pbrt::Float {
+        fn angle_between(self, other: Self) -> Float {
             #[cfg(feature = "use-f64")]
             return self.as_dvec3().angle_between(other.as_dvec3());
             #[cfg(not(feature = "use-f64"))]
@@ -1039,21 +1027,21 @@ mod glam_impl {
 
     impl Tuple<3, i32> for Vec3i {}
 
-    impl Vec3Trait<pbrt::Float> for Vec3f {
+    impl Vec3Trait<Float> for Vec3f {
         type VecFloat = Vec3f;
 
         delegate! {
             to self {
-                fn dot(self, rhs: Self) -> pbrt::Float;
+                fn dot(self, rhs: Self) -> Float;
                 fn cross(self, rhs: Self) -> Self;
-                fn length(self) -> pbrt::Float;
+                fn length(self) -> Float;
                 #[call(normalize)]
                 fn normalized(self) -> Vec3f;
-                fn angle_between(self, other: Self) -> pbrt::Float;
+                fn angle_between(self, other: Self) -> Float;
             }
         }
 
-        fn absdot(self, rhs: Self) -> pbrt::Float {
+        fn absdot(self, rhs: Self) -> Float {
             self.dot(rhs).abs()
         }
 
@@ -1070,7 +1058,7 @@ mod glam_impl {
         }
     }
 
-    impl Tuple<3, pbrt::Float> for Vec3f {}
+    impl Tuple<3, Float> for Vec3f {}
 
     // VEC2
     pub type Vec2i = glam::IVec2;
@@ -1093,7 +1081,7 @@ mod glam_impl {
             self.dot(rhs).abs()
         }
 
-        fn length(self) -> pbrt::Float {
+        fn length(self) -> Float {
             #[cfg(feature = "use-f64")]
             return self.as_dvec2().length();
             #[cfg(not(feature = "use-f64"))]
@@ -1110,24 +1098,24 @@ mod glam_impl {
 
     impl Tuple<2, i32> for Vec2i {}
 
-    impl Vec2Trait<pbrt::Float> for Vec2f {
+    impl Vec2Trait<Float> for Vec2f {
         type VecFloat = Vec2f;
 
         delegate! {
             to self {
-                fn dot(self, rhs: Self) -> pbrt::Float;
-                fn length(self) -> pbrt::Float;
+                fn dot(self, rhs: Self) -> Float;
+                fn length(self) -> Float;
                 #[call(normalize)]
                 fn normalized(self) -> Vec2f;
             }
         }
 
-        fn absdot(self, rhs: Self) -> pbrt::Float {
+        fn absdot(self, rhs: Self) -> Float {
             self.dot(rhs).abs()
         }
     }
 
-    impl Tuple<2, pbrt::Float> for Vec2f {}
+    impl Tuple<2, Float> for Vec2f {}
 }
 
 // ==================== VEC3FI - NO GLAM EQUIVALENT ====================
@@ -1161,7 +1149,7 @@ impl Vec3fi {
         )
     }
 
-    pub fn new_fi_exact(x: pbrt::Float, y: pbrt::Float, z: pbrt::Float) -> Self {
+    pub fn new_fi_exact(x: Float, y: Float, z: Float) -> Self {
         Self::new(
             Interval::new_exact(x),
             Interval::new_exact(y),

@@ -8,12 +8,12 @@ use super::{
     Camera, CameraRay, CameraRayDifferential, CameraSample, CameraTransform,
 };
 use crate::{
-    geometry::{Bounds2f, Differentials, Ray, RayDifferential, Transform},
-    math::{Point2f, Point3f, Vec3f},
+    core::{
+        Bounds2f, Differentials, Float, Point2f, Point3f, Ray, RayDifferential, Transform, Vec3f,
+    },
     media::MediumEnum,
     sampling::routines::sample_uniform_disk_concentric,
     sampling::spectrum::SampledWavelengths,
-    Float,
 };
 
 #[derive(Clone, Debug)]
@@ -79,7 +79,6 @@ impl PerspectiveCameraBuilder {
         let w_corner_camera = Vec3f::from(&projective.camera_from_raster * p_corner).normalized();
         let cos_total_width = w_corner_camera.z();
 
-        // TODO: Messy
         let mut result = PerspectiveCamera {
             projective,
             dx_camera,

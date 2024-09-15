@@ -1,10 +1,8 @@
 use std::iter::{once, Once};
 
 use crate::{
-    geometry::Ray,
-    math::Point3f,
+    core::{Float, Point3f, Ray},
     sampling::spectrum::{DenselySampledSpectrum, SampledSpectrum, SampledWavelengths, Spectrum},
-    Float,
 };
 
 use super::{HenyeyGreenstein, PhaseFunctionEnum};

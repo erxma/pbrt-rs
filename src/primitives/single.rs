@@ -1,12 +1,11 @@
 use std::sync::Arc;
 
 use crate::{
-    geometry::{Bounds3f, Ray},
+    core::{Bounds3f, Float, Ray},
     lights::LightEnum,
     materials::MaterialEnum,
     media::MediumInterface,
     shapes::{Shape, ShapeEnum, ShapeIntersection},
-    Float,
 };
 
 use super::Primitive;

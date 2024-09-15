@@ -8,9 +8,7 @@ use std::{
 
 use itertools::Itertools;
 
-use crate::geometry::Bounds2i;
-
-use super::point::Point2i;
+use super::{Bounds2i, Point2i};
 
 #[derive(Debug)]
 pub struct Array2D<T> {

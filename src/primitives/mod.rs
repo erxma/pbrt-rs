@@ -1,9 +1,8 @@
 use enum_dispatch::enum_dispatch;
 
 use crate::{
-    geometry::{Bounds3f, Ray},
+    core::{Bounds3f, Float, Ray},
     shapes::ShapeIntersection,
-    Float,
 };
 
 mod aggregates;

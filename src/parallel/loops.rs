@@ -1,7 +1,7 @@
 use itertools::iproduct;
 use rayon::prelude::*;
 
-use crate::{geometry::Bounds2i, math::Point2i, Float};
+use crate::core::{Bounds2i, Float, Point2i};
 
 pub fn parallel_for_2d_tiled_with<T>(
     extent: Bounds2i,

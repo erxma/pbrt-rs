@@ -1,10 +1,7 @@
 use std::sync::Arc;
 
-use crate::{
-    math::{next_float_down, next_float_up, Normal3f, Point3f, Point3fi, Tuple, Vec3f},
-    media::MediumEnum,
-    Float,
-};
+use super::{next_float_down, next_float_up, Float, Normal3f, Point3f, Point3fi, Tuple, Vec3f};
+use crate::media::MediumEnum;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Ray {

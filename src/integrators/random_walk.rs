@@ -5,10 +5,8 @@ use log::info;
 
 use crate::{
     camera::{CameraEnum, VisibleSurface},
-    float::PI,
-    geometry::{Ray, RayDifferential},
+    core::{constants::PI, Float, Point2i, Ray, RayDifferential},
     lights::LightEnum,
-    math::Point2i,
     memory::ScratchBuffer,
     primitives::{Primitive, PrimitiveEnum},
     reflection::TransportMode,
@@ -18,7 +16,6 @@ use crate::{
         Sampler, SamplerEnum,
     },
     shapes::ShapeIntersection,
-    Float,
 };
 
 use super::{
@@ -69,7 +66,7 @@ impl Integrate for RandomWalkIntegrator {
         self.scene_data.aggregate.intersect(ray, t_max)
     }
 
-    fn intersect_p(&self, ray: &crate::geometry::Ray, t_max: Option<Float>) -> bool {
+    fn intersect_p(&self, ray: &Ray, t_max: Option<Float>) -> bool {
         self.scene_data.aggregate.intersect_p(ray, t_max)
     }
 }

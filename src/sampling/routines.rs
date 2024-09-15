@@ -1,11 +1,9 @@
-use crate::{
-    float::{FRAC_1_PI, FRAC_PI_2, FRAC_PI_4, INV_2_PI, INV_4_PI, PI, SQRT_2},
-    geometry::Bounds2f,
-    math::{
-        self, find_interval, gaussian, lerp, next_float_down, safe_sqrt, Array2D, Point2f, Point2i,
-        Point3f, Vec2f, Vec3f, ONE_MINUS_EPSILON,
+use crate::core::{
+    constants::{
+        FRAC_1_PI, FRAC_PI_2, FRAC_PI_4, INV_2_PI, INV_4_PI, ONE_MINUS_EPSILON, PI, SQRT_2,
     },
-    Float,
+    find_interval, gaussian, lerp, next_float_down, safe_sqrt, Array2D, Bounds2f, Float, Point2f,
+    Point2i, Point3f, Vec2f, Vec3f,
 };
 
 #[inline]
@@ -163,7 +161,7 @@ pub fn std_normal_pdf(x: Float) -> Float {
 
 #[inline]
 pub fn sample_normal(u: Float, mu: Float, sigma: Float) -> Float {
-    mu + SQRT_2 * sigma * math::erf_inv(2.0 * u - 1.0)
+    mu + SQRT_2 * sigma * crate::core::erf_inv(2.0 * u - 1.0)
 }
 
 #[inline]
@@ -174,9 +172,9 @@ pub fn sample_std_normal(u: Float) -> Float {
 #[inline]
 pub fn invert_normal_sample(x: Float, mu: Float, sigma: Float) -> Float {
     #[cfg(not(feature = "use-f64"))]
-    return 0.5 * (1.0 + math::erff((x - mu) / (sigma * SQRT_2)));
+    return 0.5 * (1.0 + crate::core::erff((x - mu) / (sigma * SQRT_2)));
     #[cfg(feature = "use-f64")]
-    return 0.5 * (1.0 + math::erf((x - mu) / (sigma * SQRT_2)));
+    return 0.5 * (1.0 + crate::core::erf((x - mu) / (sigma * SQRT_2)));
 }
 
 #[inline]

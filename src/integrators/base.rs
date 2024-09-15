@@ -4,10 +4,12 @@ use indicatif::ProgressBar;
 
 use crate::{
     camera::{CameraEnum, VisibleSurface},
-    geometry::{Ray, RayDifferential, SurfaceInteraction},
+    core::{
+        constants::SHADOW_EPSILON, Float, Point2i, Point3f, Ray, RayDifferential,
+        SurfaceInteraction,
+    },
     image::ImageMetadata,
     lights::{LightEnum, LightType},
-    math::{Point2i, Point3f, SHADOW_EPSILON},
     memory::ScratchBuffer,
     parallel::parallel_for_2d_tiled_with,
     primitives::{Primitive, PrimitiveEnum},
@@ -16,7 +18,6 @@ use crate::{
         Sampler, SamplerEnum,
     },
     shapes::ShapeIntersection,
-    Float,
 };
 
 pub trait Integrate {

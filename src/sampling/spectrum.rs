@@ -1,8 +1,7 @@
 use crate::{
     color::{RGBColorSpace, RGBSigmoidPolynomial, RGB, XYZ},
-    math::{find_interval, lerp},
+    core::{find_interval, lerp, Float},
     util::data::{CIE_ILLUM_D6500, CIE_LAMBDA, CIE_X, CIE_Y, CIE_Z, N_CIE_SPECTRUM_SAMPLES},
-    Float,
 };
 use approx::{AbsDiffEq, RelativeEq};
 use delegate::delegate;
@@ -186,7 +185,7 @@ impl DenselySampledSpectrum {
 
         assert!(lambda_max >= lambda_min);
 
-        let mut values = Vec::with_capacity((lambda_max - lambda_min + 1) as usize);
+        let mut values = Vec::with_capacity(lambda_max - lambda_min + 1);
         for lambda in lambda_min..=lambda_max {
             values.push(NotNan::new(spec.at(lambda as Float)).expect(
                 "There should not be NaNs in spectrum, but one was found when sampling `spec`",
@@ -400,7 +399,10 @@ impl BlackbodySpectrum {
     /// Construct a new spectrum for a blackbody at the given `temp`.
     pub fn new(temp: Float) -> Self {
         // Wavelength (in meters) where emitted radiance is at maximum, for this temp
+        #[cfg(feature = "use-f64")]
         let lambda_max = 2.8977721e-3 / temp;
+        #[cfg(not(feature = "use-f64"))]
+        let lambda_max = 2.897772e-3 / temp;
         Self {
             temp,
             normalization_factor: 1.0 / blackbody(lambda_max * 1e9, temp),

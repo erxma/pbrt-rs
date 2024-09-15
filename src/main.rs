@@ -4,7 +4,7 @@ use log::info;
 use pbrt_rs::{
     camera::{Camera, CameraTransform, PerspectiveCamera, PixelSensor, RGBFilm, RGBFilmParams},
     color::{RGB, SRGB},
-    geometry::{Bounds2f, Bounds2i, Transform},
+    core::{Bounds2f, Bounds2i, Float, Point2f, Point2i, Point3f, Transform, Vec2f, Vec3f},
     image::GaussianFilter,
     integrators::{Integrate, SimplePathIntegrator},
     lights::{DirectionalLight, UniformInfiniteLight},
@@ -12,7 +12,6 @@ use pbrt_rs::{
         ConstantFloatTexture, ConstantSpectrumTexture, DielectricMaterial, DiffuseMaterial,
         FloatTextureEnum,
     },
-    math::{Point2f, Point2i, Point3f, Vec2f, Vec3f},
     primitives::{BVHAggregate, BVHSplitMethod, SimplePrimitive},
     sampling::{
         spectrum::{
@@ -21,7 +20,6 @@ use pbrt_rs::{
         IndependentSampler,
     },
     shapes::{BilinearPatch, BilinearPatchMesh, Sphere},
-    Float,
 };
 use time::{macros::format_description, OffsetDateTime};
 

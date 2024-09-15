@@ -6,14 +6,9 @@ use std::{
 use bytemuck::{Pod, Zeroable};
 use delegate::delegate;
 
-use crate::{
-    self as pbrt,
-    geometry::{Bounds2f, Bounds2i, Bounds3f, Bounds3i},
-    Float,
-};
-
 use super::{
-    impl_tuple_math_ops, Interval, Tuple, Vec2Isize, Vec2Usize, Vec2f, Vec2i, Vec3f, Vec3fi, Vec3i,
+    impl_tuple_math_ops, Bounds2f, Bounds2i, Bounds3f, Bounds3i, Float, Interval, Tuple, Vec2Isize,
+    Vec2Usize, Vec2f, Vec2i, Vec3f, Vec3fi, Vec3i,
 };
 
 /// A 3D point of i32.
@@ -67,13 +62,13 @@ impl Point3i {
     }
 
     /// The distance between `self` and `p2`.
-    pub fn distance(self, p2: Self) -> pbrt::Float {
+    pub fn distance(self, p2: Self) -> Float {
         (self - p2).length()
     }
 
     /// Linearly interpolate between two points. Returns p0 at t==0, p1 at t==1.
     /// Extrapolates for t<0 or t>1.
-    pub fn lerp(t: pbrt::Float, p0: Self, p1: Self) -> Point3f {
+    pub fn lerp(t: Float, p0: Self, p1: Self) -> Point3f {
         let p0: Point3f = p0.into();
         let p1: Point3f = p1.into();
         p0 * (1.0 - t) + p1 * t
@@ -192,11 +187,11 @@ impl fmt::Display for Point3i {
 #[repr(transparent)]
 pub struct Point3f(Vec3f);
 
-impl Tuple<3, pbrt::Float> for Point3f {}
-impl_tuple_math_ops!(Point3f; 3; pbrt::Float);
+impl Tuple<3, Float> for Point3f {}
+impl_tuple_math_ops!(Point3f; 3; Float);
 
-impl From<[pbrt::Float; 3]> for Point3f {
-    fn from(arr: [pbrt::Float; 3]) -> Self {
+impl From<[Float; 3]> for Point3f {
+    fn from(arr: [Float; 3]) -> Self {
         let [x, y, z] = arr;
         Self::new(x, y, z)
     }
@@ -206,36 +201,36 @@ impl Point3f {
     pub const ZERO: Self = Self::new(0.0, 0.0, 0.0);
 
     /// Construct a new point with given elements.
-    pub const fn new(x: pbrt::Float, y: pbrt::Float, z: pbrt::Float) -> Self {
+    pub const fn new(x: Float, y: Float, z: Float) -> Self {
         Self(Vec3f::new(x, y, z))
     }
 
     delegate! {
         to self.0 {
-            #[inline(always)] pub fn x(&self) -> pbrt::Float;
-            #[inline(always)] pub fn y(&self) -> pbrt::Float;
-            #[inline(always)] pub fn z(&self) -> pbrt::Float;
-            #[inline(always)] pub fn x_mut(&mut self) -> &mut pbrt::Float;
-            #[inline(always)] pub fn y_mut(&mut self) -> &mut pbrt::Float;
-            #[inline(always)] pub fn z_mut(&mut self) -> &mut pbrt::Float;
+            #[inline(always)] pub fn x(&self) -> Float;
+            #[inline(always)] pub fn y(&self) -> Float;
+            #[inline(always)] pub fn z(&self) -> Float;
+            #[inline(always)] pub fn x_mut(&mut self) -> &mut Float;
+            #[inline(always)] pub fn y_mut(&mut self) -> &mut Float;
+            #[inline(always)] pub fn z_mut(&mut self) -> &mut Float;
         }
     }
 
     /// The squared distance between `self` and `p2`.
-    pub fn distance_squared(self, p2: Self) -> pbrt::Float {
+    pub fn distance_squared(self, p2: Self) -> Float {
         (self - p2).length_squared()
     }
 
     /// The distance between `self` and `p2`.
-    pub fn distance(self, p2: Self) -> pbrt::Float {
+    pub fn distance(self, p2: Self) -> Float {
         (self - p2).length()
     }
 
     /// Linearly interpolate between two points. Returns p0 at t==0, p1 at t==1.
     /// Extrapolates for t<0 or t>1.
-    pub fn lerp(t: pbrt::Float, p0: Self, p1: Self) -> Self
+    pub fn lerp(t: Float, p0: Self, p1: Self) -> Self
     where
-        Self: Mul<pbrt::Float, Output = Self>,
+        Self: Mul<Float, Output = Self>,
     {
         p0 * (1.0 - t) + p1 * t
     }
@@ -262,7 +257,7 @@ impl Point3f {
 }
 
 impl Index<usize> for Point3f {
-    type Output = pbrt::Float;
+    type Output = Float;
 
     /// Index `self`'s elements by 0, 1, 2.
     fn index(&self, index: usize) -> &Self::Output {
@@ -409,13 +404,13 @@ impl Point2i {
     }
 
     /// The distance between `self` and `p2`.
-    pub fn distance(self, p2: Self) -> pbrt::Float {
+    pub fn distance(self, p2: Self) -> Float {
         (self - p2).length()
     }
 
     /// Linearly interpolate between two points. Returns p0 at t==0, p1 at t==1.
     /// Extrapolates for t<0 or t>1.
-    pub fn lerp(t: pbrt::Float, p0: Self, p1: Self) -> Point2f {
+    pub fn lerp(t: Float, p0: Self, p1: Self) -> Point2f {
         let p0: Point2f = p0.into();
         let p1: Point2f = p1.into();
         p0 * (1.0 - t) + p1 * t
@@ -533,11 +528,11 @@ impl fmt::Display for Point2i {
 #[repr(transparent)]
 pub struct Point2f(Vec2f);
 
-impl Tuple<2, pbrt::Float> for Point2f {}
-impl_tuple_math_ops!(Point2f; 2; pbrt::Float);
+impl Tuple<2, Float> for Point2f {}
+impl_tuple_math_ops!(Point2f; 2; Float);
 
-impl From<[pbrt::Float; 2]> for Point2f {
-    fn from(arr: [pbrt::Float; 2]) -> Self {
+impl From<[Float; 2]> for Point2f {
+    fn from(arr: [Float; 2]) -> Self {
         let [x, y] = arr;
         Self::new(x, y)
     }
@@ -547,34 +542,34 @@ impl Point2f {
     pub const ZERO: Self = Self::new(0.0, 0.0);
 
     /// Construct a new point with given elements.
-    pub const fn new(x: pbrt::Float, y: pbrt::Float) -> Self {
+    pub const fn new(x: Float, y: Float) -> Self {
         Self(Vec2f::new(x, y))
     }
 
     delegate! {
         to self.0 {
-            #[inline(always)] pub fn x(&self) -> pbrt::Float;
-            #[inline(always)] pub fn y(&self) -> pbrt::Float;
-            #[inline(always)] pub fn x_mut(&mut self) -> &mut pbrt::Float;
-            #[inline(always)] pub fn y_mut(&mut self) -> &mut pbrt::Float;
+            #[inline(always)] pub fn x(&self) -> Float;
+            #[inline(always)] pub fn y(&self) -> Float;
+            #[inline(always)] pub fn x_mut(&mut self) -> &mut Float;
+            #[inline(always)] pub fn y_mut(&mut self) -> &mut Float;
         }
     }
 
     /// The squared distance between `self` and `p2`.
-    pub fn distance_squared(self, p2: Self) -> pbrt::Float {
+    pub fn distance_squared(self, p2: Self) -> Float {
         (self - p2).length_squared()
     }
 
     /// The distance between `self` and `p2`.
-    pub fn distance(self, p2: Self) -> pbrt::Float {
+    pub fn distance(self, p2: Self) -> Float {
         (self - p2).length()
     }
 
     /// Linearly interpolate between two points. Returns p0 at t==0, p1 at t==1.
     /// Extrapolates for t<0 or t>1.
-    pub fn lerp(t: pbrt::Float, p0: Self, p1: Self) -> Self
+    pub fn lerp(t: Float, p0: Self, p1: Self) -> Self
     where
-        Self: Mul<pbrt::Float, Output = Self>,
+        Self: Mul<Float, Output = Self>,
     {
         p0 * (1.0 - t) + p1 * t
     }
@@ -599,7 +594,7 @@ impl Point2f {
 }
 
 impl Index<usize> for Point2f {
-    type Output = pbrt::Float;
+    type Output = Float;
 
     fn index(&self, index: usize) -> &Self::Output {
         match index {
@@ -912,7 +907,7 @@ impl Point3fi {
         )
     }
 
-    pub fn new_fi_exact(x: pbrt::Float, y: pbrt::Float, z: pbrt::Float) -> Self {
+    pub fn new_fi_exact(x: Float, y: Float, z: Float) -> Self {
         Self::new(
             Interval::new_exact(x),
             Interval::new_exact(y),

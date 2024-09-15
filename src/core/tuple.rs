@@ -279,20 +279,20 @@ macro_rules! impl_tuple_math_ops_generic {
             }
         }
 
-        impl std::ops::Mul<$name<$crate::Float>> for $crate::Float {
-            type Output = $name<$crate::Float>;
+        impl std::ops::Mul<$name<$crate::core::Float>> for $crate::core::Float {
+            type Output = $name<$crate::core::Float>;
 
             #[inline]
-            fn mul(self, rhs: $name<$crate::Float>) -> $name<$crate::Float> {
+            fn mul(self, rhs: $name<$crate::core::Float>) -> $name<$crate::core::Float> {
                 rhs * self
             }
         }
 
-        impl std::ops::Mul<$name<$crate::math::Interval>> for $crate::math::Interval {
-            type Output = $name<$crate::math::Interval>;
+        impl std::ops::Mul<$name<$crate::core::Interval>> for $crate::core::Interval {
+            type Output = $name<$crate::core::Interval>;
 
             #[inline]
-            fn mul(self, rhs: $name<$crate::math::Interval>) -> $name<$crate::math::Interval> {
+            fn mul(self, rhs: $name<$crate::core::Interval>) -> $name<$crate::core::Interval> {
                 rhs * self
             }
         }

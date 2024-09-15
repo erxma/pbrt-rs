@@ -21,7 +21,7 @@ use winnow::{
     stream::Stream,
 };
 
-use crate::Float;
+use crate::core::Float;
 
 #[derive(Debug)]
 pub struct Scene {

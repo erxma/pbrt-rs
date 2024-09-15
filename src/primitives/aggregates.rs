@@ -6,12 +6,10 @@ use std::{
 use num_traits::NumCast;
 
 use crate::{
-    geometry::{Bounds3f, Ray},
-    math::encode_morton_3,
+    core::{encode_morton_3, Bounds3f, Float, Ray},
     parallel::{self, parallel_map, parallel_map_enumerate},
     primitives::Primitive,
     shapes::ShapeIntersection,
-    Float,
 };
 
 use super::PrimitiveEnum;

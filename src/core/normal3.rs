@@ -6,9 +6,7 @@ use std::{
 use bytemuck::{Pod, Zeroable};
 use delegate::delegate;
 
-use crate::{self as pbrt};
-
-use super::{impl_tuple_math_ops, Point3f, Tuple, Vec3f};
+use super::{impl_tuple_math_ops, Float, Point3f, Tuple, Vec3f};
 
 /// A 3-element normal of `f32`, or `f64` if feature `use-f64` is enabled.
 // Wrapper around the vector equivalent.
@@ -26,11 +24,11 @@ use super::{impl_tuple_math_ops, Point3f, Tuple, Vec3f};
 #[repr(transparent)]
 pub struct Normal3f(Vec3f);
 
-impl Tuple<3, pbrt::Float> for Normal3f {}
-impl_tuple_math_ops!(Normal3f; 3; pbrt::Float);
+impl Tuple<3, Float> for Normal3f {}
+impl_tuple_math_ops!(Normal3f; 3; Float);
 
-impl From<[pbrt::Float; 3]> for Normal3f {
-    fn from(arr: [pbrt::Float; 3]) -> Self {
+impl From<[Float; 3]> for Normal3f {
+    fn from(arr: [Float; 3]) -> Self {
         let [x, y, z] = arr;
         Self::new(x, y, z)
     }
@@ -38,37 +36,37 @@ impl From<[pbrt::Float; 3]> for Normal3f {
 
 impl Normal3f {
     /// Construct a new normal with given elements.
-    pub const fn new(x: pbrt::Float, y: pbrt::Float, z: pbrt::Float) -> Self {
+    pub const fn new(x: Float, y: Float, z: Float) -> Self {
         Self(Vec3f::new(x, y, z))
     }
 
     delegate! {
         to self.0 {
-            #[inline(always)] pub fn x(&self) -> pbrt::Float;
-            #[inline(always)] pub fn y(&self) -> pbrt::Float;
-            #[inline(always)] pub fn z(&self) -> pbrt::Float;
-            #[inline(always)] pub fn x_mut(&mut self) -> &mut pbrt::Float;
-            #[inline(always)] pub fn y_mut(&mut self) -> &mut pbrt::Float;
-            #[inline(always)] pub fn z_mut(&mut self) -> &mut pbrt::Float;
+            #[inline(always)] pub fn x(&self) -> Float;
+            #[inline(always)] pub fn y(&self) -> Float;
+            #[inline(always)] pub fn z(&self) -> Float;
+            #[inline(always)] pub fn x_mut(&mut self) -> &mut Float;
+            #[inline(always)] pub fn y_mut(&mut self) -> &mut Float;
+            #[inline(always)] pub fn z_mut(&mut self) -> &mut Float;
 
-            pub fn dot(self, #[newtype] rhs: Self) -> pbrt::Float;
+            pub fn dot(self, #[newtype] rhs: Self) -> Float;
 
             /// The absolute value of the dot product of two normals.
-            pub fn absdot(self, #[newtype] rhs: Self) -> pbrt::Float;
+            pub fn absdot(self, #[newtype] rhs: Self) -> Float;
 
             /// Returns the dot product of `self` and a vector.
             #[call(dot)]
-            pub fn dot_v(self, rhs: Vec3f) -> pbrt::Float;
+            pub fn dot_v(self, rhs: Vec3f) -> Float;
 
             /// The absolute value of the dot product of `self` and a vector.
             #[call(absdot)]
-            pub fn absdot_v(self, rhs: Vec3f) -> pbrt::Float;
+            pub fn absdot_v(self, rhs: Vec3f) -> Float;
 
             /// The squared length of `self`.
-            pub fn length_squared(self) -> pbrt::Float;
+            pub fn length_squared(self) -> Float;
 
             /// The length of `self`.
-            pub fn length(self) -> pbrt::Float;
+            pub fn length(self) -> Float;
 
             /// Returns the normalization of `self`.
             #[into]
@@ -91,7 +89,7 @@ impl Normal3f {
 }
 
 impl Index<usize> for Normal3f {
-    type Output = pbrt::Float;
+    type Output = Float;
 
     /// Index `self`'s elements by 0, 1, 2.
     fn index(&self, index: usize) -> &Self::Output {

@@ -2,13 +2,12 @@ use std::{array, sync::LazyLock};
 
 use crate::{
     color::{self, RGBColorSpace, RGB, XYZ},
-    math::{SquareMatrix, Tuple},
+    core::{Float, SquareMatrix, Tuple},
     sampling::spectrum::{
         self, DenselySampledSpectrum, PiecewiseLinearSpectrum, SampledSpectrum, SampledWavelengths,
         Spectrum, SpectrumEnum, LAMBDA_MAX, LAMBDA_MIN,
     },
     util::data::SWATCH_REFLECTANCES_INTERLEAVED,
-    Float,
 };
 
 #[derive(Clone, Debug)]

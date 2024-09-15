@@ -1,10 +1,8 @@
 use enum_dispatch::enum_dispatch;
 
-use crate::{
-    float::{INV_4_PI, PI},
-    geometry::Frame,
-    math::{safe_sqrt, spherical_direction, Point2f, Vec3f},
-    Float,
+use crate::core::{
+    constants::{INV_4_PI, PI},
+    safe_sqrt, spherical_direction, Float, Frame, Point2f, Vec3f,
 };
 
 #[enum_dispatch]

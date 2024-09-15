@@ -2,11 +2,12 @@ use std::{ops::Mul, sync::Arc};
 
 use super::{film::Film, perspective::PerspectiveCamera, OrthographicCamera};
 use crate::{
-    geometry::{Bounds2f, Frame, Ray, RayDifferential, Transform},
-    math::{lerp, Normal3f, Point2f, Point3f, Vec3f},
+    core::{
+        lerp, Bounds2f, Float, Frame, Normal3f, Point2f, Point3f, Ray, RayDifferential, Transform,
+        Vec3f,
+    },
     media::MediumEnum,
     sampling::spectrum::{SampledSpectrum, SampledWavelengths},
-    Float,
 };
 use delegate::delegate;
 use enum_dispatch::enum_dispatch;

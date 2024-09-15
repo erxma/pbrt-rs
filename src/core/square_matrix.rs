@@ -6,12 +6,9 @@ use std::{
 use inherent::inherent;
 use itertools::iproduct;
 
-use crate::Float;
+use crate::core::Float;
 
-use super::{
-    routines::{difference_of_products, inner_product},
-    Tuple,
-};
+use super::{difference_of_products, inner_product, Tuple};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SquareMatrix<const N: usize> {
@@ -408,7 +405,7 @@ impl<const N: usize> fmt::Display for SquareMatrix<N> {
 mod tests {
     use super::*;
 
-    use crate::Float;
+    use crate::core::Float;
     use approx::{assert_relative_eq, AbsDiffEq, RelativeEq};
 
     impl<const N: usize> AbsDiffEq for SquareMatrix<N> {

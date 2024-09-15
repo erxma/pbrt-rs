@@ -1,4 +1,4 @@
-use crate::{float::PI, Float};
+use crate::core::{constants::PI, Float};
 
 use super::{safe_acos, Vec3f};
 

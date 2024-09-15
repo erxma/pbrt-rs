@@ -1,12 +1,10 @@
 use std::sync::Arc;
 
 use crate::{
-    geometry::SurfaceInteraction,
-    math::{Normal3f, Vec3f},
+    core::{Float, Normal3f, SurfaceInteraction, Vec3f},
     memory::ScratchBuffer,
     reflection::{BxDFEnum, DielectricBxDF, DiffuseBxDF, TrowbridgeReitz, BSDF},
     sampling::spectrum::{SampledSpectrum, SampledWavelengths, SpectrumEnum},
-    Float,
 };
 
 use super::{

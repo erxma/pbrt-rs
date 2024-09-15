@@ -1,10 +1,11 @@
 use crate::{
-    geometry::{Bounds3f, MediumInteraction, Ray, SurfaceInteraction},
-    math::{Normal3f, Point2f, Point3f, Point3fi, Vec3f},
+    core::{
+        Bounds3f, Float, MediumInteraction, Normal3f, Point2f, Point3f, Point3fi, Ray,
+        SurfaceInteraction, Vec3f,
+    },
     media::MediumInterface,
     memory::{ArcIntern, ArcInternCache},
     sampling::spectrum::{DenselySampledSpectrum, SampledSpectrum, SampledWavelengths, Spectrum},
-    Float,
 };
 use delegate::delegate;
 use enum_dispatch::enum_dispatch;

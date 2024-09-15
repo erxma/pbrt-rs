@@ -1,9 +1,8 @@
 use crate::{
     camera::CameraSample,
+    core::{Float, Point2f, Point2i, Vec2f},
     image::Filter,
-    math::{Point2f, Point2i, Vec2f},
     util::rng::{self, Rng},
-    Float,
 };
 use enum_dispatch::enum_dispatch;
 use thiserror::Error;

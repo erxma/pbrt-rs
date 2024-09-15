@@ -1,9 +1,7 @@
 use crate::{
-    float::PI,
-    math::{lerp, safe_sqrt, Normal3f, Point2f, Vec2f, Vec3f},
+    core::{constants::PI, lerp, safe_sqrt, Float, Normal3f, Point2f, Vec2f, Vec3f},
     reflection::base::same_hemisphere,
     sampling::{routines::sample_uniform_disk_polar, spectrum::SampledSpectrum},
-    Float,
 };
 
 use super::base::{BSDFSample, BxDF, BxDFFlags, BxDFReflTransFlags, TransportMode};

@@ -2,10 +2,11 @@ use delegate::delegate;
 use enum_dispatch::enum_dispatch;
 
 use crate::{
-    geometry::{Bounds2f, Bounds2i},
-    math::{gaussian, gaussian_integral, lerp, Array2D, Point2f, Point2i, Vec2f},
+    core::{
+        gaussian, gaussian_integral, lerp, Array2D, Bounds2f, Bounds2i, Float, Point2f, Point2i,
+        Vec2f,
+    },
     sampling::routines::{sample_tent, PiecewiseConstant2D, PiecewiseConstant2DSample},
-    Float,
 };
 
 #[enum_dispatch]

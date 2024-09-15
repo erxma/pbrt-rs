@@ -2,8 +2,8 @@ use delegate::delegate;
 use enum_dispatch::enum_dispatch;
 
 use crate::{
+    core::Float,
     sampling::spectrum::{SampledSpectrum, SampledWavelengths, SpectrumEnum},
-    Float,
 };
 
 use super::TextureEvalContext;

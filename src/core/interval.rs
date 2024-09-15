@@ -3,9 +3,7 @@ use std::{
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign},
 };
 
-use crate::Float;
-
-use super::float_utility::{next_float_down, next_float_up};
+use super::{next_float_down, next_float_up, Float};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Interval {

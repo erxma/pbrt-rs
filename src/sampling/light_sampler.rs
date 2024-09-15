@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
+    core::Float,
     lights::{Light, LightEnum, LightSampleContext},
-    Float,
 };
 
 pub trait LightSampler {

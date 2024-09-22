@@ -286,9 +286,9 @@ pub(super) fn directive<'a>(input: &mut &'a str) -> PResult<Directive<'a>> {
 }
 
 pub(super) struct EntityDirective<'a> {
-    identifier: &'a str,
-    subtype: &'a str,
-    param_map: ParameterMap,
+    pub identifier: &'a str,
+    pub subtype: &'a str,
+    pub param_map: ParameterMap,
 }
 
 pub(super) fn entity_directive<'a>(input: &mut &'a str) -> PResult<EntityDirective<'a>> {
@@ -311,6 +311,8 @@ pub enum PbrtParseError {
     IllegalForSection(String),
     #[error("missing required global option: {0}")]
     MissingRequiredOption(String),
+    #[error("directive is unrecognized or illegal in the current section: {0}")]
+    UnrecognizedOrIllegalDirective(String),
 
     #[error("missing required parameter {0}")]
     MissingRequiredParameter(String),
@@ -318,6 +320,8 @@ pub enum PbrtParseError {
     UnexpectedParameter(String),
     #[error("incorrect type for parameter (expected {expected}, found {found})")]
     IncorrectType { expected: String, found: String },
+    #[error("unrecognized subtype \"{type_name}\" for {entity}")]
+    UnrecognizedSubtype { entity: String, type_name: String },
 }
 
 #[cfg(test)]

@@ -1,6 +1,9 @@
 use crate::{
     core::Float,
-    scene_parsing::common::{impl_try_from_parameter_map, param_map},
+    scene_parsing::{
+        common::{impl_try_from_parameter_map, param_map, EntityDirective},
+        PbrtParseError,
+    },
 };
 use winnow::{
     ascii::{alpha1, space1},
@@ -13,6 +16,24 @@ use winnow::{
 #[derive(Clone, Debug, PartialEq)]
 pub enum Camera {
     Orthographic(OrthographicCamera),
+}
+
+impl<'a> TryFrom<EntityDirective<'a>> for Camera {
+    type Error = PbrtParseError;
+
+    fn try_from(entity: EntityDirective) -> Result<Self, Self::Error> {
+        assert_eq!(entity.identifier, "Camera");
+
+        match entity.subtype {
+            "orthographic" => {
+                OrthographicCamera::try_from(entity.param_map).map(Camera::Orthographic)
+            }
+            invalid_type => Err(PbrtParseError::UnrecognizedSubtype {
+                entity: "Camera".to_string(),
+                type_name: invalid_type.to_owned(),
+            }),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -48,20 +69,6 @@ impl_try_from_parameter_map! {
         "lensradius" => lens_radius,
         "focaldistance" => focal_distance,
     }
-}
-
-pub fn camera_directive(input: &mut &str) -> PResult<Camera> {
-    /*
-    trace(
-        "camera_directive",
-        dispatch! { cut_err(terminated(delimited('"', alpha1, '"'), space1));
-            "orthographic" => orthographic_camera_params,
-            _=> fail.context(StrContext::Label("camera type"))
-        },
-    )
-    .parse_next(input)
-    */
-    todo!()
 }
 
 #[cfg(test)]

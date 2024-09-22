@@ -43,7 +43,16 @@ fn parse_options_section(input: &mut &str) -> Result<Options, PbrtParseError> {
 
     while let Ok(directive) = directive(input) {
         match directive {
-            Directive::Entity(entity_directive) => todo!(),
+            Directive::Entity(entity) => match entity.identifier {
+                "Camera" => {
+                    options_builder.camera(entity.try_into()?);
+                }
+                invalid_name => {
+                    return Err(PbrtParseError::UnrecognizedOrIllegalDirective(
+                        invalid_name.to_owned(),
+                    ))
+                }
+            },
             Directive::Transform(transform_directive) => {
                 current_transform = Transform::from(transform_directive) * current_transform;
             }

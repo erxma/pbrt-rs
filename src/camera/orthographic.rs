@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{ops::Range, sync::Arc};
 
 use super::{
     base::{
@@ -26,8 +26,7 @@ impl OrthographicCamera {
     #[builder]
     pub fn new(
         transform: CameraTransform,
-        shutter_open: Float,
-        shutter_close: Float,
+        shutter_period: Range<Float>,
         film: Film,
         medium: Option<Arc<MediumEnum>>,
 
@@ -38,8 +37,7 @@ impl OrthographicCamera {
     ) -> Self {
         let projective_params = ProjectiveCameraParams {
             transform,
-            shutter_open,
-            shutter_close,
+            shutter_period,
             film,
             medium,
             screen_from_camera,
@@ -94,12 +92,8 @@ impl Camera for OrthographicCamera {
         &self.projective.transform
     }
 
-    fn shutter_open(&self) -> Float {
-        self.projective.shutter_open
-    }
-
-    fn shutter_close(&self) -> Float {
-        self.projective.shutter_close
+    fn shutter_period(&self) -> Range<Float> {
+        self.projective.shutter_period.clone()
     }
 
     fn min_pos_differential_x(&self) -> Vec3f {

@@ -1,4 +1,7 @@
-use std::{ops::Mul, sync::Arc};
+use std::{
+    ops::{Mul, Range},
+    sync::Arc,
+};
 
 use super::{film::Film, perspective::PerspectiveCamera, OrthographicCamera};
 use crate::{
@@ -9,86 +12,70 @@ use crate::{
     media::MediumEnum,
     sampling::spectrum::{SampledSpectrum, SampledWavelengths},
 };
-use delegate::delegate;
 use enum_dispatch::enum_dispatch;
 
+/// Enum of available camera variants (implementors of `Camera`),
+/// for enabling static dispatch instead of trait dyn
 #[enum_dispatch]
 pub enum CameraEnum {
     Orthographic(OrthographicCamera),
     Perspective(PerspectiveCamera),
 }
 
-impl CameraEnum {
-    delegate! {
-       #[through(Camera)]
-       to self {
-           /// Compute the ray corresponding to a given image `sample`, if one exists.
-           /// `self` might model dispersion in its lens, in which case `wavelengths` may
-           /// be modified via `TerminateSecondary`.
-           ///
-           /// The returned ray (if any) will be normalized.
-           pub fn generate_ray(
-               &self,
-               sample: CameraSample,
-               wavelengths: &SampledWavelengths,
-           ) -> Option<CameraRay>;
-
-           /// Compute the ray corresponding to a given image `sample`,
-           /// if one exists, and the corresponding rays (differentials)
-           /// for adjacent pixels.
-           ///
-           /// `self` might model dispersion in its lens, in which case `wavelengths` may
-           /// be modified via `terminate_secondary`.
-           ///
-           /// The returned ray (if any) will be normalized.
-           pub fn generate_ray_differential(
-               &self,
-               sample: CameraSample,
-               wavelengths: &SampledWavelengths,
-           ) -> Option<CameraRayDifferential>;
-
-           /// Borrow `self`'s film.
-           pub fn film(&self) -> &Film;
-
-           /// Map a uniform random sample `u` (in range `[0,1)`)
-           /// to a time when `self`'s shutter is open.
-           pub fn sample_time(&self, u: Float) -> Float;
-
-           /// Borrow `self`'s camera transform.
-           pub fn camera_transform(&self) -> &CameraTransform;
-        }
-    }
-}
-
 #[enum_dispatch(CameraEnum)]
 pub trait Camera {
+    /// Compute the ray corresponding to a given image `sample`, if one exists.
+    /// `self` might model dispersion in its lens, in which case `wavelengths` may
+    /// be modified via `TerminateSecondary`.
+    ///
+    /// The returned ray (if any) will be normalized.
     fn generate_ray(
         &self,
         sample: CameraSample,
         wavelengths: &SampledWavelengths,
     ) -> Option<CameraRay>;
 
+    /// Compute the ray corresponding to a given image `sample`,
+    /// if one exists, and the corresponding rays (differentials)
+    /// for adjacent pixels.
+    ///
+    /// `self` might model dispersion in its lens, in which case `wavelengths` may
+    /// be modified via `terminate_secondary`.
+    ///
+    /// The returned ray (if any) will be normalized.
     fn generate_ray_differential(
         &self,
         sample: CameraSample,
         wavelengths: &SampledWavelengths,
     ) -> Option<CameraRayDifferential>;
 
-    fn film(&self) -> &Film;
-
+    /// Map a uniform random sample `u` (in range `[0,1)`)
+    /// to a time when `self`'s shutter is open.
     fn sample_time(&self, u: Float) -> Float {
-        lerp(u, self.shutter_open(), self.shutter_close())
+        lerp(u, self.shutter_period().start, self.shutter_period().end)
     }
 
+    /// Borrow `self`'s film.
+    fn film(&self) -> &Film;
+
+    /// Borrow `self`'s camera transform.
     fn camera_transform(&self) -> &CameraTransform;
 
-    fn shutter_open(&self) -> Float;
-    fn shutter_close(&self) -> Float;
+    fn shutter_period(&self) -> Range<Float>;
+
     fn min_pos_differential_x(&self) -> Vec3f;
     fn min_pos_differential_y(&self) -> Vec3f;
     fn min_dir_differential_x(&self) -> Vec3f;
     fn min_dir_differential_y(&self) -> Vec3f;
 
+    /// Approximate values for dp/dx and dp/dy at a point on a surface in the scene.
+    /// for cases where ray differentials are not available.
+    ///
+    /// These should be a reasonable approximation to the differentials of a ray
+    /// from the camera that found an intersection at the given point.
+    ///
+    /// Implementations must return reasonable results even for points
+    /// outside of the viewing volume for which rays cannot actually be generated.
     fn approximate_dp_dxy(
         &self,
         p: Point3f,
@@ -205,14 +192,26 @@ pub(super) fn find_minimum_differentials(cam: &impl Camera) -> (Vec3f, Vec3f, Ve
     )
 }
 
+/// Holds all the sample values needed to specify a generated camera ray.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CameraSample {
+    /// The point on the film to which the generated ray should carry radiance.
     pub p_film: Point2f,
+    /// The point on the lens the ray passes through (for cameras that include the notion of lenses).
     pub p_lens: Point2f,
+    /// The time at which the ray should sample the scene.
+    /// If the camera itself is in motion, this determines what camera position to use when generating the ray.
     pub time: Float,
+    /// Additional scale factor that is applied when the ray’s radiance is added to the image stored by the film;
+    /// it accounts for the reconstruction filter used to filter image samples at each pixel.
     pub filter_weight: Float,
 }
 
+/// A ray and a spectral weight associated with it,
+/// returned by `Camera::generate_ray` implementations.
+///
+/// Not all camera models utilize the weight.
+/// In that case, the default weight is `1.0`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CameraRay {
     pub ray: Ray,
@@ -220,7 +219,7 @@ pub struct CameraRay {
 }
 
 impl CameraRay {
-    pub fn new(ray: Ray) -> Self {
+    pub fn with_default_weight(ray: Ray) -> Self {
         Self::with_weight(ray, SampledSpectrum::with_single_value(1.0))
     }
 
@@ -229,6 +228,13 @@ impl CameraRay {
     }
 }
 
+/// A ray with differentials, and a spectral weight associated with it,
+/// returned by `Camera::generate_ray_differential` implementations.
+///
+/// Equivalent to a `CameraRay` but with ray differentials.
+///
+/// Not all camera models utilize the weight.
+/// In that case, the default weight is `1.0`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CameraRayDifferential {
     pub ray: RayDifferential,
@@ -236,7 +242,7 @@ pub struct CameraRayDifferential {
 }
 
 impl CameraRayDifferential {
-    pub fn new(ray: RayDifferential) -> Self {
+    pub fn with_default_weight(ray: RayDifferential) -> Self {
         Self::with_weight(ray, SampledSpectrum::with_single_value(1.0))
     }
 
@@ -245,6 +251,11 @@ impl CameraRayDifferential {
     }
 }
 
+/// The transform for a `Camera` with information for both render and camera space
+/// relative to world space.
+///
+/// This makes it suitable for any choice of the
+/// three coordinate systems being used for rendering.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CameraTransform {
     pub render_from_camera: Transform,
@@ -299,8 +310,7 @@ impl CameraTransform {
 #[derive(Debug)]
 pub(super) struct ProjectiveCamera {
     pub transform: CameraTransform,
-    pub shutter_open: Float,
-    pub shutter_close: Float,
+    pub shutter_period: Range<Float>,
     pub film: Film,
     pub medium: Option<Arc<MediumEnum>>,
     pub min_pos_differential_x: Vec3f,
@@ -318,8 +328,7 @@ pub(super) struct ProjectiveCamera {
 
 pub(super) struct ProjectiveCameraParams {
     pub transform: CameraTransform,
-    pub shutter_open: Float,
-    pub shutter_close: Float,
+    pub shutter_period: Range<Float>,
     pub film: Film,
     pub medium: Option<Arc<MediumEnum>>,
 
@@ -353,8 +362,7 @@ impl ProjectiveCamera {
 
         Self {
             transform: params.transform,
-            shutter_open: params.shutter_open,
-            shutter_close: params.shutter_close,
+            shutter_period: params.shutter_period,
             film: params.film,
             medium: params.medium,
             min_pos_differential_x: Default::default(),

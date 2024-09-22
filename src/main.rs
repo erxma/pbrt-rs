@@ -75,8 +75,7 @@ fn render_cpu() {
 
     let camera = PerspectiveCamera::builder()
         .transform(CameraTransform::new(world_to_camera.inverse()))
-        .shutter_open(0.0)
-        .shutter_close(1.0)
+        .shutter_period(0.0..1.0)
         .film(film)
         .fov(45.0)
         .screen_window(Bounds2f::new(

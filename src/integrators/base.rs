@@ -3,7 +3,7 @@ use std::{cell::RefCell, sync::Arc};
 use indicatif::ProgressBar;
 
 use crate::{
-    camera::{CameraEnum, VisibleSurface},
+    camera::{Camera as _, CameraEnum, VisibleSurface},
     core::{
         constants::SHADOW_EPSILON, Float, Point2i, Point3f, Ray, RayDifferential,
         SurfaceInteraction,

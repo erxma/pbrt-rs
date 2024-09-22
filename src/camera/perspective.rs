@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{ops::Range, sync::Arc};
 
 use bon::bon;
 
@@ -30,8 +30,7 @@ impl PerspectiveCamera {
     pub fn new(
         // Camera base fields
         transform: CameraTransform,
-        shutter_open: Float,
-        shutter_close: Float,
+        shutter_period: Range<Float>,
         film: Film,
         medium: Option<Arc<MediumEnum>>,
 
@@ -47,8 +46,7 @@ impl PerspectiveCamera {
         // Build projective base
         let projective_params = ProjectiveCameraParams {
             transform,
-            shutter_open,
-            shutter_close,
+            shutter_period,
             film,
             medium,
             screen_from_camera,
@@ -123,7 +121,8 @@ impl Camera for PerspectiveCamera {
             ray.dir = (p_focus - ray.o).normalized();
         }
 
-        let camera_ray = CameraRay::new(self.camera_transform().render_from_camera(ray));
+        let camera_ray =
+            CameraRay::with_default_weight(self.camera_transform().render_from_camera(ray));
 
         Some(camera_ray)
     }
@@ -182,8 +181,9 @@ impl Camera for PerspectiveCamera {
             ry_dir,
         };
         let ray_diff = RayDifferential::new(ray, differentials);
-        let camera_ray_diff =
-            CameraRayDifferential::new(self.camera_transform().render_from_camera(ray_diff));
+        let camera_ray_diff = CameraRayDifferential::with_default_weight(
+            self.camera_transform().render_from_camera(ray_diff),
+        );
 
         Some(camera_ray_diff)
     }
@@ -196,12 +196,8 @@ impl Camera for PerspectiveCamera {
         &self.projective.transform
     }
 
-    fn shutter_open(&self) -> Float {
-        self.projective.shutter_open
-    }
-
-    fn shutter_close(&self) -> Float {
-        self.projective.shutter_close
+    fn shutter_period(&self) -> Range<Float> {
+        self.projective.shutter_period.clone()
     }
 
     fn min_pos_differential_x(&self) -> Vec3f {

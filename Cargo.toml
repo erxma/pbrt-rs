@@ -44,3 +44,6 @@ winnow = "0.6.18"
 use-f64 = []
 external-impls = ["glam"]
 glam = ["dep:glam"]
+
+[dev-dependencies]
+maplit = "1.0.2"

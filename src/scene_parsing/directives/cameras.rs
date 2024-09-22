@@ -73,23 +73,24 @@ impl_try_from_parameter_map! {
 
 #[cfg(test)]
 mod test {
+    use crate::scene_parsing::common::entity_directive;
+
     use super::*;
 
-    /*
     #[test]
     fn test_orthographic() {
         assert_eq!(
-            Ok(GlobalDirective::Camera(Camera::Orthographic(
-                OrthographicCamera {
-                    shutter_open: 1.2,
-                    shutter_close: 2.4,
-                    ..Default::default()
-                }
-            ))),
-            global_directive(false).parse(
-                &mut r#"Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4"#
-            )
+            Camera::try_from(
+                entity_directive(
+                    &mut r#"Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4"#
+                )
+                .unwrap()
+            ),
+            Ok(Camera::Orthographic(OrthographicCamera {
+                shutter_open: 1.2,
+                shutter_close: 2.4,
+                ..Default::default()
+            }))
         );
     }
-    */
 }

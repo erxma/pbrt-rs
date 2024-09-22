@@ -147,7 +147,7 @@ pub(super) fn param_map(input: &mut &str) -> PResult<ParameterMap> {
         let (name, value) = param.parse_next(input)?;
         // Add to set of seen param names.
         // If it already was, fail
-        if seen.insert(name.clone()) {
+        if !seen.insert(name.clone()) {
             input.reset(&start);
             return Err(
                 ErrMode::from_error_kind(input, ErrorKind::Verify).add_context(
@@ -305,7 +305,7 @@ pub(super) fn entity_directive<'a>(input: &mut &'a str) -> PResult<EntityDirecti
     .parse_next(input)
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum PbrtParseError {
     #[error("directive is illegal in the current section: {0}")]
     IllegalForSection(String),
@@ -328,6 +328,7 @@ pub enum PbrtParseError {
 mod test {
     use core::fmt;
 
+    use maplit::{convert_args, hashmap};
     use winnow::stream::{AsBStr, StreamIsPartial};
 
     use super::*;
@@ -431,6 +432,18 @@ mod test {
             param,
             &mut r#""float foo" 1.0"#,
             ("foo".to_string(), Value::Single(SingleValue::Float(1.0))),
+        );
+    }
+
+    #[test]
+    fn test_parameter_map_simple_singles() {
+        assert_parses_to(
+            param_map,
+            &mut r#""float foo" 1.0 "integer bar" 2"#,
+            convert_args!(hashmap! (
+                "foo" => Value::Single(SingleValue::Float(1.0)),
+                "bar" => Value::Single(SingleValue::Int(2))
+            )),
         );
     }
 }

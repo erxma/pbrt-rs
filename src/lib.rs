@@ -12,6 +12,6 @@ pub mod parallel;
 pub mod primitives;
 pub mod reflection;
 pub mod sampling;
-pub mod scenes;
+pub mod scene_parsing;
 pub mod shapes;
 pub mod util;

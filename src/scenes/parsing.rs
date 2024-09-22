@@ -1,17 +1,19 @@
 use std::{
     collections::{HashMap, HashSet},
+    io::{BufRead, BufReader, Read},
     str::FromStr,
 };
 
 use enum_as_inner::EnumAsInner;
 use itertools::Itertools;
 use strum::{EnumDiscriminants, EnumString};
+use thiserror::Error;
 use winnow::{
     ascii::{
         alpha1, alphanumeric0, alphanumeric1, float, multispace0, multispace1, space0, space1,
     },
     combinator::{
-        alt, cut_err, delimited, eof, fail, opt, peek, preceded, separated, separated_pair,
+        alt, cut_err, delimited, eof, fail, opt, peek, preceded, separated, separated_pair, seq,
         terminated, trace,
     },
     dispatch,
@@ -20,7 +22,12 @@ use winnow::{
     stream::Stream,
 };
 
-use crate::core::Float;
+use crate::{
+    core::{Float, Transform},
+    scenes::directives::transform_directive,
+};
+
+use super::directives::TransformDirective;
 
 #[derive(Debug)]
 pub struct Scene {
@@ -28,7 +35,7 @@ pub struct Scene {
     world: World,
 }
 
-#[derive(Debug)]
+#[derive(Debug, derive_builder::Builder)]
 pub struct Options {
     camera: Camera,
 }
@@ -36,10 +43,6 @@ pub struct Options {
 #[derive(Debug, Default)]
 pub struct World {
     shapes: Vec<Shape>,
-}
-
-pub enum Directive {
-    Global(GlobalDirective),
 }
 
 #[derive(Clone, Debug, PartialEq, EnumDiscriminants)]
@@ -149,6 +152,125 @@ pub enum Alpha {
     Texture(()),
 }
 
+#[derive(Debug, Error)]
+pub enum PbrtParseError {
+    #[error("directive is illegal in the current section: {0}")]
+    IllegalForSection(String),
+    #[error("missing required global option: {0}")]
+    MissingRequiredOption(String),
+}
+
+pub fn parse_pbrt_file(
+    mut file: impl Read,
+    ignore_unrecognized_directives: bool,
+) -> Result<Scene, PbrtParseError> {
+    let mut buf = String::new();
+    file.read_to_string(&mut buf);
+
+    let options = parse_options_section(&mut buf.as_str())?;
+    let world = parse_world_section(&mut buf.as_str())?;
+
+    Ok(Scene { options, world })
+}
+
+fn parse_options_section(input: &mut &str) -> Result<Options, PbrtParseError> {
+    let mut current_transform = Transform::IDENTITY;
+    let mut options_builder = OptionsBuilder::create_empty();
+
+    while let Ok(directive) = directive(input) {
+        match directive {
+            Directive::Entity(entity_directive) => todo!(),
+            Directive::Transform(transform_directive) => {
+                current_transform = Transform::from(transform_directive) * current_transform;
+            }
+            Directive::WorldBegin => {
+                break;
+            }
+            Directive::AttributeBegin => {
+                return Err(PbrtParseError::IllegalForSection(
+                    "AttributeBegin".to_string(),
+                ));
+            }
+            Directive::AttributeEnd => {
+                return Err(PbrtParseError::IllegalForSection(
+                    "AttributeEnd".to_string(),
+                ));
+            }
+        }
+    }
+
+    options_builder
+        .build()
+        .map_err(|err| PbrtParseError::MissingRequiredOption(err.to_string()))
+}
+
+fn parse_world_section(input: &mut &str) -> Result<World, PbrtParseError> {
+    let mut current_transform = Transform::IDENTITY;
+    let mut world = World::default();
+
+    while let Ok(directive) = directive(input) {
+        match directive {
+            Directive::Entity(entity_directive) => todo!(),
+            Directive::Transform(transform_directive) => {
+                current_transform = Transform::from(transform_directive) * current_transform;
+            }
+            Directive::WorldBegin => {
+                return Err(PbrtParseError::IllegalForSection("WorldBegin".to_string()));
+            }
+            Directive::AttributeBegin => {
+                todo!()
+            }
+            Directive::AttributeEnd => {
+                todo!()
+            }
+        }
+    }
+
+    Ok(world)
+}
+
+type ParameterMap = HashMap<String, Value>;
+
+enum Directive<'a> {
+    Entity(EntityDirective<'a>),
+    Transform(TransformDirective),
+    WorldBegin,
+    AttributeBegin,
+    AttributeEnd,
+}
+
+fn directive<'a>(input: &mut &'a str) -> PResult<Directive<'a>> {
+    alt((
+        entity_directive.map(Directive::Entity),
+        transform_directive.map(Directive::Transform),
+        "WorldBegin".map(|_| Directive::WorldBegin),
+        "AttributeBegin".map(|_| Directive::AttributeBegin),
+        "AttributeEnd".map(|_| Directive::AttributeEnd),
+    ))
+    .parse_next(input)
+}
+
+struct EntityDirective<'a> {
+    identifier: &'a str,
+    subtype: &'a str,
+    param_map: ParameterMap,
+}
+
+fn entity_directive<'a>(input: &mut &'a str) -> PResult<EntityDirective<'a>> {
+    trace(
+        "entity_directive",
+        seq! { EntityDirective {
+            identifier: alpha1,
+            _: multispace1,
+            subtype: delimited('"', alpha1, '"'),
+            _: multispace1,
+            param_map: param_map
+        }},
+    )
+    .parse_next(input)
+}
+
+/*
 pub fn scene(ignore_unrecognized_directives: bool) -> impl FnMut(&mut &str) -> PResult<Scene> {
     move |input| {
         separated_pair(
@@ -218,25 +340,25 @@ fn world(ignore_unrecognized_directives: bool) -> impl FnMut(&mut &str) -> PResu
                 multispace1,
             ),
             (multispace0, peek(eof)),
-        )
-        .map(|dirs: Vec<_>| {
-            let mut world = World::default();
-            for d in dirs {
-                world.add_option(d);
-            }
-            world
-        })
+            )
+            .map(|dirs: Vec<_>| {
+                let mut world = World::default();
+                for d in dirs {
+                    world.add_option(d);
+                    }
+                    world
+                    })
         .parse_next(input)
-    }
-}
+        }
+        }
 
-impl World {
-    pub fn add_option(&mut self, directive: WorldDirective) {
-        match directive {
-            WorldDirective::Shape(s) => self.shapes.push(s),
-        };
-    }
-}
+        impl World {
+            pub fn add_option(&mut self, directive: WorldDirective) {
+                match directive {
+                    WorldDirective::Shape(s) => self.shapes.push(s),
+                    };
+                    }
+                    }
 
 impl Options {
     pub fn new(directives: Vec<GlobalDirective>) -> Result<Self, String> {
@@ -256,8 +378,8 @@ impl Options {
 
 fn global_directive(
     ignore_unrecognized: bool,
-) -> impl FnMut(&mut &str) -> PResult<GlobalDirective> {
-    move |input| {
+    ) -> impl FnMut(&mut &str) -> PResult<GlobalDirective> {
+        move |input| {
         trace(
             "global_directive",
             dispatch! { cut_err(terminated(alpha1, space0));
@@ -265,7 +387,7 @@ fn global_directive(
                 "WorldBegin" => fail,
                 _ if ignore_unrecognized => fail,
                 _ => cut_err(fail)
-            }
+                }
             .context(StrContext::Label("global directive")),
         )
         .parse_next(input)
@@ -308,7 +430,7 @@ fn orthographic_camera_params(input: &mut &str) -> PResult<Camera> {
             "float lensradius",
             "float focaldistance",
         ]);
-        let found_params = param_list(items).parse_next(input)?;
+        let found_params = param_map(items).parse_next(input)?;
         let mut ortho = OrthographicCamera::default();
         for (k, v) in found_params {
             match k.as_str() {
@@ -361,7 +483,7 @@ fn sphere_params(input: &mut &str) -> PResult<Shape> {
             "float zmax",
             "float phimax",
         ]);
-        let found_params = param_list(items).parse_next(input)?;
+        let found_params = param_map(items).parse_next(input)?;
         let mut sphere = Sphere::default();
         for (k, v) in found_params {
             match k.as_str() {
@@ -391,6 +513,7 @@ fn sphere_params(input: &mut &str) -> PResult<Shape> {
 
     trace("sphere_params", params).parse_next(input)
 }
+*/
 
 /// Helper for listing the possible parameters for a directive with strings
 fn expected_params_map(descriptions: Vec<&str>) -> HashMap<String, (ValueType, SingleValueType)> {
@@ -413,73 +536,39 @@ fn expected_params_map(descriptions: Vec<&str>) -> HashMap<String, (ValueType, S
     )
 }
 
-fn param_list(
-    possible: HashMap<String, (ValueType, SingleValueType)>,
-) -> impl FnMut(&mut &str) -> PResult<HashMap<String, Value>> {
-    move |input: &mut &str| {
-        // Will be used in a moment to check for uniqueness in the listed params.
-        let mut unseen = possible.clone();
-        // Parses one parameter that matches an entry in the possible params:
-        let possible_param = |input: &mut &str| {
-            let start = input.checkpoint();
-            // Parse anything matching the format for a single param.
-            let (name, value) = param.parse_next(input)?;
-            // First, verify that parameter name should be possible here.
-            if !possible.contains_key(&name) {
-                input.reset(&start);
-                return Err(ErrMode::from_error_kind(input, ErrorKind::Verify)
-                    .add_context(
-                        input,
-                        &start,
-                        StrContext::Label("parameter for this directive"),
-                    )
-                    .cut());
-            }
-            let (ty, single_ty) = possible[&name];
-            // Then, verify that the type is correct for that param.
-            if !match value {
-                // (check for single)
-                Value::Single(ref single) => ty == ValueType::Single && single_ty == single.into(),
-                // (check for array)
-                Value::Array(ref arr) => {
-                    ty == ValueType::Array && arr.iter().all(|v| single_ty == v.into())
-                }
-            } {
-                input.reset(&start);
-                return Err(ErrMode::from_error_kind(input, ErrorKind::Verify)
-                    .add_context(
-                        input,
-                        &start,
-                        StrContext::Label("type for the named parameter"),
-                    )
-                    .cut());
-            }
-            // Finally, verify that this parameter hasn't already been seen
-            // (by removing from the captured "unseen" map)
-            if unseen.remove(&name).is_none() {
-                input.reset(&start);
-                return Err(
-                    ErrMode::from_error_kind(input, ErrorKind::Verify).add_context(
-                        input,
-                        &start,
-                        StrContext::Expected(StrContextValue::Description(
-                            "parameter to appear at most once",
-                        )),
-                    ),
-                );
-            }
+fn param_map(input: &mut &str) -> PResult<ParameterMap> {
+    // Already seen param names, to check for uniqueness.
+    let mut seen = HashSet::new();
+    // Parses one parameter:
+    let possible_param = |input: &mut &str| {
+        let start = input.checkpoint();
+        // Parse anything matching the format for a single param.
+        let (name, value) = param.parse_next(input)?;
+        // Add to set of seen param names.
+        // If it already was, fail
+        if seen.insert(name.clone()) {
+            input.reset(&start);
+            return Err(
+                ErrMode::from_error_kind(input, ErrorKind::Verify).add_context(
+                    input,
+                    &start,
+                    StrContext::Expected(StrContextValue::Description(
+                        "parameter to appear at most once",
+                    )),
+                ),
+            );
+        }
 
-            Ok((name, value))
-        };
+        Ok((name, value))
+    };
 
-        // Parse an entire parameter list (i.e. up until something that doesn't match the param format)
-        // And convert it to a map.
-        let expected_param_list = cut_err(separated(0.., possible_param, multispace1))
-            .map(|list: Vec<_>| HashMap::from_iter(list));
+    // Parse an entire parameter list (i.e. up until something that doesn't match the param format)
+    // And convert it to a map.
+    let param_map = cut_err(separated(0.., possible_param, multispace1))
+        .map(|list: Vec<_>| ParameterMap::from_iter(list));
 
-        let mut traced = trace("expected_param_list", expected_param_list);
-        traced.parse_next(input)
-    }
+    let mut traced = trace("param_map", param_map);
+    traced.parse_next(input)
 }
 
 fn single_ty(input: &mut &str) -> PResult<SingleValueType> {
@@ -669,6 +758,7 @@ mod test {
         );
     }
 
+    /*
     #[test]
     fn test_orthographic() {
         assert_eq!(
@@ -724,4 +814,5 @@ mod test {
             true,
         );
     }
+    */
 }

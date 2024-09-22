@@ -4,14 +4,28 @@ use winnow::{
     PResult, Parser,
 };
 
-use crate::core::{Float, Point3f, Vec3f};
+use crate::core::{Float, Point3f, Transform, Vec3f};
 
 pub enum TransformDirective {
     Identity,
     Translate(Vec3f),
-    Scale(Vec3f),
+    Scale(Float, Float, Float),
     Rotate(Rotate),
     LookAt(LookAt),
+}
+
+impl From<TransformDirective> for Transform {
+    fn from(directive: TransformDirective) -> Self {
+        match directive {
+            TransformDirective::Identity => Self::IDENTITY,
+            TransformDirective::Translate(delta) => Self::translate(delta),
+            TransformDirective::Scale(x, y, z) => Self::scale(x, y, z),
+            TransformDirective::Rotate(rotate) => Self::rotate(rotate.angle_deg, rotate.axis),
+            TransformDirective::LookAt(look_at) => {
+                Self::look_at(look_at.eye_pos, look_at.look_pos, look_at.up_dir)
+            }
+        }
+    }
 }
 
 pub struct Rotate {
@@ -34,7 +48,7 @@ pub fn transform_directive(input: &mut &str) -> PResult<TransformDirective> {
             .map(|vals: Vec<_>| TransformDirective::Translate(Vec3f::new(vals[0], vals[1], vals[2]))),
         // Scale
         preceded(("Scale", multispace1), separated(3, float::<_, Float, _>, multispace1))
-            .map(|vals: Vec<_>| TransformDirective::Scale(Vec3f::new(vals[0], vals[1], vals[2]))),
+            .map(|vals: Vec<_>| TransformDirective::Scale(vals[0], vals[1], vals[2])),
         // Rotate
         seq! {Rotate {
             _: ("Rotate", multispace1),

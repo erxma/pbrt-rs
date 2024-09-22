@@ -329,6 +329,8 @@ pub enum PbrtParseError {
     MissingRequiredOption(String),
     #[error("directive is unrecognized or illegal in the current section: {0}")]
     UnrecognizedOrIllegalDirective(String),
+    #[error("the `{0}` directive should only appear once, but was repeated")]
+    RepeatedDirective(String),
 
     #[error("missing required parameter {0}")]
     MissingRequiredParameter(String),

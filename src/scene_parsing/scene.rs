@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::{cell::OnceCell, io::Read};
 
 use crate::core::Transform;
 
@@ -14,9 +14,28 @@ pub struct Scene {
     world: World,
 }
 
-#[derive(Debug, derive_builder::Builder)]
+#[derive(Debug)]
 pub struct Options {
     camera: Camera,
+}
+
+#[derive(Debug, Default)]
+struct OptionsBuilder {
+    camera: OnceCell<Camera>,
+}
+
+impl OptionsBuilder {
+    fn empty() -> Self {
+        Self::default()
+    }
+
+    fn build(mut self) -> Result<Options, PbrtParseError> {
+        let camera = self
+            .camera
+            .take()
+            .ok_or(PbrtParseError::MissingRequiredOption("Camera".to_string()))?;
+        Ok(Options { camera })
+    }
 }
 
 #[derive(Debug, Default)]
@@ -32,26 +51,34 @@ pub fn parse_pbrt_file(
     file.read_to_string(&mut buf);
 
     let mut input: &str = buf.as_str();
-    let options = parse_options_section(&mut input)?;
-    let world = parse_world_section(&mut input)?;
+    let options = parse_options_section(&mut input, ignore_unrecognized_directives)?;
+    let world = parse_world_section(&mut input, ignore_unrecognized_directives)?;
 
     Ok(Scene { options, world })
 }
 
-fn parse_options_section(input: &mut &str) -> Result<Options, PbrtParseError> {
+fn parse_options_section(
+    input: &mut &str,
+    ignore_unrecognized_directives: bool,
+) -> Result<Options, PbrtParseError> {
     let mut current_transform = Transform::IDENTITY;
-    let mut options_builder = OptionsBuilder::create_empty();
+    let mut options_builder = OptionsBuilder::empty();
 
     while let Ok(directive) = directive(input) {
         match directive {
             Directive::Entity(entity) => match entity.identifier {
                 "Camera" => {
-                    options_builder.camera(entity.try_into()?);
+                    options_builder
+                        .camera
+                        .set(entity.try_into()?)
+                        .map_err(|_| PbrtParseError::RepeatedDirective("Camera".to_string()))?;
                 }
                 invalid_name => {
-                    return Err(PbrtParseError::UnrecognizedOrIllegalDirective(
-                        invalid_name.to_owned(),
-                    ))
+                    if !ignore_unrecognized_directives {
+                        return Err(PbrtParseError::UnrecognizedOrIllegalDirective(
+                            invalid_name.to_owned(),
+                        ));
+                    }
                 }
             },
             Directive::Transform(transform_directive) => {
@@ -78,7 +105,10 @@ fn parse_options_section(input: &mut &str) -> Result<Options, PbrtParseError> {
         .map_err(|err| PbrtParseError::MissingRequiredOption(err.to_string()))
 }
 
-fn parse_world_section(input: &mut &str) -> Result<World, PbrtParseError> {
+fn parse_world_section(
+    input: &mut &str,
+    ignore_unrecognized_directives: bool,
+) -> Result<World, PbrtParseError> {
     let mut current_transform = Transform::IDENTITY;
     let mut world = World::default();
 
@@ -89,9 +119,11 @@ fn parse_world_section(input: &mut &str) -> Result<World, PbrtParseError> {
                     world.shapes.push(entity.try_into()?);
                 }
                 invalid_name => {
-                    return Err(PbrtParseError::UnrecognizedOrIllegalDirective(
-                        invalid_name.to_owned(),
-                    ))
+                    if !ignore_unrecognized_directives {
+                        return Err(PbrtParseError::UnrecognizedOrIllegalDirective(
+                            invalid_name.to_owned(),
+                        ));
+                    }
                 }
             },
             Directive::Transform(transform_directive) => {
@@ -111,71 +143,6 @@ fn parse_world_section(input: &mut &str) -> Result<World, PbrtParseError> {
 
     Ok(world)
 }
-
-/*
-fn global_options(
-    ignore_unrecognized_directives: bool,
-) -> impl FnMut(&mut &str) -> PResult<Options> {
-    move |input| {
-        let mut seen_directives: HashSet<GlobalDirectiveDiscriminants> = HashSet::new();
-        let unseen_directive = move |input: &mut &str| {
-            let start = input.checkpoint();
-            let dir = global_directive(ignore_unrecognized_directives).parse_next(input)?;
-            if seen_directives.insert(dir.clone().into()) {
-                Ok(dir)
-            } else {
-                input.reset(&start);
-                Err(ErrMode::from_error_kind(input, ErrorKind::Verify)
-                    .add_context(
-                        input,
-                        &start,
-                        StrContext::Expected(StrContextValue::Description(
-                            "directive to appear at most once",
-                        )),
-                    )
-                    .cut())
-            }
-        };
-
-        let dirs: Vec<_> = terminated(separated(0.., unseen_directive, multispace1), multispace0)
-            .parse_next(input)?;
-
-        let options = Options::new(dirs);
-        options.map_err(|_| {
-            ErrMode::from_error_kind(input, ErrorKind::Verify)
-                .add_context(
-                    input,
-                    &input.checkpoint(),
-                    StrContext::Expected(StrContextValue::Description(
-                        "all required global options",
-                    )),
-                )
-                .cut()
-        })
-    }
-}
-
-fn world(ignore_unrecognized_directives: bool) -> impl FnMut(&mut &str) -> PResult<World> {
-    move |input| {
-        terminated(
-            separated(
-                0..,
-                world_directive(ignore_unrecognized_directives),
-                multispace1,
-            ),
-            (multispace0, peek(eof)),
-            )
-            .map(|dirs: Vec<_>| {
-                let mut world = World::default();
-                for d in dirs {
-                    world.add_option(d);
-                    }
-                    world
-                    })
-        .parse_next(input)
-        }
-        }
-*/
 
 #[cfg(test)]
 mod test {
@@ -199,36 +166,47 @@ mod test {
         output
     }
 
-    /*
     #[test]
-    fn test_directive_invalid_name() {
+    fn test_invalid_directive_name() {
         assert!(
-            global_directive(false).parse(
-                &mut r#"ThisIsNotARealDirective "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4"#
+            parse_options_section(
+                &mut r#"Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4
+                        ThisIsNotARealDirective "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4"#,
+                false
             ).is_err()
         );
     }
 
     #[test]
-    fn test_global_options() {
-        must_parse_ok(
-            global_options(false),
-            r#"Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4"#,
-            true,
+    fn test_ignore_invalid_directive() {
+        assert!(
+            parse_options_section(
+                &mut r#"Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4
+                        ThisIsNotARealDirective "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4"#,
+                true
+            ).is_ok()
         );
     }
 
     #[test]
+    fn test_global_options_ok() {
+        assert!(parse_options_section(
+            &mut r#"Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4"#,
+            false
+        )
+        .is_ok());
+    }
+
+    #[test]
     fn test_global_options_fail_on_repeat_directive() {
-        assert!(global_options(false)
-            .parse(
-                r#"Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4
+        assert!(parse_options_section(
+            &mut r#"Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4
                    Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4
                    WorldBegin"#,
-            )
-            .is_err());
+            false
+        )
+        .is_err());
     }
-    */
 
     #[test]
     fn test_scene_parse_ok() {

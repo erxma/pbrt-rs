@@ -20,14 +20,49 @@ use crate::core::Float;
 use super::directives::{transform_directive, TransformDirective};
 
 #[derive(Clone, Debug, PartialEq, EnumAsInner, EnumDiscriminants)]
+#[strum_discriminants(derive(strum::Display))]
 #[strum_discriminants(name(ValueType))]
 pub(super) enum Value {
     Single(SingleValue),
     Array(Vec<SingleValue>),
 }
 
+impl TryFrom<Value> for SingleValue {
+    type Error = PbrtParseError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        value
+            .into_single()
+            .map_err(|_| PbrtParseError::IncorrectType {
+                expected: ValueType::Single.to_string(),
+                found: ValueType::Array.to_string(),
+            })
+    }
+}
+
+impl TryFrom<Value> for Float {
+    type Error = PbrtParseError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        SingleValue::try_from(value)?
+            .into_float()
+            .map_err(|found_val| PbrtParseError::IncorrectType {
+                expected: SingleValueType::Float.to_string(),
+                found: SingleValueType::from(found_val).to_string(),
+            })
+    }
+}
+
+impl TryFrom<Value> for Option<Float> {
+    type Error = PbrtParseError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        Float::try_from(value).map(Some)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, EnumDiscriminants, EnumAsInner)]
-#[strum_discriminants(derive(EnumString))]
+#[strum_discriminants(derive(EnumString, strum::Display))]
 #[strum_discriminants(name(SingleValueType))]
 pub(super) enum SingleValue {
     #[strum_discriminants(strum(serialize = "integer"))]
@@ -176,6 +211,61 @@ fn param(input: &mut &str) -> PResult<(String, Value)> {
     trace("param", full_param).parse_next(input)
 }
 
+macro_rules! impl_try_from_parameter_map {
+    (
+        $struct_name:ty,
+        $(
+            required {
+                $(
+                    $required_name:literal => $required_field:ident
+                ),* $(,)?
+            }
+        )?
+        $(
+            has_defaults {
+                $(
+                    $defaulted_name:literal => $defaulted_field:ident
+                ),* $(,)?
+            }
+        )?
+    ) => {
+        impl TryFrom<crate::scene_parsing::common::ParameterMap> for $struct_name {
+            type Error = crate::scene_parsing::common::PbrtParseError;
+
+            fn try_from(
+                mut params: crate::scene_parsing::common::ParameterMap,
+            ) -> Result<Self, Self::Error> {
+                let mut result = <$struct_name>::default();
+
+                $(
+                    $(
+                        if let Some(value) = params.remove($required_name) {
+                            result.$required_field = value.try_into()?;
+                        } else {
+                            return Err(Self::Error::MissingRequiredParameter($required_name.to_string()));
+                        }
+                    )*
+                )?
+
+                $(
+                    $(
+                        if let Some(value) = params.remove($defaulted_name) {
+                            result.$defaulted_field = value.try_into()?;
+                        }
+                    )*
+                )?
+
+                if let Some(unexpected_name) = params.into_keys().next() {
+                    return Err(Self::Error::UnexpectedParameter(unexpected_name));
+                }
+
+                Ok(result)
+            }
+        }
+    };
+}
+pub(super) use impl_try_from_parameter_map;
+
 pub(super) enum Directive<'a> {
     Entity(EntityDirective<'a>),
     Transform(TransformDirective),
@@ -221,6 +311,13 @@ pub enum PbrtParseError {
     IllegalForSection(String),
     #[error("missing required global option: {0}")]
     MissingRequiredOption(String),
+
+    #[error("missing required parameter {0}")]
+    MissingRequiredParameter(String),
+    #[error("unexpected parameter for this entity: {0}")]
+    UnexpectedParameter(String),
+    #[error("incorrect type for parameter (expected {expected}, found {found})")]
+    IncorrectType { expected: String, found: String },
 }
 
 #[cfg(test)]

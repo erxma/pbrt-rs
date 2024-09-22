@@ -9,7 +9,9 @@ use strum::{EnumDiscriminants, EnumString};
 use thiserror::Error;
 use winnow::{
     ascii::{alpha1, alphanumeric0, alphanumeric1, float, multispace1, space1},
-    combinator::{alt, cut_err, delimited, fail, separated, separated_pair, seq, trace},
+    combinator::{
+        alt, cut_err, delimited, eof, fail, separated, separated_pair, seq, terminated, trace,
+    },
     error::{AddContext, ErrMode, ErrorKind, ParserError, StrContext, StrContextValue},
     prelude::*,
     stream::Stream,
@@ -133,6 +135,15 @@ pub(super) fn atomic_literal(input: &mut &str) -> PResult<AtomicLiteral> {
 pub(super) enum Alpha {
     Constant(Float),
     Texture(()),
+}
+
+impl TryFrom<Value> for Alpha {
+    type Error = PbrtParseError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        // TODO: Update once textures are available
+        Float::try_from(value).map(Alpha::Constant)
+    }
 }
 
 pub(super) type ParameterMap = HashMap<String, Value>;
@@ -266,6 +277,7 @@ macro_rules! impl_try_from_parameter_map {
 }
 pub(super) use impl_try_from_parameter_map;
 
+#[derive(Clone, Debug, PartialEq)]
 pub(super) enum Directive<'a> {
     Entity(EntityDirective<'a>),
     Transform(TransformDirective),
@@ -275,16 +287,20 @@ pub(super) enum Directive<'a> {
 }
 
 pub(super) fn directive<'a>(input: &mut &'a str) -> PResult<Directive<'a>> {
-    alt((
-        entity_directive.map(Directive::Entity),
-        transform_directive.map(Directive::Transform),
-        "WorldBegin".map(|_| Directive::WorldBegin),
-        "AttributeBegin".map(|_| Directive::AttributeBegin),
-        "AttributeEnd".map(|_| Directive::AttributeEnd),
-    ))
+    terminated(
+        alt((
+            entity_directive.map(Directive::Entity),
+            transform_directive.map(Directive::Transform),
+            "WorldBegin".map(|_| Directive::WorldBegin),
+            "AttributeBegin".map(|_| Directive::AttributeBegin),
+            "AttributeEnd".map(|_| Directive::AttributeEnd),
+        )),
+        alt((multispace1, eof)),
+    )
     .parse_next(input)
 }
 
+#[derive(Clone, Debug, PartialEq)]
 pub(super) struct EntityDirective<'a> {
     pub identifier: &'a str,
     pub subtype: &'a str,

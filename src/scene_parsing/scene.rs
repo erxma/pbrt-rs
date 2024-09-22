@@ -31,8 +31,9 @@ pub fn parse_pbrt_file(
     let mut buf = String::new();
     file.read_to_string(&mut buf);
 
-    let options = parse_options_section(&mut buf.as_str())?;
-    let world = parse_world_section(&mut buf.as_str())?;
+    let mut input: &str = buf.as_str();
+    let options = parse_options_section(&mut input)?;
+    let world = parse_world_section(&mut input)?;
 
     Ok(Scene { options, world })
 }
@@ -83,7 +84,16 @@ fn parse_world_section(input: &mut &str) -> Result<World, PbrtParseError> {
 
     while let Ok(directive) = directive(input) {
         match directive {
-            Directive::Entity(entity_directive) => todo!(),
+            Directive::Entity(entity) => match entity.identifier {
+                "Shape" => {
+                    world.shapes.push(entity.try_into()?);
+                }
+                invalid_name => {
+                    return Err(PbrtParseError::UnrecognizedOrIllegalDirective(
+                        invalid_name.to_owned(),
+                    ))
+                }
+            },
             Directive::Transform(transform_directive) => {
                 current_transform = Transform::from(transform_directive) * current_transform;
             }
@@ -169,8 +179,25 @@ fn world(ignore_unrecognized_directives: bool) -> impl FnMut(&mut &str) -> PResu
 
 #[cfg(test)]
 mod test {
+    use std::io::Cursor;
+
     use super::*;
     use winnow::stream::{AsBStr, StreamIsPartial};
+
+    fn file_must_parse_ok(input: &mut impl Read, print_ok_result: bool) -> Scene {
+        let result = parse_pbrt_file(input, false);
+        assert!(
+            result.is_ok(),
+            "Parsing returned an error:\n{}",
+            result.unwrap_err(),
+        );
+
+        let output = result.unwrap();
+        if print_ok_result {
+            println!("Successful parse:\n{:#?}", output);
+        }
+        output
+    }
 
     /*
     #[test]
@@ -201,16 +228,17 @@ mod test {
             )
             .is_err());
     }
+    */
 
     #[test]
-    fn test_scene() {
-        must_parse_ok(
-            scene(false),
-            r#"Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4
-                    WorldBegin
-                    Shape "sphere" "float radius" 0.25"#,
+    fn test_scene_parse_ok() {
+        file_must_parse_ok(
+            &mut Cursor::new(
+                r#"Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4
+                WorldBegin
+                Shape "sphere" "float radius" 0.25"#,
+            ),
             true,
         );
     }
-    */
 }

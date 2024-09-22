@@ -8,12 +8,31 @@ use winnow::{
 
 use crate::{
     core::Float,
-    scene_parsing::common::{impl_try_from_parameter_map, Alpha},
+    scene_parsing::{
+        common::{impl_try_from_parameter_map, Alpha, EntityDirective},
+        PbrtParseError,
+    },
 };
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Shape {
     Sphere(Sphere),
+}
+
+impl<'a> TryFrom<EntityDirective<'a>> for Shape {
+    type Error = PbrtParseError;
+
+    fn try_from(entity: EntityDirective) -> Result<Self, Self::Error> {
+        assert_eq!(entity.identifier, "Shape");
+
+        match entity.subtype {
+            "sphere" => Sphere::try_from(entity.param_map).map(Shape::Sphere),
+            invalid_type => Err(PbrtParseError::UnrecognizedSubtype {
+                entity: "Shape".to_string(),
+                type_name: invalid_type.to_owned(),
+            }),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -37,16 +56,13 @@ impl Default for Sphere {
     }
 }
 
-pub fn shape_directive(input: &mut &str) -> PResult<Shape> {
-    /*
-    trace(
-        "shape_directive",
-        dispatch! { cut_err(terminated(delimited('"', alpha1, '"'), space1));
-            "sphere" => sphere_params,
-            _=> fail.context(StrContext::Label("shape type"))
-        },
-    )
-    .parse_next(input)
-    */
-    todo!()
+impl_try_from_parameter_map! {
+    Sphere,
+    has_defaults {
+        "alpha" => alpha,
+        "radius" => radius,
+        "zmin" => z_min,
+        "zmax" => z_max,
+        "phimax" => phi_max,
+    }
 }

@@ -6,6 +6,7 @@ use winnow::{
 
 use crate::core::{Float, Point3f, Transform, Vec3f};
 
+#[derive(Clone, Debug, PartialEq)]
 pub enum TransformDirective {
     Identity,
     Translate(Vec3f),
@@ -28,11 +29,13 @@ impl From<TransformDirective> for Transform {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
 pub struct Rotate {
     angle_deg: Float,
     axis: Vec3f,
 }
 
+#[derive(Clone, Debug, PartialEq)]
 pub struct LookAt {
     eye_pos: Point3f,
     look_pos: Point3f,

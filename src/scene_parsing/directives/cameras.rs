@@ -16,6 +16,7 @@ use winnow::{
 #[derive(Clone, Debug, PartialEq)]
 pub enum Camera {
     Orthographic(OrthographicCamera),
+    Perspective(PerspectiveCamera),
 }
 
 impl<'a> TryFrom<EntityDirective<'a>> for Camera {
@@ -28,6 +29,9 @@ impl<'a> TryFrom<EntityDirective<'a>> for Camera {
             "orthographic" => {
                 OrthographicCamera::try_from(entity.param_map).map(Camera::Orthographic)
             }
+            "perspective" => PerspectiveCamera::try_from(entity.param_map).map(Camera::Perspective),
+            "realistic" => todo!(),
+            "spherical" => todo!(),
             invalid_type => Err(PbrtParseError::UnrecognizedSubtype {
                 entity: "Camera".to_string(),
                 type_name: invalid_type.to_owned(),
@@ -68,6 +72,44 @@ impl_try_from_parameter_map! {
         "screenwindow" => screen_window,
         "lensradius" => lens_radius,
         "focaldistance" => focal_distance,
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct PerspectiveCamera {
+    shutter_open: Float,
+    shutter_close: Float,
+    frame_aspect_ratio: Option<Float>,
+    screen_window: Option<Float>,
+    lens_radius: Float,
+    focal_distance: Float,
+    fov_degs: Float,
+}
+
+impl Default for PerspectiveCamera {
+    fn default() -> Self {
+        Self {
+            shutter_open: 0.0,
+            shutter_close: 1.0,
+            frame_aspect_ratio: None,
+            screen_window: None,
+            lens_radius: 0.0,
+            focal_distance: 10e30,
+            fov_degs: 90.0,
+        }
+    }
+}
+
+impl_try_from_parameter_map! {
+    PerspectiveCamera,
+    has_defaults {
+        "shutteropen" => shutter_open,
+        "shutterclose" => shutter_close,
+        "frameaspectratio" => frame_aspect_ratio,
+        "screenwindow" => screen_window,
+        "lensradius" => lens_radius,
+        "focaldistance" => focal_distance,
+        "fov" => fov_degs
     }
 }
 

@@ -49,12 +49,33 @@ pub fn parse_pbrt_file(
 ) -> Result<Scene, PbrtParseError> {
     let mut buf = String::new();
     file.read_to_string(&mut buf);
+    buf = strip_comments(buf);
 
     let mut input: &str = buf.as_str();
     let options = parse_options_section(&mut input, ignore_unrecognized_directives)?;
     let world = parse_world_section(&mut input, ignore_unrecognized_directives)?;
 
     Ok(Scene { options, world })
+}
+
+/// Remove all comments, which start with a # character and continue to the end of the line.
+///
+/// Also trims any remaining trailing whitespace.
+fn strip_comments(input: String) -> String {
+    input
+        .lines()
+        .map(|line| {
+            // For each line, look for first '#' char.
+            // Keep slice up to that '#', and also trim remaining trailing whitespace.
+            // If no '#', no change.
+            if let Some(comment_start) = line.find('#') {
+                &line[..comment_start].trim_end()
+            } else {
+                line
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn parse_options_section(
@@ -217,6 +238,25 @@ mod test {
                 Shape "sphere" "float radius" 0.25"#,
             ),
             true,
+        );
+    }
+
+    #[test]
+    fn test_strip_comments() {
+        assert_eq!(
+            strip_comments(
+                r#"LookAt 3 4 1.5  # eye
+.5 .5 0  # look at point LookAt
+0 0 1    # up vector
+Camera "perspective" "float fov" 45
+# more comments"#
+                    .to_string()
+            ),
+            r#"LookAt 3 4 1.5
+.5 .5 0
+0 0 1
+Camera "perspective" "float fov" 45
+"#
         );
     }
 }

@@ -26,24 +26,56 @@ use crate::{
 
 use super::directives::{transform_directive, TransformDirective};
 
-#[derive(Clone, Debug, PartialEq, EnumAsInner, EnumDiscriminants)]
-#[strum_discriminants(derive(EnumString, strum::Display))]
-#[strum_discriminants(name(ValueType))]
+#[derive(Clone, Debug, PartialEq, EnumAsInner, strum::Display)]
 pub(super) enum Value {
-    #[strum_discriminants(strum(serialize = "integer"))]
     Int(i32),
-    #[strum_discriminants(strum(serialize = "float"))]
     Float(Float),
-    #[strum_discriminants(strum(serialize = "bool"))]
+    FloatArray(Vec<Float>),
     Bool(bool),
-    #[strum_discriminants(strum(serialize = "string"))]
     Str(String),
-    #[strum_discriminants(strum(serialize = "point"))]
     Point(Point3f),
-    #[strum_discriminants(strum(serialize = "rgb"))]
     Rgb(RGB),
-    #[strum_discriminants(strum(serialize = "blackbody"))]
     BlackbodyTemp(Float),
+}
+
+#[derive(Clone, Debug, PartialEq, EnumString, strum::Display)]
+pub(super) enum ValueType {
+    #[strum(serialize = "integer")]
+    Int,
+    #[strum(serialize = "float")]
+    Float,
+    #[strum(serialize = "bool")]
+    Bool,
+    #[strum(serialize = "string")]
+    Str,
+    #[strum(serialize = "point")]
+    Point,
+    #[strum(serialize = "rgb")]
+    Rgb,
+    #[strum(serialize = "blackbody")]
+    Blackbody,
+}
+
+impl TryFrom<Value> for usize {
+    type Error = PbrtParseError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        value
+            .into_int()
+            .map(|v| v as usize)
+            .map_err(|found_val| PbrtParseError::IncorrectType {
+                expected: ValueType::Float.to_string(),
+                found: found_val.to_string(),
+            })
+    }
+}
+
+impl TryFrom<Value> for Option<usize> {
+    type Error = PbrtParseError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        usize::try_from(value).map(Some)
+    }
 }
 
 impl TryFrom<Value> for Float {
@@ -54,7 +86,7 @@ impl TryFrom<Value> for Float {
             .into_float()
             .map_err(|found_val| PbrtParseError::IncorrectType {
                 expected: ValueType::Float.to_string(),
-                found: ValueType::from(found_val).to_string(),
+                found: found_val.to_string(),
             })
     }
 }
@@ -67,6 +99,55 @@ impl TryFrom<Value> for Option<Float> {
     }
 }
 
+impl<const N: usize> TryFrom<Value> for [Float; N] {
+    type Error = PbrtParseError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        value
+            .into_float_array()
+            .map_err(|found_val| PbrtParseError::IncorrectType {
+                expected: ValueType::Float.to_string(),
+                found: found_val.to_string(),
+            })
+            .and_then(|vec| {
+                let len = vec.len();
+                vec.try_into().map_err(|_| PbrtParseError::IncorrectType {
+                    expected: format!("array of length {}", N),
+                    found: format!("array of length {}", len),
+                })
+            })
+    }
+}
+
+impl<const N: usize> TryFrom<Value> for Option<[Float; N]> {
+    type Error = PbrtParseError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        <[Float; N]>::try_from(value).map(Some)
+    }
+}
+
+impl TryFrom<Value> for bool {
+    type Error = PbrtParseError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        value
+            .into_bool()
+            .map_err(|found_val| PbrtParseError::IncorrectType {
+                expected: ValueType::Bool.to_string(),
+                found: found_val.to_string(),
+            })
+    }
+}
+
+impl TryFrom<Value> for Option<bool> {
+    type Error = PbrtParseError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        bool::try_from(value).map(Some)
+    }
+}
+
 impl TryFrom<Value> for Point3f {
     type Error = PbrtParseError;
 
@@ -75,7 +156,7 @@ impl TryFrom<Value> for Point3f {
             .into_point()
             .map_err(|found_val| PbrtParseError::IncorrectType {
                 expected: ValueType::Point.to_string(),
-                found: ValueType::from(found_val).to_string(),
+                found: found_val.to_string(),
             })
     }
 }
@@ -85,6 +166,20 @@ impl TryFrom<Value> for Option<Point3f> {
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         Point3f::try_from(value).map(Some)
+    }
+}
+
+impl TryFrom<Value> for PathBuf {
+    type Error = PbrtParseError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        value
+            .into_str()
+            .map(PathBuf::from)
+            .map_err(|found_val| PbrtParseError::IncorrectType {
+                expected: ValueType::Str.to_string(),
+                found: found_val.to_string(),
+            })
     }
 }
 
@@ -171,7 +266,7 @@ impl TryFrom<Value> for Spectrum {
             Value::BlackbodyTemp(temp) => Ok(Self::BlackbodyTemp(temp)),
             _ => Err(PbrtParseError::IncorrectType {
                 expected: "rgb or blackbody".to_string(),
-                found: ValueType::from(value).to_string(),
+                found: value.to_string(),
             }),
         }
     }
@@ -243,7 +338,17 @@ fn param(input: &mut &str) -> PResult<(String, Value)> {
             // FIXME: After refactor, no longer automatically supports same type name
             // for either single or array. Should be easy as only the atomic ones will
             // have this case
-            ValueType::Float => Value::Float(*val.as_atomic()?.as_num()? as Float),
+            ValueType::Float => match val {
+                Literal::Atomic(val) => Value::Float(val.into_num().ok()? as Float),
+                Literal::Array(arr) => {
+                    let f_arr = arr
+                        .into_iter()
+                        .map(|v| v.into_num().map(|v| v as Float))
+                        .collect::<Result<_, _>>()
+                        .ok()?;
+                    Value::FloatArray(f_arr)
+                }
+            },
             ValueType::Bool => Value::Bool(*val.as_atomic()?.as_bool()?),
             ValueType::Str => Value::Str(val.into_atomic().ok()?.into_str().ok()?),
             ValueType::Point => {
@@ -268,7 +373,7 @@ fn param(input: &mut &str) -> PResult<(String, Value)> {
                     *arr[2].as_num()? as Float,
                 ))
             }
-            ValueType::BlackbodyTemp => Value::BlackbodyTemp(*val.as_atomic()?.as_num()? as Float),
+            ValueType::Blackbody => Value::BlackbodyTemp(*val.as_atomic()?.as_num()? as Float),
         };
 
         Some((name.to_owned(), val))

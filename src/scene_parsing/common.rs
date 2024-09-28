@@ -18,7 +18,11 @@ use winnow::{
     stream::Stream,
 };
 
-use crate::{color::RGB, core::Float};
+use crate::{
+    color::RGB,
+    core::{Float, Point3f},
+    sampling::spectrum::{RgbIlluminantSpectrum, SpectrumEnum},
+};
 
 use super::directives::{transform_directive, TransformDirective};
 
@@ -34,6 +38,8 @@ pub(super) enum Value {
     Bool(bool),
     #[strum_discriminants(strum(serialize = "string"))]
     Str(String),
+    #[strum_discriminants(strum(serialize = "point"))]
+    Point(Point3f),
     #[strum_discriminants(strum(serialize = "rgb"))]
     Rgb(RGB),
     #[strum_discriminants(strum(serialize = "blackbody"))]
@@ -58,6 +64,27 @@ impl TryFrom<Value> for Option<Float> {
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         Float::try_from(value).map(Some)
+    }
+}
+
+impl TryFrom<Value> for Point3f {
+    type Error = PbrtParseError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        value
+            .into_point()
+            .map_err(|found_val| PbrtParseError::IncorrectType {
+                expected: ValueType::Point.to_string(),
+                found: ValueType::from(found_val).to_string(),
+            })
+    }
+}
+
+impl TryFrom<Value> for Option<Point3f> {
+    type Error = PbrtParseError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        Point3f::try_from(value).map(Some)
     }
 }
 
@@ -129,6 +156,35 @@ impl TryFrom<Value> for Alpha {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub(super) enum Spectrum {
+    Rgb(RGB),
+    BlackbodyTemp(Float),
+}
+
+impl TryFrom<Value> for Spectrum {
+    type Error = PbrtParseError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::Rgb(rgb) => Ok(Self::Rgb(rgb)),
+            Value::BlackbodyTemp(temp) => Ok(Self::BlackbodyTemp(temp)),
+            _ => Err(PbrtParseError::IncorrectType {
+                expected: "rgb or blackbody".to_string(),
+                found: ValueType::from(value).to_string(),
+            }),
+        }
+    }
+}
+
+impl TryFrom<Value> for Option<Spectrum> {
+    type Error = PbrtParseError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        Spectrum::try_from(value).map(Some)
+    }
+}
+
 pub(super) type ParameterMap = HashMap<String, Value>;
 
 pub(super) fn param_map(input: &mut &str) -> PResult<ParameterMap> {
@@ -190,6 +246,17 @@ fn param(input: &mut &str) -> PResult<(String, Value)> {
             ValueType::Float => Value::Float(*val.as_atomic()?.as_num()? as Float),
             ValueType::Bool => Value::Bool(*val.as_atomic()?.as_bool()?),
             ValueType::Str => Value::Str(val.into_atomic().ok()?.into_str().ok()?),
+            ValueType::Point => {
+                let arr = val.as_array()?;
+                if arr.len() != 3 {
+                    return None;
+                }
+                Value::Point(Point3f::new(
+                    *arr[0].as_num()? as Float,
+                    *arr[1].as_num()? as Float,
+                    *arr[2].as_num()? as Float,
+                ))
+            }
             ValueType::Rgb => {
                 let arr = val.as_array()?;
                 if arr.len() != 3 {

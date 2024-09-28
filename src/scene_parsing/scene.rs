@@ -4,7 +4,7 @@ use crate::core::Transform;
 
 use super::{
     common::{directive, Directive},
-    directives::{Camera, Shape, TransformDirective},
+    directives::{Camera, ColorSpace, Shape, TransformDirective},
     PbrtParseError,
 };
 
@@ -17,11 +17,13 @@ pub struct Scene {
 #[derive(Debug)]
 pub struct Options {
     camera: Camera,
+    color_space: ColorSpace,
 }
 
 #[derive(Debug, Default)]
 struct OptionsBuilder {
     camera: OnceCell<Camera>,
+    color_space: OnceCell<ColorSpace>,
 }
 
 impl OptionsBuilder {
@@ -34,7 +36,16 @@ impl OptionsBuilder {
             .camera
             .take()
             .ok_or(PbrtParseError::MissingRequiredOption("Camera".to_string()))?;
-        Ok(Options { camera })
+        let color_space = self
+            .color_space
+            .take()
+            .ok_or(PbrtParseError::MissingRequiredOption(
+                "ColorSpace".to_string(),
+            ))?;
+        Ok(Options {
+            camera,
+            color_space,
+        })
     }
 }
 

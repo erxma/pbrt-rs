@@ -1,5 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
+    path::PathBuf,
     str::FromStr,
 };
 
@@ -17,40 +18,37 @@ use winnow::{
     stream::Stream,
 };
 
-use crate::core::Float;
+use crate::{color::RGB, core::Float};
 
 use super::directives::{transform_directive, TransformDirective};
 
 #[derive(Clone, Debug, PartialEq, EnumAsInner, EnumDiscriminants)]
-#[strum_discriminants(derive(strum::Display))]
+#[strum_discriminants(derive(EnumString, strum::Display))]
 #[strum_discriminants(name(ValueType))]
 pub(super) enum Value {
-    Single(SingleValue),
-    Array(Vec<SingleValue>),
-}
-
-impl TryFrom<Value> for SingleValue {
-    type Error = PbrtParseError;
-
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        value
-            .into_single()
-            .map_err(|_| PbrtParseError::IncorrectType {
-                expected: ValueType::Single.to_string(),
-                found: ValueType::Array.to_string(),
-            })
-    }
+    #[strum_discriminants(strum(serialize = "integer"))]
+    Int(i32),
+    #[strum_discriminants(strum(serialize = "float"))]
+    Float(Float),
+    #[strum_discriminants(strum(serialize = "bool"))]
+    Bool(bool),
+    #[strum_discriminants(strum(serialize = "string"))]
+    Str(String),
+    #[strum_discriminants(strum(serialize = "rgb"))]
+    Rgb(RGB),
+    #[strum_discriminants(strum(serialize = "blackbody"))]
+    BlackbodyTemp(Float),
 }
 
 impl TryFrom<Value> for Float {
     type Error = PbrtParseError;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
-        SingleValue::try_from(value)?
+        value
             .into_float()
             .map_err(|found_val| PbrtParseError::IncorrectType {
-                expected: SingleValueType::Float.to_string(),
-                found: SingleValueType::from(found_val).to_string(),
+                expected: ValueType::Float.to_string(),
+                found: ValueType::from(found_val).to_string(),
             })
     }
 }
@@ -63,30 +61,15 @@ impl TryFrom<Value> for Option<Float> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, EnumDiscriminants, EnumAsInner)]
-#[strum_discriminants(derive(EnumString, strum::Display))]
-#[strum_discriminants(name(SingleValueType))]
-pub(super) enum SingleValue {
-    #[strum_discriminants(strum(serialize = "integer"))]
-    Int(i32),
-    #[strum_discriminants(strum(serialize = "float"))]
-    Float(Float),
-    #[strum_discriminants(strum(serialize = "bool"))]
-    Bool(bool),
-    #[strum_discriminants(strum(serialize = "string"))]
-    Str(String),
-}
-
-pub(super) fn single_ty(input: &mut &str) -> PResult<SingleValueType> {
-    alphanumeric1
-        .verify_map(|ty| SingleValueType::from_str(ty).ok())
+pub(super) fn value_type(input: &mut &str) -> PResult<ValueType> {
+    cut_err(alphanumeric1.verify_map(|ty| ValueType::from_str(ty).ok()))
         .context(StrContext::Expected(StrContextValue::Description(
-            "parameter type",
+            "variable type",
         )))
         .parse_next(input)
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, EnumAsInner)]
 pub(super) enum Literal {
     Atomic(AtomicLiteral),
     Array(Vec<AtomicLiteral>),
@@ -193,31 +176,37 @@ fn param_name<'a>(input: &mut &'a str) -> PResult<&'a str> {
 
 fn param(input: &mut &str) -> PResult<(String, Value)> {
     let full_param = separated_pair(
-        delimited('"', separated_pair(single_ty, space1, param_name), '"'),
+        delimited('"', separated_pair(value_type, space1, param_name), '"'),
         space1,
         literal,
     )
     .verify_map(|((ty, name), val)| {
-        let conversion = |single: AtomicLiteral| match ty {
-            SingleValueType::Int => single.into_num().map(|v| SingleValue::Int(v as i32)),
+        let val = match ty {
+            ValueType::Int => Value::Int(*val.as_atomic()?.as_num()? as i32),
             // FIXME: Currently allows f64 saturating to f32 infinity
-            SingleValueType::Float => single.into_num().map(|v| SingleValue::Float(v as Float)),
-            SingleValueType::Bool => single.into_bool().map(SingleValue::Bool),
-            SingleValueType::Str => single.into_str().map(SingleValue::Str),
-        };
-        let val = match val {
-            Literal::Atomic(val) => conversion(val).map(Value::Single).ok()?,
-            Literal::Array(arr) => arr
-                .into_iter()
-                .map(conversion)
-                .collect::<Result<Vec<_>, _>>()
-                .map(Value::Array)
-                .ok()?,
+            // FIXME: After refactor, no longer automatically supports same type name
+            // for either single or array. Should be easy as only the atomic ones will
+            // have this case
+            ValueType::Float => Value::Float(*val.as_atomic()?.as_num()? as Float),
+            ValueType::Bool => Value::Bool(*val.as_atomic()?.as_bool()?),
+            ValueType::Str => Value::Str(val.into_atomic().ok()?.into_str().ok()?),
+            ValueType::Rgb => {
+                let arr = val.as_array()?;
+                if arr.len() != 3 {
+                    return None;
+                }
+                Value::Rgb(RGB::new(
+                    *arr[0].as_num()? as Float,
+                    *arr[1].as_num()? as Float,
+                    *arr[2].as_num()? as Float,
+                ))
+            }
+            ValueType::BlackbodyTemp => Value::BlackbodyTemp(*val.as_atomic()?.as_num()? as Float),
         };
 
         Some((name.to_owned(), val))
     })
-    .context(StrContext::Label("value for the declared type"));
+    .context(StrContext::Label("parameter expression"));
 
     trace("param", full_param).parse_next(input)
 }
@@ -417,7 +406,7 @@ mod test {
     }
 
     #[test]
-    fn test_atomic_literal_err() {
+    fn atomic_literal_err() {
         assert!(atomic_literal.parse(&mut "parse").is_err());
     }
 
@@ -439,7 +428,7 @@ mod test {
     }
 
     #[test]
-    fn test_literal_err_mixed_array() {
+    fn literal_err_mixed_array() {
         assert!(literal.parse(&mut "[90 0 .2 9.9 true]").is_err());
         assert!(literal.parse(&mut r#"[90 0 .2 "9.9" 9.9]"#).is_err());
     }
@@ -449,18 +438,32 @@ mod test {
         assert_parses_to(
             param,
             &mut r#""float foo" 1.0"#,
-            ("foo".to_string(), Value::Single(SingleValue::Float(1.0))),
+            ("foo".to_string(), Value::Float(1.0)),
         );
     }
 
     #[test]
-    fn test_parameter_map_simple_singles() {
+    fn rgb_param() {
+        assert_parses_to(
+            param,
+            &mut r#""rgb foo" [0.5 .6   0]"#,
+            ("foo".to_string(), Value::Rgb(RGB::new(0.5, 0.6, 0.0))),
+        );
+    }
+
+    #[test]
+    fn rgb_param_wrong_length() {
+        assert!(param.parse(&mut r#""rgb foo" [0.5 .6 0 0.1]"#).is_err());
+    }
+
+    #[test]
+    fn parameter_map_simple_singles() {
         assert_parses_to(
             param_map,
             &mut r#""float foo" 1.0 "integer bar" 2"#,
             convert_args!(hashmap! (
-                "foo" => Value::Single(SingleValue::Float(1.0)),
-                "bar" => Value::Single(SingleValue::Int(2))
+                "foo" => Value::Float(1.0),
+                "bar" => Value::Int(2)
             )),
         );
     }

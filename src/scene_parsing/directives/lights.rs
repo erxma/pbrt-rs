@@ -9,6 +9,7 @@ use crate::{
 #[derive(Clone, Debug, PartialEq)]
 pub enum Light {
     Distant(DirectionalLight),
+    Infinite(InfiniteLight),
 }
 
 impl<'a> TryFrom<EntityDirective<'a>> for Light {
@@ -19,6 +20,7 @@ impl<'a> TryFrom<EntityDirective<'a>> for Light {
 
         match entity.subtype {
             "distant" => DirectionalLight::try_from(entity.param_map).map(Light::Distant),
+            "infinite" => InfiniteLight::try_from(entity.param_map).map(Light::Infinite),
             invalid_type => Err(PbrtParseError::UnrecognizedSubtype {
                 entity: "LightSource".to_string(),
                 type_name: invalid_type.to_owned(),
@@ -56,6 +58,34 @@ impl_try_from_parameter_map! {
         "L" => radiance,
         "from" => from,
         "to" => to,
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct InfiniteLight {
+    illuminance: Option<Float>,
+    scale: Float,
+    // filename: PathBuf,
+    // portal: [Point3f; 4];
+    radiance: Option<Spectrum>,
+}
+
+impl Default for InfiniteLight {
+    fn default() -> Self {
+        Self {
+            illuminance: None,
+            scale: 1.0,
+            radiance: None,
+        }
+    }
+}
+
+impl_try_from_parameter_map! {
+    InfiniteLight,
+    has_defaults {
+        "illuminance" => illuminance,
+        "scale" => scale,
+        "L" => radiance,
     }
 }
 

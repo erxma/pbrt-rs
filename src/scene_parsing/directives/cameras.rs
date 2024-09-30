@@ -45,6 +45,15 @@ impl Camera {
     }
 }
 
+impl Default for Camera {
+    fn default() -> Self {
+        Self::Perspective(PerspectiveCamera {
+            fov_degs: 90.0,
+            ..Default::default()
+        })
+    }
+}
+
 impl FromEntity for Camera {
     fn from_entity(entity: EntityDirective, ctx: &ParseContext) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Camera");

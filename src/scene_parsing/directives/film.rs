@@ -21,6 +21,12 @@ impl Film {
     }
 }
 
+impl Default for Film {
+    fn default() -> Self {
+        Self::Rgb(RgbFilm::default())
+    }
+}
+
 impl FromEntity for Film {
     fn from_entity(
         entity: EntityDirective,

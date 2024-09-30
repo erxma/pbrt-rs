@@ -13,6 +13,12 @@ pub enum Filter {
     Gaussian(GaussianFilter),
 }
 
+impl Default for Filter {
+    fn default() -> Self {
+        Self::Box(BoxFilter::default())
+    }
+}
+
 impl FromEntity for Filter {
     fn from_entity(entity: EntityDirective, ctx: &ParseContext) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Filter");

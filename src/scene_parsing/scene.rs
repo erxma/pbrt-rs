@@ -42,34 +42,12 @@ impl OptionsBuilder {
     }
 
     fn build(mut self) -> Result<Options, PbrtParseError> {
-        let film = self
-            .film
-            .take()
-            .ok_or(PbrtParseError::MissingRequiredOption("Film".to_string()))?;
-        let mut camera = self
-            .camera
-            .take()
-            .ok_or(PbrtParseError::MissingRequiredOption("Camera".to_string()))?;
-        let sampler = self
-            .sampler
-            .take()
-            .ok_or(PbrtParseError::MissingRequiredOption("Camera".to_string()))?;
-        let color_space = self
-            .color_space
-            .take()
-            .ok_or(PbrtParseError::MissingRequiredOption(
-                "ColorSpace".to_string(),
-            ))?;
-        let filter = self
-            .filter
-            .take()
-            .ok_or(PbrtParseError::MissingRequiredOption("Filter".to_string()))?;
-        let integrator = self
-            .integrator
-            .take()
-            .ok_or(PbrtParseError::MissingRequiredOption(
-                "Integrator".to_string(),
-            ))?;
+        let film = self.film.take().unwrap_or_default();
+        let mut camera = self.camera.take().unwrap_or_default();
+        let sampler = self.sampler.take().unwrap_or_default();
+        let color_space = self.color_space.take().unwrap_or_default();
+        let filter = self.filter.take().unwrap_or_default();
+        let integrator = self.integrator.take().unwrap_or_default();
 
         // Camera may use film to determine some defaults, but it may come
         // before film, so it's provided here

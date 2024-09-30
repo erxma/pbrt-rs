@@ -8,6 +8,12 @@ pub enum ColorSpace {
     Srgb,
 }
 
+impl Default for ColorSpace {
+    fn default() -> Self {
+        Self::Srgb
+    }
+}
+
 impl FromEntity for ColorSpace {
     fn from_entity(entity: EntityDirective, _ctx: &ParseContext) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "ColorSpace");

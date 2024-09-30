@@ -8,6 +8,13 @@ pub enum Sampler {
     Independent(IndependentSampler),
 }
 
+impl Default for Sampler {
+    fn default() -> Self {
+        // FIXME: Should be ZSobol once it's available
+        Self::Independent(IndependentSampler::default())
+    }
+}
+
 impl FromEntity for Sampler {
     fn from_entity(entity: EntityDirective, ctx: &ParseContext) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Sampler");

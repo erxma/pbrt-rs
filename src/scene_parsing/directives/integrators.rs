@@ -8,6 +8,13 @@ pub enum Integrator {
     RandomWalk(RandomWalkIntegrator),
 }
 
+impl Default for Integrator {
+    fn default() -> Self {
+        // FIXME: Should be VolPath once it's available
+        Self::RandomWalk(RandomWalkIntegrator::default())
+    }
+}
+
 impl FromEntity for Integrator {
     fn from_entity(entity: EntityDirective, ctx: &ParseContext) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Integrator");

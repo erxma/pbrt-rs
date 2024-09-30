@@ -4,7 +4,7 @@ use crate::core::Transform;
 
 use super::{
     common::{directive, Directive, FromEntity, ParseContext},
-    directives::{Camera, ColorSpace, Film, Shape, TransformDirective},
+    directives::{Camera, ColorSpace, Film, Integrator, Shape, TransformDirective},
     PbrtParseError,
 };
 
@@ -16,16 +16,18 @@ pub struct Scene {
 
 #[derive(Debug)]
 pub struct Options {
-    film: Film,
     camera: Camera,
     color_space: ColorSpace,
+    film: Film,
+    integrator: Integrator,
 }
 
 #[derive(Debug, Default)]
 struct OptionsBuilder {
-    film: OnceCell<Film>,
     camera: OnceCell<Camera>,
     color_space: OnceCell<ColorSpace>,
+    film: OnceCell<Film>,
+    integrator: OnceCell<Integrator>,
 }
 
 impl OptionsBuilder {
@@ -48,6 +50,12 @@ impl OptionsBuilder {
             .ok_or(PbrtParseError::MissingRequiredOption(
                 "ColorSpace".to_string(),
             ))?;
+        let integrator = self
+            .integrator
+            .take()
+            .ok_or(PbrtParseError::MissingRequiredOption(
+                "Integrator".to_string(),
+            ))?;
 
         // Camera may use film to determine some defaults, but it may come
         // before film, so it's provided here
@@ -57,6 +65,7 @@ impl OptionsBuilder {
             film,
             camera,
             color_space,
+            integrator,
         })
     }
 }
@@ -117,11 +126,23 @@ fn parse_options_section(
                         .set(Camera::from_entity(entity, &context)?)
                         .map_err(|_| PbrtParseError::RepeatedDirective("Camera".to_string()))?;
                 }
+                "ColorSpace" => {
+                    options_builder
+                        .color_space
+                        .set(ColorSpace::from_entity(entity, &context)?)
+                        .map_err(|_| PbrtParseError::RepeatedDirective("ColorSpace".to_string()))?;
+                }
                 "Film" => {
                     options_builder
                         .film
                         .set(Film::from_entity(entity, &context)?)
                         .map_err(|_| PbrtParseError::RepeatedDirective("Film".to_string()))?;
+                }
+                "Integrator" => {
+                    options_builder
+                        .integrator
+                        .set(Integrator::from_entity(entity, &context)?)
+                        .map_err(|_| PbrtParseError::RepeatedDirective("Integrator".to_string()))?;
                 }
                 invalid_name => {
                     if !ignore_unrecognized_directives {

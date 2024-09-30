@@ -1,7 +1,7 @@
 use crate::{
     core::{Float, Transform},
     scene_parsing::{
-        common::{impl_from_entity, param_map, EntityDirective, FromEntity},
+        common::{impl_from_entity, param_map, EntityDirective, FromEntity, ParseContext},
         PbrtParseError,
     },
 };
@@ -46,10 +46,7 @@ impl Camera {
 }
 
 impl FromEntity for Camera {
-    fn from_entity(
-        entity: EntityDirective,
-        ctx: &crate::scene_parsing::common::ParseContext,
-    ) -> Result<Self, PbrtParseError> {
+    fn from_entity(entity: EntityDirective, ctx: &ParseContext) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Camera");
 
         match entity.subtype {

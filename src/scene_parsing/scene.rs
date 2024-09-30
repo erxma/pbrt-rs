@@ -4,7 +4,7 @@ use crate::core::Transform;
 
 use super::{
     common::{directive, Directive, FromEntity, ParseContext},
-    directives::{Camera, ColorSpace, Film, Integrator, Shape, TransformDirective},
+    directives::{Camera, ColorSpace, Film, Integrator, Sampler, Shape, TransformDirective},
     PbrtParseError,
 };
 
@@ -17,6 +17,7 @@ pub struct Scene {
 #[derive(Debug)]
 pub struct Options {
     camera: Camera,
+    sampler: Sampler,
     color_space: ColorSpace,
     film: Film,
     integrator: Integrator,
@@ -25,6 +26,7 @@ pub struct Options {
 #[derive(Debug, Default)]
 struct OptionsBuilder {
     camera: OnceCell<Camera>,
+    sampler: OnceCell<Sampler>,
     color_space: OnceCell<ColorSpace>,
     film: OnceCell<Film>,
     integrator: OnceCell<Integrator>,
@@ -42,6 +44,10 @@ impl OptionsBuilder {
             .ok_or(PbrtParseError::MissingRequiredOption("Film".to_string()))?;
         let mut camera = self
             .camera
+            .take()
+            .ok_or(PbrtParseError::MissingRequiredOption("Camera".to_string()))?;
+        let sampler = self
+            .sampler
             .take()
             .ok_or(PbrtParseError::MissingRequiredOption("Camera".to_string()))?;
         let color_space = self
@@ -62,9 +68,10 @@ impl OptionsBuilder {
         camera.update_with_film(&film);
 
         Ok(Options {
-            film,
             camera,
+            sampler,
             color_space,
+            film,
             integrator,
         })
     }
@@ -125,6 +132,12 @@ fn parse_options_section(
                         .camera
                         .set(Camera::from_entity(entity, &context)?)
                         .map_err(|_| PbrtParseError::RepeatedDirective("Camera".to_string()))?;
+                }
+                "Sampler" => {
+                    options_builder
+                        .sampler
+                        .set(Sampler::from_entity(entity, &context)?)
+                        .map_err(|_| PbrtParseError::RepeatedDirective("Sampler".to_string()))?;
                 }
                 "ColorSpace" => {
                     options_builder

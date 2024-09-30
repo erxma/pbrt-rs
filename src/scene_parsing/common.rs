@@ -6,6 +6,7 @@ use std::{
 
 use enum_as_inner::EnumAsInner;
 use itertools::Itertools;
+use num_traits::NumCast;
 use strum::{EnumDiscriminants, EnumString};
 use thiserror::Error;
 use winnow::{
@@ -57,53 +58,42 @@ pub(super) enum ValueType {
     Blackbody,
 }
 
-impl TryFrom<Value> for usize {
-    type Error = PbrtParseError;
+macro_rules! impl_num_try_from_value {
+    ($ty:ty, $from:ident, $($from_arr:ident)?) => {
+        impl TryFrom<Value> for $ty {
+            type Error = PbrtParseError;
 
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        match value {
-            Value::Int(val) => Ok(val as usize),
-            // Also allow implicit conversion from single elem array to single
-            Value::IntArray(arr) if arr.len() == 1 => Ok(arr[0] as usize),
-            found_val => Err(PbrtParseError::IncorrectType {
-                expected: ValueType::Int.to_string(),
-                found: found_val.to_string(),
-            }),
+            fn try_from(value: Value) -> Result<Self, Self::Error> {
+                match value {
+                    Value::$from(val) => NumCast::from(val).ok_or(value),
+                    $(
+                        // Also allow implicit conversion from single elem array to single
+                        Value::$from_arr(ref arr) if arr.len() == 1 => {
+                            NumCast::from(arr[0]).ok_or(value)
+                        }
+                    )?
+                    _ => Err(value),
+                }
+                .map_err(|found_val| PbrtParseError::IncorrectType {
+                    expected: ValueType::Int.to_string(),
+                    found: found_val.to_string(),
+                })
+            }
         }
-    }
-}
 
-impl TryFrom<Value> for Option<usize> {
-    type Error = PbrtParseError;
+        impl TryFrom<Value> for Option<$ty> {
+            type Error = PbrtParseError;
 
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        usize::try_from(value).map(Some)
-    }
-}
-
-impl TryFrom<Value> for Float {
-    type Error = PbrtParseError;
-
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        match value {
-            Value::Float(val) => Ok(val as Float),
-            // Also allow implicit conversion from single elem array to single
-            Value::FloatArray(arr) if arr.len() == 1 => Ok(arr[0] as Float),
-            found_val => Err(PbrtParseError::IncorrectType {
-                expected: ValueType::Float.to_string(),
-                found: found_val.to_string(),
-            }),
+            fn try_from(value: Value) -> Result<Self, Self::Error> {
+                <$ty>::try_from(value).map(Some)
+            }
         }
-    }
+    };
 }
 
-impl TryFrom<Value> for Option<Float> {
-    type Error = PbrtParseError;
-
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        Float::try_from(value).map(Some)
-    }
-}
+impl_num_try_from_value!(usize, Int, IntArray);
+impl_num_try_from_value!(u64, Int, IntArray);
+impl_num_try_from_value!(Float, Float, FloatArray);
 
 impl<const N: usize> TryFrom<Value> for [Float; N] {
     type Error = PbrtParseError;

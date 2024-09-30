@@ -4,7 +4,9 @@ use crate::core::Transform;
 
 use super::{
     common::{directive, Directive, FromEntity, ParseContext},
-    directives::{Camera, ColorSpace, Film, Integrator, Sampler, Shape, TransformDirective},
+    directives::{
+        Camera, ColorSpace, Film, Filter, Integrator, Sampler, Shape, TransformDirective,
+    },
     PbrtParseError,
 };
 
@@ -20,6 +22,7 @@ pub struct Options {
     sampler: Sampler,
     color_space: ColorSpace,
     film: Film,
+    filter: Filter,
     integrator: Integrator,
 }
 
@@ -29,6 +32,7 @@ struct OptionsBuilder {
     sampler: OnceCell<Sampler>,
     color_space: OnceCell<ColorSpace>,
     film: OnceCell<Film>,
+    filter: OnceCell<Filter>,
     integrator: OnceCell<Integrator>,
 }
 
@@ -56,6 +60,10 @@ impl OptionsBuilder {
             .ok_or(PbrtParseError::MissingRequiredOption(
                 "ColorSpace".to_string(),
             ))?;
+        let filter = self
+            .filter
+            .take()
+            .ok_or(PbrtParseError::MissingRequiredOption("Filter".to_string()))?;
         let integrator = self
             .integrator
             .take()
@@ -72,6 +80,7 @@ impl OptionsBuilder {
             sampler,
             color_space,
             film,
+            filter,
             integrator,
         })
     }
@@ -150,6 +159,12 @@ fn parse_options_section(
                         .film
                         .set(Film::from_entity(entity, &context)?)
                         .map_err(|_| PbrtParseError::RepeatedDirective("Film".to_string()))?;
+                }
+                "Filter" => {
+                    options_builder
+                        .filter
+                        .set(Filter::from_entity(entity, &context)?)
+                        .map_err(|_| PbrtParseError::RepeatedDirective("Filter".to_string()))?;
                 }
                 "Integrator" => {
                     options_builder

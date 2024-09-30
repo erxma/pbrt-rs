@@ -1,7 +1,7 @@
 use crate::{
     core::{Float, Point3f},
     scene_parsing::{
-        common::{impl_from_entity, EntityDirective, FromEntity, Spectrum},
+        common::{impl_from_entity, EntityDirective, FromEntity, ParseContext, Spectrum},
         PbrtParseError,
     },
 };
@@ -13,10 +13,7 @@ pub enum Light {
 }
 
 impl FromEntity for Light {
-    fn from_entity(
-        entity: EntityDirective,
-        ctx: &crate::scene_parsing::common::ParseContext,
-    ) -> Result<Self, PbrtParseError> {
+    fn from_entity(entity: EntityDirective, ctx: &ParseContext) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "LightSource");
 
         match entity.subtype {

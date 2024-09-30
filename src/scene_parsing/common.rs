@@ -29,6 +29,7 @@ use super::directives::{transform_directive, TransformDirective};
 #[derive(Clone, Debug, PartialEq, EnumAsInner, strum::Display)]
 pub(super) enum Value {
     Int(i32),
+    IntArray(Vec<i32>),
     Float(Float),
     FloatArray(Vec<Float>),
     Bool(bool),
@@ -60,13 +61,15 @@ impl TryFrom<Value> for usize {
     type Error = PbrtParseError;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
-        value
-            .into_int()
-            .map(|v| v as usize)
-            .map_err(|found_val| PbrtParseError::IncorrectType {
-                expected: ValueType::Float.to_string(),
+        match value {
+            Value::Int(val) => Ok(val as usize),
+            // Also allow implicit conversion from single elem array to single
+            Value::IntArray(arr) if arr.len() == 1 => Ok(arr[0] as usize),
+            found_val => Err(PbrtParseError::IncorrectType {
+                expected: ValueType::Int.to_string(),
                 found: found_val.to_string(),
-            })
+            }),
+        }
     }
 }
 
@@ -82,12 +85,15 @@ impl TryFrom<Value> for Float {
     type Error = PbrtParseError;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
-        value
-            .into_float()
-            .map_err(|found_val| PbrtParseError::IncorrectType {
+        match value {
+            Value::Float(val) => Ok(val as Float),
+            // Also allow implicit conversion from single elem array to single
+            Value::FloatArray(arr) if arr.len() == 1 => Ok(arr[0] as Float),
+            found_val => Err(PbrtParseError::IncorrectType {
                 expected: ValueType::Float.to_string(),
                 found: found_val.to_string(),
-            })
+            }),
+        }
     }
 }
 
@@ -333,11 +339,18 @@ fn param(input: &mut &str) -> PResult<(String, Value)> {
     )
     .verify_map(|((ty, name), val)| {
         let val = match ty {
-            ValueType::Int => Value::Int(*val.as_atomic()?.as_num()? as i32),
+            ValueType::Int => match val {
+                Literal::Atomic(val) => Value::Int(val.into_num().ok()? as i32),
+                Literal::Array(arr) => {
+                    let int_arr = arr
+                        .into_iter()
+                        .map(|v| v.into_num().map(|v| v as i32))
+                        .collect::<Result<_, _>>()
+                        .ok()?;
+                    Value::IntArray(int_arr)
+                }
+            },
             // FIXME: Currently allows f64 saturating to f32 infinity
-            // FIXME: After refactor, no longer automatically supports same type name
-            // for either single or array. Should be easy as only the atomic ones will
-            // have this case
             ValueType::Float => match val {
                 Literal::Atomic(val) => Value::Float(val.into_num().ok()? as Float),
                 Literal::Array(arr) => {
@@ -349,6 +362,9 @@ fn param(input: &mut &str) -> PResult<(String, Value)> {
                     Value::FloatArray(f_arr)
                 }
             },
+            // FIXME: After refactor, no longer automatically supports same type name
+            // for either single or array. Should be easy as only the atomic ones will
+            // have this case
             ValueType::Bool => Value::Bool(*val.as_atomic()?.as_bool()?),
             ValueType::Str => Value::Str(val.into_atomic().ok()?.into_str().ok()?),
             ValueType::Point => {

@@ -1012,6 +1012,15 @@ impl Bounds2f {
     }
 }
 
+impl From<[Float; 4]> for Bounds2f {
+    fn from(vals: [Float; 4]) -> Self {
+        Self::new(
+            Point2f::new(vals[0], vals[1]),
+            Point2f::new(vals[2], vals[3]),
+        )
+    }
+}
+
 impl From<Bounds2i> for Bounds2f {
     fn from(v: Bounds2i) -> Self {
         Self::new(v.p_min.into(), v.p_max.into())

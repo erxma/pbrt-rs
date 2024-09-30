@@ -1,5 +1,6 @@
 use std::{cell::RefCell, sync::Arc};
 
+use enum_dispatch::enum_dispatch;
 use indicatif::ProgressBar;
 
 use crate::{
@@ -20,6 +21,15 @@ use crate::{
     shapes::ShapeIntersection,
 };
 
+use super::{RandomWalkIntegrator, SimplePathIntegrator};
+
+#[enum_dispatch]
+pub enum IntegratorEnum {
+    RandomWalk(RandomWalkIntegrator),
+    SimplePath(SimplePathIntegrator),
+}
+
+#[enum_dispatch(IntegratorEnum)]
 pub trait Integrate {
     fn render(&mut self);
     fn intersect<'a>(&'a self, ray: &'a Ray, t_max: Option<Float>)

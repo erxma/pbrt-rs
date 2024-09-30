@@ -41,7 +41,7 @@ fn main() {
 }
 
 fn render_cpu() {
-    let world_to_camera = Transform::look_at(
+    let camera_from_world = Transform::look_at(
         Point3f::new(3.0, 4.0, 1.5),
         Point3f::new(0.5, 0.5, 0.0),
         Vec3f::new(0.0, 0.0, 1.0),
@@ -74,7 +74,7 @@ fn render_cpu() {
     .into();
 
     let camera = PerspectiveCamera::builder()
-        .transform(CameraTransform::new(world_to_camera.inverse()))
+        .world_from_camera(camera_from_world.inverse())
         .shutter_period(0.0..1.0)
         .film(film)
         .fov(45.0)

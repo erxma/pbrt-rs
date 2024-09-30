@@ -223,6 +223,13 @@ impl Transform {
     }
 
     /// Transformation representing a projection of camera-space points
+    /// onto an orthographic viewing plane.
+    pub fn orthographic(near_z: Float, far_z: Float) -> Self {
+        Self::scale(1.0, 1.0, 1.0 / (near_z - far_z))
+            * Self::translate(Vec3f::new(0.0, 0.0, -near_z))
+    }
+
+    /// Transformation representing a projection of camera-space points
     /// onto a perspective viewing plane.
     ///
     /// FOV should be given in degrees.

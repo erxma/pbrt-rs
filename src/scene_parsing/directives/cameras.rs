@@ -75,13 +75,13 @@ impl FromEntity for Camera {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct OrthographicCamera {
-    transform: Transform,
-    shutter_open: Float,
-    shutter_close: Float,
-    frame_aspect_ratio: Option<Float>,
-    screen_window: Option<[Float; 4]>,
-    lens_radius: Float,
-    focal_distance: Float,
+    pub transform: Transform,
+    pub shutter_open: Float,
+    pub shutter_close: Float,
+    pub frame_aspect_ratio: Option<Float>,
+    pub screen_window: Option<[Float; 4]>,
+    pub lens_radius: Float,
+    pub focal_distance: Float,
 }
 
 impl Default for OrthographicCamera {
@@ -113,14 +113,14 @@ impl_from_entity! {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PerspectiveCamera {
-    transform: Transform,
-    shutter_open: Float,
-    shutter_close: Float,
-    frame_aspect_ratio: Option<Float>,
-    screen_window: Option<[Float; 4]>,
-    lens_radius: Float,
-    focal_distance: Float,
-    fov_degs: Float,
+    pub transform: Transform,
+    pub shutter_open: Float,
+    pub shutter_close: Float,
+    pub frame_aspect_ratio: Option<Float>,
+    pub screen_window: Option<[Float; 4]>,
+    pub lens_radius: Float,
+    pub focal_distance: Float,
+    pub fov_degs: Float,
 }
 
 impl Default for PerspectiveCamera {

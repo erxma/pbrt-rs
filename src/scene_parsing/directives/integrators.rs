@@ -6,6 +6,7 @@ use crate::scene_parsing::{
 #[derive(Clone, Debug)]
 pub enum Integrator {
     RandomWalk(RandomWalkIntegrator),
+    SimplePath(SimplePathIntegrator),
 }
 
 impl Default for Integrator {
@@ -23,6 +24,9 @@ impl FromEntity for Integrator {
             "randomwalk" => {
                 RandomWalkIntegrator::from_entity(entity, ctx).map(Integrator::RandomWalk)
             }
+            "simplepath" => {
+                SimplePathIntegrator::from_entity(entity, ctx).map(Integrator::SimplePath)
+            }
             invalid_type => Err(PbrtParseError::UnrecognizedSubtype {
                 entity: "Integrator".to_string(),
                 type_name: invalid_type.to_owned(),
@@ -33,7 +37,7 @@ impl FromEntity for Integrator {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RandomWalkIntegrator {
-    max_depth: usize,
+    pub max_depth: usize,
 }
 
 impl Default for RandomWalkIntegrator {
@@ -51,9 +55,9 @@ impl_from_entity! {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SimplePathIntegrator {
-    max_depth: usize,
-    sample_bsdf: bool,
-    sample_lights: bool,
+    pub max_depth: usize,
+    pub sample_bsdf: bool,
+    pub sample_lights: bool,
 }
 
 impl Default for SimplePathIntegrator {

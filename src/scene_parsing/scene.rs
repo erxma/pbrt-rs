@@ -11,19 +11,19 @@ use super::{
 };
 
 #[derive(Debug)]
-pub struct Scene {
-    options: Options,
-    world: World,
+pub struct SceneDescription {
+    pub options: Options,
+    pub world: World,
 }
 
 #[derive(Debug)]
 pub struct Options {
-    camera: Camera,
-    sampler: Sampler,
-    color_space: ColorSpace,
-    film: Film,
-    filter: Filter,
-    integrator: Integrator,
+    pub camera: Camera,
+    pub sampler: Sampler,
+    pub color_space: ColorSpace,
+    pub film: Film,
+    pub filter: Filter,
+    pub integrator: Integrator,
 }
 
 #[derive(Debug, Default)]
@@ -66,13 +66,13 @@ impl OptionsBuilder {
 
 #[derive(Debug, Default)]
 pub struct World {
-    shapes: Vec<Shape>,
+    pub shapes: Vec<Shape>,
 }
 
-pub fn parse_pbrt_file(
+pub(super) fn parse_pbrt_file(
     mut file: impl Read,
     ignore_unrecognized_directives: bool,
-) -> Result<Scene, PbrtParseError> {
+) -> Result<SceneDescription, PbrtParseError> {
     let mut buf = String::new();
     file.read_to_string(&mut buf);
     buf = strip_comments(buf);
@@ -81,7 +81,7 @@ pub fn parse_pbrt_file(
     let options = parse_options_section(&mut input, ignore_unrecognized_directives)?;
     let world = parse_world_section(&mut input, &options, ignore_unrecognized_directives)?;
 
-    Ok(Scene { options, world })
+    Ok(SceneDescription { options, world })
 }
 
 /// Remove all comments, which start with a # character and continue to the end of the line.
@@ -234,7 +234,7 @@ mod test {
     use super::*;
     use winnow::stream::{AsBStr, StreamIsPartial};
 
-    fn file_must_parse_ok(input: &mut impl Read, print_ok_result: bool) -> Scene {
+    fn file_must_parse_ok(input: &mut impl Read, print_ok_result: bool) -> SceneDescription {
         let result = parse_pbrt_file(input, false);
         assert!(
             result.is_ok(),

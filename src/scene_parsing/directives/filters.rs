@@ -9,8 +9,8 @@ use crate::{
 #[derive(Clone, Debug, PartialEq)]
 pub enum Filter {
     Box(BoxFilter),
-    Triangle(TriangleFilter),
     Gaussian(GaussianFilter),
+    Triangle(TriangleFilter),
 }
 
 impl Default for Filter {
@@ -37,8 +37,8 @@ impl FromEntity for Filter {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct BoxFilter {
-    x_radius: Float,
-    y_radius: Float,
+    pub x_radius: Float,
+    pub y_radius: Float,
 }
 
 impl Default for BoxFilter {
@@ -60,9 +60,9 @@ impl_from_entity! {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct GaussianFilter {
-    x_radius: Float,
-    y_radius: Float,
-    std: Float,
+    pub x_radius: Float,
+    pub y_radius: Float,
+    pub std: Float,
 }
 
 impl Default for GaussianFilter {
@@ -86,8 +86,8 @@ impl_from_entity! {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TriangleFilter {
-    x_radius: Float,
-    y_radius: Float,
+    pub x_radius: Float,
+    pub y_radius: Float,
 }
 
 impl Default for TriangleFilter {

@@ -31,8 +31,8 @@ impl FromEntity for Sampler {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct IndependentSampler {
-    seed: u64,
-    pixel_samples: usize,
+    pub seed: u64,
+    pub pixel_samples: usize,
 }
 
 impl Default for IndependentSampler {

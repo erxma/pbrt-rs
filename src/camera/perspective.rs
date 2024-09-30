@@ -29,7 +29,7 @@ impl PerspectiveCamera {
     #[builder]
     pub fn new(
         // Camera base fields
-        transform: CameraTransform,
+        world_from_camera: Transform,
         shutter_period: Range<Float>,
         film: Film,
         medium: Option<Arc<MediumEnum>>,
@@ -45,7 +45,7 @@ impl PerspectiveCamera {
 
         // Build projective base
         let projective_params = ProjectiveCameraParams {
-            transform,
+            transform: CameraTransform::new(world_from_camera),
             shutter_period,
             film,
             medium,

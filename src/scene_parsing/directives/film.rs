@@ -46,13 +46,13 @@ impl FromEntity for Film {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RgbFilm {
-    x_resolution: usize,
-    y_resolution: usize,
-    crop_window: [Float; 4],
-    //pixel_bounds: [usize; 4],
-    diagonal: Float,
-    filename: PathBuf,
-    save_fp16: bool,
+    pub x_resolution: usize,
+    pub y_resolution: usize,
+    pub crop_window: [Float; 4],
+    //pub pixel_bounds: [usize; 4],
+    pub diagonal: Float,
+    pub filename: PathBuf,
+    pub save_fp16: bool,
 }
 
 impl Default for RgbFilm {

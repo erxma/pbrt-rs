@@ -25,18 +25,19 @@ pub struct OrthographicCamera {
 impl OrthographicCamera {
     #[builder]
     pub fn new(
-        transform: CameraTransform,
+        world_from_camera: Transform,
         shutter_period: Range<Float>,
         film: Film,
         medium: Option<Arc<MediumEnum>>,
 
-        screen_from_camera: Transform,
         screen_window: Bounds2f,
         lens_radius: Float,
         focal_distance: Float,
     ) -> Self {
+        let screen_from_camera = Transform::orthographic(0.0, 1.0);
+
         let projective_params = ProjectiveCameraParams {
-            transform,
+            transform: CameraTransform::new(world_from_camera),
             shutter_period,
             film,
             medium,

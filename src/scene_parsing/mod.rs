@@ -2,8 +2,9 @@
 #![allow(unused)]
 
 mod common;
+mod construct;
 mod directives;
 mod scene;
 
 pub use common::PbrtParseError;
-pub use scene::parse_pbrt_file;
+pub use construct::create_scene_integrator;

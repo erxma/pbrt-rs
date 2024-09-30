@@ -20,7 +20,7 @@ use winnow::{
 
 use crate::{
     color::RGB,
-    core::{Float, Point3f},
+    core::{Float, Point3f, Transform},
     sampling::spectrum::{RgbIlluminantSpectrum, SpectrumEnum},
 };
 
@@ -383,9 +383,31 @@ fn param(input: &mut &str) -> PResult<(String, Value)> {
     trace("param", full_param).parse_next(input)
 }
 
-macro_rules! impl_try_from_parameter_map {
+#[derive(Clone, Debug)]
+pub struct ParseContext {
+    pub current_transform: Transform,
+}
+
+impl Default for ParseContext {
+    fn default() -> Self {
+        Self {
+            current_transform: Transform::IDENTITY,
+        }
+    }
+}
+
+pub(super) trait FromEntity {
+    fn from_entity(entity: EntityDirective, ctx: &ParseContext) -> Result<Self, PbrtParseError>
+    where
+        Self: Sized;
+}
+
+macro_rules! impl_from_entity {
     (
         $struct_name:ty,
+        $(
+            CTM => $transform_field:ident$(,)?
+        )?
         $(
             required {
                 $(
@@ -401,34 +423,37 @@ macro_rules! impl_try_from_parameter_map {
             }
         )?
     ) => {
-        impl TryFrom<crate::scene_parsing::common::ParameterMap> for $struct_name {
-            type Error = crate::scene_parsing::common::PbrtParseError;
-
-            fn try_from(
-                mut params: crate::scene_parsing::common::ParameterMap,
-            ) -> Result<Self, Self::Error> {
+        impl crate::scene_parsing::common::FromEntity for $struct_name {
+            fn from_entity(
+                mut entity: crate::scene_parsing::common::EntityDirective,
+                ctx: &crate::scene_parsing::common::ParseContext,
+            ) -> Result<Self, PbrtParseError> {
                 let mut result = <$struct_name>::default();
 
                 $(
+                    result.$transform_field = ctx.current_transform.clone();
+                )?
+
+                $(
                     $(
-                        if let Some(value) = params.remove($required_name) {
+                        if let Some(value) = entity.param_map.remove($required_name) {
                             result.$required_field = value.try_into()?;
                         } else {
-                            return Err(Self::Error::MissingRequiredParameter($required_name.to_string()));
+                            return Err(PbrtParseError::MissingRequiredParameter($required_name.to_string()));
                         }
                     )*
                 )?
 
                 $(
                     $(
-                        if let Some(value) = params.remove($defaulted_name) {
+                        if let Some(value) = entity.param_map.remove($defaulted_name) {
                             result.$defaulted_field = value.try_into()?;
                         }
                     )*
                 )?
 
-                if let Some(unexpected_name) = params.into_keys().next() {
-                    return Err(Self::Error::UnexpectedParameter(unexpected_name));
+                if let Some(unexpected_name) = entity.param_map.into_keys().next() {
+                    return Err(PbrtParseError::UnexpectedParameter(unexpected_name));
                 }
 
                 Ok(result)
@@ -436,7 +461,7 @@ macro_rules! impl_try_from_parameter_map {
         }
     };
 }
-pub(super) use impl_try_from_parameter_map;
+pub(super) use impl_from_entity;
 
 #[derive(Clone, Debug, PartialEq)]
 pub(super) enum Directive<'a> {

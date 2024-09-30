@@ -3,8 +3,8 @@ use std::{cell::OnceCell, io::Read};
 use crate::core::Transform;
 
 use super::{
-    common::{directive, Directive},
-    directives::{Camera, ColorSpace, Shape, TransformDirective},
+    common::{directive, Directive, FromEntity, ParseContext},
+    directives::{Camera, ColorSpace, Film, Shape, TransformDirective},
     PbrtParseError,
 };
 
@@ -16,12 +16,14 @@ pub struct Scene {
 
 #[derive(Debug)]
 pub struct Options {
+    film: Film,
     camera: Camera,
     color_space: ColorSpace,
 }
 
 #[derive(Debug, Default)]
 struct OptionsBuilder {
+    film: OnceCell<Film>,
     camera: OnceCell<Camera>,
     color_space: OnceCell<ColorSpace>,
 }
@@ -32,7 +34,11 @@ impl OptionsBuilder {
     }
 
     fn build(mut self) -> Result<Options, PbrtParseError> {
-        let camera = self
+        let film = self
+            .film
+            .take()
+            .ok_or(PbrtParseError::MissingRequiredOption("Film".to_string()))?;
+        let mut camera = self
             .camera
             .take()
             .ok_or(PbrtParseError::MissingRequiredOption("Camera".to_string()))?;
@@ -42,7 +48,9 @@ impl OptionsBuilder {
             .ok_or(PbrtParseError::MissingRequiredOption(
                 "ColorSpace".to_string(),
             ))?;
+
         Ok(Options {
+            film,
             camera,
             color_space,
         })
@@ -93,8 +101,8 @@ fn parse_options_section(
     input: &mut &str,
     ignore_unrecognized_directives: bool,
 ) -> Result<Options, PbrtParseError> {
-    let mut current_transform = Transform::IDENTITY;
     let mut options_builder = OptionsBuilder::empty();
+    let mut context = ParseContext::default();
 
     while let Ok(directive) = directive(input) {
         match directive {
@@ -102,8 +110,14 @@ fn parse_options_section(
                 "Camera" => {
                     options_builder
                         .camera
-                        .set(entity.try_into()?)
+                        .set(Camera::from_entity(entity, &context)?)
                         .map_err(|_| PbrtParseError::RepeatedDirective("Camera".to_string()))?;
+                }
+                "Film" => {
+                    options_builder
+                        .film
+                        .set(Film::from_entity(entity, &context)?)
+                        .map_err(|_| PbrtParseError::RepeatedDirective("Film".to_string()))?;
                 }
                 invalid_name => {
                     if !ignore_unrecognized_directives {
@@ -114,7 +128,8 @@ fn parse_options_section(
                 }
             },
             Directive::Transform(transform_directive) => {
-                current_transform = Transform::from(transform_directive) * current_transform;
+                context.current_transform =
+                    Transform::from(transform_directive) * context.current_transform;
             }
             Directive::WorldBegin => {
                 break;
@@ -141,14 +156,14 @@ fn parse_world_section(
     input: &mut &str,
     ignore_unrecognized_directives: bool,
 ) -> Result<World, PbrtParseError> {
-    let mut current_transform = Transform::IDENTITY;
     let mut world = World::default();
+    let mut context = ParseContext::default();
 
     while let Ok(directive) = directive(input) {
         match directive {
             Directive::Entity(entity) => match entity.identifier {
                 "Shape" => {
-                    world.shapes.push(entity.try_into()?);
+                    world.shapes.push(Shape::from_entity(entity, &context)?);
                 }
                 invalid_name => {
                     if !ignore_unrecognized_directives {
@@ -159,7 +174,8 @@ fn parse_world_section(
                 }
             },
             Directive::Transform(transform_directive) => {
-                current_transform = Transform::from(transform_directive) * current_transform;
+                context.current_transform =
+                    Transform::from(transform_directive) * context.current_transform;
             }
             Directive::WorldBegin => {
                 return Err(PbrtParseError::IllegalForSection("WorldBegin".to_string()));

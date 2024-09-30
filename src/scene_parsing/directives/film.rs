@@ -3,16 +3,9 @@ use std::path::PathBuf;
 use crate::{
     core::Float,
     scene_parsing::{
-        common::{impl_try_from_parameter_map, param_map, EntityDirective},
+        common::{impl_from_entity, param_map, EntityDirective, FromEntity},
         PbrtParseError,
     },
-};
-use winnow::{
-    ascii::{alpha1, space1},
-    combinator::{cut_err, delimited, fail, terminated, trace},
-    dispatch,
-    error::StrContext,
-    prelude::*,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -20,14 +13,15 @@ pub enum Film {
     Rgb(RgbFilm),
 }
 
-impl<'a> TryFrom<EntityDirective<'a>> for Film {
-    type Error = PbrtParseError;
-
-    fn try_from(entity: EntityDirective) -> Result<Self, Self::Error> {
+impl FromEntity for Film {
+    fn from_entity(
+        entity: EntityDirective,
+        ctx: &crate::scene_parsing::common::ParseContext,
+    ) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Film");
 
         match entity.subtype {
-            "rgb" => RgbFilm::try_from(entity.param_map).map(Film::Rgb),
+            "rgb" => RgbFilm::from_entity(entity, ctx).map(Film::Rgb),
             invalid_type => Err(PbrtParseError::UnrecognizedSubtype {
                 entity: "Film".to_string(),
                 type_name: invalid_type.to_owned(),
@@ -63,7 +57,7 @@ impl Default for RgbFilm {
     }
 }
 
-impl_try_from_parameter_map! {
+impl_from_entity! {
     RgbFilm,
     has_defaults {
         "xresolution" => x_resolution,

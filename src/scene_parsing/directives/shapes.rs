@@ -1,15 +1,7 @@
-use winnow::{
-    ascii::{alpha1, space1},
-    combinator::{cut_err, delimited, fail, terminated, trace},
-    dispatch,
-    error::StrContext,
-    prelude::*,
-};
-
 use crate::{
     core::Float,
     scene_parsing::{
-        common::{impl_try_from_parameter_map, Alpha, EntityDirective},
+        common::{impl_from_entity, Alpha, EntityDirective, FromEntity},
         PbrtParseError,
     },
 };
@@ -19,14 +11,15 @@ pub enum Shape {
     Sphere(Sphere),
 }
 
-impl<'a> TryFrom<EntityDirective<'a>> for Shape {
-    type Error = PbrtParseError;
-
-    fn try_from(entity: EntityDirective) -> Result<Self, Self::Error> {
+impl FromEntity for Shape {
+    fn from_entity(
+        entity: EntityDirective,
+        ctx: &crate::scene_parsing::common::ParseContext,
+    ) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Shape");
 
         match entity.subtype {
-            "sphere" => Sphere::try_from(entity.param_map).map(Shape::Sphere),
+            "sphere" => Sphere::from_entity(entity, ctx).map(Shape::Sphere),
             invalid_type => Err(PbrtParseError::UnrecognizedSubtype {
                 entity: "Shape".to_string(),
                 type_name: invalid_type.to_owned(),
@@ -56,7 +49,7 @@ impl Default for Sphere {
     }
 }
 
-impl_try_from_parameter_map! {
+impl_from_entity! {
     Sphere,
     has_defaults {
         "alpha" => alpha,

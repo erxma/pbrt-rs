@@ -1,16 +1,9 @@
 use crate::{
-    core::Float,
+    core::{Float, Transform},
     scene_parsing::{
-        common::{impl_try_from_parameter_map, param_map, EntityDirective},
+        common::{impl_from_entity, param_map, EntityDirective, FromEntity},
         PbrtParseError,
     },
-};
-use winnow::{
-    ascii::{alpha1, space1},
-    combinator::{cut_err, delimited, fail, terminated, trace},
-    dispatch,
-    error::StrContext,
-    prelude::*,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -19,17 +12,18 @@ pub enum Camera {
     Perspective(PerspectiveCamera),
 }
 
-impl<'a> TryFrom<EntityDirective<'a>> for Camera {
-    type Error = PbrtParseError;
-
-    fn try_from(entity: EntityDirective) -> Result<Self, Self::Error> {
+impl FromEntity for Camera {
+    fn from_entity(
+        entity: EntityDirective,
+        ctx: &crate::scene_parsing::common::ParseContext,
+    ) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Camera");
 
         match entity.subtype {
             "orthographic" => {
-                OrthographicCamera::try_from(entity.param_map).map(Camera::Orthographic)
+                OrthographicCamera::from_entity(entity, ctx).map(Camera::Orthographic)
             }
-            "perspective" => PerspectiveCamera::try_from(entity.param_map).map(Camera::Perspective),
+            "perspective" => PerspectiveCamera::from_entity(entity, ctx).map(Camera::Perspective),
             "realistic" => todo!(),
             "spherical" => todo!(),
             invalid_type => Err(PbrtParseError::UnrecognizedSubtype {
@@ -42,6 +36,7 @@ impl<'a> TryFrom<EntityDirective<'a>> for Camera {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct OrthographicCamera {
+    transform: Transform,
     shutter_open: Float,
     shutter_close: Float,
     frame_aspect_ratio: Option<Float>,
@@ -53,6 +48,7 @@ pub struct OrthographicCamera {
 impl Default for OrthographicCamera {
     fn default() -> Self {
         Self {
+            transform: Transform::IDENTITY,
             shutter_open: 0.0,
             shutter_close: 1.0,
             frame_aspect_ratio: None,
@@ -63,8 +59,9 @@ impl Default for OrthographicCamera {
     }
 }
 
-impl_try_from_parameter_map! {
+impl_from_entity! {
     OrthographicCamera,
+    CTM => transform,
     has_defaults {
         "shutteropen" => shutter_open,
         "shutterclose" => shutter_close,
@@ -77,6 +74,7 @@ impl_try_from_parameter_map! {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PerspectiveCamera {
+    transform: Transform,
     shutter_open: Float,
     shutter_close: Float,
     frame_aspect_ratio: Option<Float>,
@@ -89,6 +87,7 @@ pub struct PerspectiveCamera {
 impl Default for PerspectiveCamera {
     fn default() -> Self {
         Self {
+            transform: Transform::IDENTITY,
             shutter_open: 0.0,
             shutter_close: 1.0,
             frame_aspect_ratio: None,
@@ -100,8 +99,9 @@ impl Default for PerspectiveCamera {
     }
 }
 
-impl_try_from_parameter_map! {
+impl_from_entity! {
     PerspectiveCamera,
+    CTM => transform,
     has_defaults {
         "shutteropen" => shutter_open,
         "shutterclose" => shutter_close,
@@ -122,11 +122,12 @@ mod test {
     #[test]
     fn test_orthographic() {
         assert_eq!(
-            Camera::try_from(
+            Camera::from_entity(
                 entity_directive(
                     &mut r#"Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4"#
                 )
-                .unwrap()
+                .unwrap(),
+                &Default::default()
             ),
             Ok(Camera::Orthographic(OrthographicCamera {
                 shutter_open: 1.2,

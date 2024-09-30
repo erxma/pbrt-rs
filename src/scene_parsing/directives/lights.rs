@@ -1,7 +1,7 @@
 use crate::{
     core::{Float, Point3f},
     scene_parsing::{
-        common::{impl_try_from_parameter_map, EntityDirective, Spectrum},
+        common::{impl_from_entity, EntityDirective, FromEntity, Spectrum},
         PbrtParseError,
     },
 };
@@ -12,15 +12,16 @@ pub enum Light {
     Infinite(InfiniteLight),
 }
 
-impl<'a> TryFrom<EntityDirective<'a>> for Light {
-    type Error = PbrtParseError;
-
-    fn try_from(entity: EntityDirective) -> Result<Self, Self::Error> {
+impl FromEntity for Light {
+    fn from_entity(
+        entity: EntityDirective,
+        ctx: &crate::scene_parsing::common::ParseContext,
+    ) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "LightSource");
 
         match entity.subtype {
-            "distant" => DirectionalLight::try_from(entity.param_map).map(Light::Distant),
-            "infinite" => InfiniteLight::try_from(entity.param_map).map(Light::Infinite),
+            "distant" => DirectionalLight::from_entity(entity, ctx).map(Light::Distant),
+            "infinite" => InfiniteLight::from_entity(entity, ctx).map(Light::Infinite),
             invalid_type => Err(PbrtParseError::UnrecognizedSubtype {
                 entity: "LightSource".to_string(),
                 type_name: invalid_type.to_owned(),
@@ -50,7 +51,7 @@ impl Default for DirectionalLight {
     }
 }
 
-impl_try_from_parameter_map! {
+impl_from_entity! {
     DirectionalLight,
     has_defaults {
         "illuminance" => illuminance,
@@ -80,7 +81,7 @@ impl Default for InfiniteLight {
     }
 }
 
-impl_try_from_parameter_map! {
+impl_from_entity! {
     InfiniteLight,
     has_defaults {
         "illuminance" => illuminance,
@@ -97,11 +98,12 @@ mod test {
     #[test]
     fn directional() {
         assert_eq!(
-            Light::try_from(
+            Light::from_entity(
                 entity_directive(
                     &mut r#"LightSource "distant" "rgb L" [0.2 .6   0] "point from" [10 12 5.9]"#
                 )
-                .unwrap()
+                .unwrap(),
+                &Default::default(),
             ),
             Ok(Light::Distant(DirectionalLight {
                 radiance: Some(Spectrum::Rgb(RGB::new(0.2, 0.6, 0.0))),

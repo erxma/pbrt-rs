@@ -13,6 +13,14 @@ pub enum Film {
     Rgb(RgbFilm),
 }
 
+impl Film {
+    pub fn aspect_ratio(&self) -> Float {
+        match self {
+            Film::Rgb(film) => film.x_resolution as Float / film.y_resolution as Float,
+        }
+    }
+}
+
 impl FromEntity for Film {
     fn from_entity(
         entity: EntityDirective,

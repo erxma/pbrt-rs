@@ -6,10 +6,43 @@ use crate::{
     },
 };
 
+use super::Film;
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Camera {
     Orthographic(OrthographicCamera),
     Perspective(PerspectiveCamera),
+}
+
+impl Camera {
+    pub fn update_with_film(&mut self, film_info: &Film) {
+        match self {
+            Camera::Orthographic(cam) => {
+                let aspect = *cam
+                    .frame_aspect_ratio
+                    .get_or_insert(film_info.aspect_ratio());
+                if aspect > 1.0 {
+                    cam.screen_window
+                        .get_or_insert([-aspect, -1.0, aspect, 1.0]);
+                } else {
+                    cam.screen_window
+                        .get_or_insert([-1.0, -aspect, 1.0, aspect]);
+                }
+            }
+            Camera::Perspective(cam) => {
+                let aspect = *cam
+                    .frame_aspect_ratio
+                    .get_or_insert(film_info.aspect_ratio());
+                if aspect > 1.0 {
+                    cam.screen_window
+                        .get_or_insert([-aspect, -1.0, aspect, 1.0]);
+                } else {
+                    cam.screen_window
+                        .get_or_insert([-1.0, -aspect, 1.0, aspect]);
+                }
+            }
+        }
+    }
 }
 
 impl FromEntity for Camera {
@@ -40,7 +73,7 @@ pub struct OrthographicCamera {
     shutter_open: Float,
     shutter_close: Float,
     frame_aspect_ratio: Option<Float>,
-    screen_window: Option<Float>,
+    screen_window: Option<[Float; 4]>,
     lens_radius: Float,
     focal_distance: Float,
 }
@@ -78,7 +111,7 @@ pub struct PerspectiveCamera {
     shutter_open: Float,
     shutter_close: Float,
     frame_aspect_ratio: Option<Float>,
-    screen_window: Option<Float>,
+    screen_window: Option<[Float; 4]>,
     lens_radius: Float,
     focal_distance: Float,
     fov_degs: Float,

@@ -49,6 +49,10 @@ impl OptionsBuilder {
                 "ColorSpace".to_string(),
             ))?;
 
+        // Camera may use film to determine some defaults, but it may come
+        // before film, so it's provided here
+        camera.update_with_film(&film);
+
         Ok(Options {
             film,
             camera,

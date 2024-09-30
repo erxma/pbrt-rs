@@ -50,6 +50,7 @@ impl Default for DirectionalLight {
 
 impl_from_entity! {
     DirectionalLight,
+    ColorSpace => radiance,
     has_defaults {
         "illuminance" => illuminance,
         "scale" => scale,
@@ -80,6 +81,7 @@ impl Default for InfiniteLight {
 
 impl_from_entity! {
     InfiniteLight,
+    ColorSpace => radiance,
     has_defaults {
         "illuminance" => illuminance,
         "scale" => scale,

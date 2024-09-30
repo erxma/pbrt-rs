@@ -79,7 +79,7 @@ pub fn parse_pbrt_file(
 
     let mut input: &str = buf.as_str();
     let options = parse_options_section(&mut input, ignore_unrecognized_directives)?;
-    let world = parse_world_section(&mut input, ignore_unrecognized_directives)?;
+    let world = parse_world_section(&mut input, &options, ignore_unrecognized_directives)?;
 
     Ok(Scene { options, world })
 }
@@ -185,10 +185,14 @@ fn parse_options_section(
 
 fn parse_world_section(
     input: &mut &str,
+    options: &Options,
     ignore_unrecognized_directives: bool,
 ) -> Result<World, PbrtParseError> {
     let mut world = World::default();
-    let mut context = ParseContext::default();
+    let mut context = ParseContext {
+        color_space: Some(options.color_space),
+        ..Default::default()
+    };
 
     while let Ok(directive) = directive(input) {
         match directive {

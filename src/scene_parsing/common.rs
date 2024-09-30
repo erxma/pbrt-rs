@@ -25,7 +25,7 @@ use crate::{
     sampling::spectrum::{RgbIlluminantSpectrum, SpectrumEnum},
 };
 
-use super::directives::{transform_directive, TransformDirective};
+use super::directives::{transform_directive, ColorSpace, TransformDirective};
 
 #[derive(Clone, Debug, PartialEq, EnumAsInner, strum::Display)]
 pub(super) enum Value {
@@ -251,6 +251,19 @@ impl TryFrom<Value> for Alpha {
 pub(super) enum Spectrum {
     Rgb(RGB),
     BlackbodyTemp(Float),
+    ColorSpaceIlluminant(ColorSpace),
+}
+
+impl From<ColorSpace> for Spectrum {
+    fn from(value: ColorSpace) -> Self {
+        Self::ColorSpaceIlluminant(value)
+    }
+}
+
+impl From<ColorSpace> for Option<Spectrum> {
+    fn from(value: ColorSpace) -> Self {
+        Some(Spectrum::from(value))
+    }
 }
 
 impl TryFrom<Value> for Spectrum {
@@ -392,12 +405,14 @@ fn param(input: &mut &str) -> PResult<(String, Value)> {
 #[derive(Clone, Debug)]
 pub struct ParseContext {
     pub current_transform: Transform,
+    pub color_space: Option<ColorSpace>,
 }
 
 impl Default for ParseContext {
     fn default() -> Self {
         Self {
             current_transform: Transform::IDENTITY,
+            color_space: None,
         }
     }
 }
@@ -411,9 +426,8 @@ pub(super) trait FromEntity {
 macro_rules! impl_from_entity {
     (
         $struct_name:ty,
-        $(
-            CTM => $transform_field:ident$(,)?
-        )?
+        $(CTM => $transform_field:ident$(,)?)?
+        $(ColorSpace => $color_space_field:ident$(,)?)?
         $(
             required {
                 $(
@@ -436,9 +450,8 @@ macro_rules! impl_from_entity {
             ) -> Result<Self, PbrtParseError> {
                 let mut result = <$struct_name>::default();
 
-                $(
-                    result.$transform_field = ctx.current_transform.clone();
-                )?
+                $(result.$transform_field = ctx.current_transform.clone().into();)?
+                $(result.$color_space_field = ctx.color_space.unwrap().into();)?
 
                 $(
                     $(

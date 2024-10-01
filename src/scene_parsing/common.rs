@@ -22,7 +22,6 @@ use winnow::{
 use crate::{
     color::RGB,
     core::{Float, Point3f, Transform},
-    sampling::spectrum::{RgbIlluminantSpectrum, SpectrumEnum},
 };
 
 use super::directives::{transform_directive, ColorSpace, TransformDirective};
@@ -235,7 +234,6 @@ pub(super) fn atomic_literal(input: &mut &str) -> PResult<AtomicLiteral> {
 #[derive(Clone, Debug, PartialEq)]
 pub(super) enum Alpha {
     Constant(Float),
-    Texture(()),
 }
 
 impl TryFrom<Value> for Alpha {
@@ -444,6 +442,7 @@ macro_rules! impl_from_entity {
         )?
     ) => {
         impl crate::scene_parsing::common::FromEntity for $struct_name {
+            #[allow(unused_variables)]
             fn from_entity(
                 mut entity: crate::scene_parsing::common::EntityDirective,
                 ctx: &crate::scene_parsing::common::ParseContext,
@@ -526,8 +525,11 @@ pub(super) fn entity_directive<'a>(input: &mut &'a str) -> PResult<EntityDirecti
     .parse_next(input)
 }
 
-#[derive(Debug, Error, PartialEq)]
+#[derive(Debug, Error)]
 pub enum PbrtParseError {
+    #[error("failed to read scene file")]
+    IoError(#[from] std::io::Error),
+
     #[error("directive is illegal in the current section: {0}")]
     IllegalForSection(String),
     #[error("missing required global option: {0}")]

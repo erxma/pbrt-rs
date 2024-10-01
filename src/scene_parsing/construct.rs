@@ -18,7 +18,7 @@ use super::{
 };
 
 pub fn create_scene_integrator(
-    mut file: impl Read,
+    file: impl Read,
     ignore_unrecognized_directives: bool,
 ) -> Result<IntegratorEnum, PbrtParseError> {
     let description = parse_pbrt_file(file, ignore_unrecognized_directives)?;

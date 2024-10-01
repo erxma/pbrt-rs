@@ -1,5 +1,5 @@
 use winnow::{
-    ascii::{float, multispace0, multispace1},
+    ascii::{float, multispace1},
     combinator::{alt, preceded, separated, seq, trace},
     PResult, Parser,
 };

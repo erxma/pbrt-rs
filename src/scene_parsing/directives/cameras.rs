@@ -1,7 +1,7 @@
 use crate::{
     core::{Float, Transform},
     scene_parsing::{
-        common::{impl_from_entity, param_map, EntityDirective, FromEntity, ParseContext},
+        common::{impl_from_entity, EntityDirective, FromEntity, ParseContext},
         PbrtParseError,
     },
 };
@@ -167,12 +167,13 @@ mod test {
                 )
                 .unwrap(),
                 &Default::default()
-            ),
-            Ok(Camera::Orthographic(OrthographicCamera {
+            )
+            .unwrap(),
+            Camera::Orthographic(OrthographicCamera {
                 shutter_open: 1.2,
                 shutter_close: 2.4,
                 ..Default::default()
-            }))
+            })
         );
     }
 }

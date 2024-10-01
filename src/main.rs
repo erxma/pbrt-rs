@@ -2,7 +2,7 @@ use std::{path::PathBuf, sync::Arc, time::Instant};
 
 use log::info;
 use pbrt_rs::{
-    camera::{Camera, CameraTransform, PerspectiveCamera, PixelSensor, RGBFilm, RGBFilmParams},
+    camera::{Camera, PerspectiveCamera, PixelSensor, RGBFilm, RGBFilmParams},
     color::{RGB, SRGB},
     core::{Bounds2f, Bounds2i, Float, Point2f, Point2i, Point3f, Transform, Vec2f, Vec3f},
     imaging::GaussianFilter,

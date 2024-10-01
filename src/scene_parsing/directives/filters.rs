@@ -1,7 +1,7 @@
 use crate::{
-    core::{Float, Point3f},
+    core::Float,
     scene_parsing::{
-        common::{impl_from_entity, EntityDirective, FromEntity, ParseContext, Spectrum},
+        common::{impl_from_entity, EntityDirective, FromEntity, ParseContext},
         PbrtParseError,
     },
 };

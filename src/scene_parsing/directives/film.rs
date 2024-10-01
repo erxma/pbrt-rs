@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::{
     core::Float,
     scene_parsing::{
-        common::{impl_from_entity, param_map, EntityDirective, FromEntity},
+        common::{impl_from_entity, EntityDirective, FromEntity},
         PbrtParseError,
     },
 };

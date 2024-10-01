@@ -4,9 +4,7 @@ use crate::core::Transform;
 
 use super::{
     common::{directive, Directive, FromEntity, ParseContext},
-    directives::{
-        Camera, ColorSpace, Film, Filter, Integrator, Sampler, Shape, TransformDirective,
-    },
+    directives::{Camera, ColorSpace, Film, Filter, Integrator, Sampler, Shape},
     PbrtParseError,
 };
 
@@ -74,7 +72,7 @@ pub(super) fn parse_pbrt_file(
     ignore_unrecognized_directives: bool,
 ) -> Result<SceneDescription, PbrtParseError> {
     let mut buf = String::new();
-    file.read_to_string(&mut buf);
+    file.read_to_string(&mut buf)?;
     buf = strip_comments(buf);
 
     let mut input: &str = buf.as_str();
@@ -95,7 +93,7 @@ fn strip_comments(input: String) -> String {
             // Keep slice up to that '#', and also trim remaining trailing whitespace.
             // If no '#', no change.
             if let Some(comment_start) = line.find('#') {
-                &line[..comment_start].trim_end()
+                line[..comment_start].trim_end()
             } else {
                 line
             }
@@ -108,7 +106,7 @@ fn parse_options_section(
     input: &mut &str,
     ignore_unrecognized_directives: bool,
 ) -> Result<Options, PbrtParseError> {
-    let mut options_builder = OptionsBuilder::empty();
+    let options_builder = OptionsBuilder::empty();
     let mut context = ParseContext::default();
 
     while let Ok(directive) = directive(input) {
@@ -232,7 +230,6 @@ mod test {
     use std::io::Cursor;
 
     use super::*;
-    use winnow::stream::{AsBStr, StreamIsPartial};
 
     fn file_must_parse_ok(input: &mut impl Read, print_ok_result: bool) -> SceneDescription {
         let result = parse_pbrt_file(input, false);

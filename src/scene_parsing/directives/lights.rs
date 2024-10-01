@@ -103,12 +103,13 @@ mod test {
                 )
                 .unwrap(),
                 &Default::default(),
-            ),
-            Ok(Light::Distant(DirectionalLight {
+            )
+            .unwrap(),
+            Light::Distant(DirectionalLight {
                 radiance: Some(Spectrum::Rgb(RGB::new(0.2, 0.6, 0.0))),
                 from: Point3f::new(10.0, 12.0, 5.9),
                 ..Default::default()
-            }))
+            })
         );
     }
 }

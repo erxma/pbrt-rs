@@ -122,6 +122,38 @@ impl<const N: usize> TryFrom<Value> for Option<[Float; N]> {
     }
 }
 
+impl<const N: usize> TryFrom<Value> for [usize; N] {
+    type Error = PbrtParseError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        value
+            .into_int_array()
+            .map_err(|found_val| PbrtParseError::IncorrectType {
+                expected: ValueType::Int.to_string(),
+                found: found_val.to_string(),
+            })
+            .and_then(|vec| {
+                let len = vec.len();
+                vec.into_iter()
+                    .map(|int| int as usize)
+                    .collect::<Vec<_>>()
+                    .try_into()
+                    .map_err(|_| PbrtParseError::IncorrectType {
+                        expected: format!("array of length {}", N),
+                        found: format!("array of length {}", len),
+                    })
+            })
+    }
+}
+
+impl<const N: usize> TryFrom<Value> for Option<[usize; N]> {
+    type Error = PbrtParseError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        <[usize; N]>::try_from(value).map(Some)
+    }
+}
+
 impl TryFrom<Value> for bool {
     type Error = PbrtParseError;
 

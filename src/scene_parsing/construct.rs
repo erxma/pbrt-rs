@@ -6,7 +6,7 @@ use crate::{
         RGBFilmParams,
     },
     color::{RGBColorSpace, SRGB},
-    core::{Float, Point2i, Vec2f},
+    core::{Bounds2i, Float, Point2i, Vec2f},
     imaging::{BoxFilter, FilterEnum, GaussianFilter, TriangleFilter},
     integrators::{IntegratorEnum, RandomWalkIntegrator, SimplePathIntegrator},
     lights::LightEnum,
@@ -63,7 +63,7 @@ fn create_film(
     let film = match desc {
         FilmDesc::Rgb(desc) => RGBFilm::new(RGBFilmParams {
             full_resolution: Point2i::new(desc.x_resolution as i32, desc.y_resolution as i32),
-            pixel_bounds: todo!(),
+            pixel_bounds: Bounds2i::from(desc.pixel_bounds.map(|v| v as i32)),
             filter: Arc::new(filter),
             diagonal: desc.diagonal,
             sensor: Arc::new(create_sensor(
@@ -75,7 +75,7 @@ fn create_film(
             )?),
             filename: desc.filename,
             color_space,
-            max_component_value: todo!(),
+            max_component_value: desc.max_component_value,
         })
         .into(),
     };

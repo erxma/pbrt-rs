@@ -822,6 +822,15 @@ impl IndexMut<usize> for Bounds2i {
     }
 }
 
+impl From<[i32; 4]> for Bounds2i {
+    fn from(vals: [i32; 4]) -> Self {
+        Self::new(
+            Point2i::new(vals[0], vals[1]),
+            Point2i::new(vals[2], vals[3]),
+        )
+    }
+}
+
 impl IntoIterator for Bounds2i {
     type Item = Point2i;
     type IntoIter = Bounds2iIterator;

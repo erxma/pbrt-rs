@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::{
     core::Float,
     scene_parsing::{
-        common::{impl_from_entity, EntityDirective, FromEntity},
+        common::{impl_from_entity, EntityDirective, FromEntity, ParseContext},
         PbrtParseError,
     },
 };
@@ -28,10 +28,7 @@ impl Default for Film {
 }
 
 impl FromEntity for Film {
-    fn from_entity(
-        entity: EntityDirective,
-        ctx: &crate::scene_parsing::common::ParseContext,
-    ) -> Result<Self, PbrtParseError> {
+    fn from_entity(entity: EntityDirective, ctx: &ParseContext) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Film");
 
         match entity.subtype {
@@ -53,6 +50,10 @@ pub struct RgbFilm {
     pub diagonal: Float,
     pub filename: PathBuf,
     pub save_fp16: bool,
+    pub iso: Float,
+    pub white_balance_temp: Option<Float>,
+    pub sensor: String,
+    pub max_component_value: Float,
 }
 
 impl Default for RgbFilm {
@@ -67,6 +68,10 @@ impl Default for RgbFilm {
             diagonal: 35.0,
             filename: "pbrt.exr".into(),
             save_fp16: true,
+            iso: 100.0,
+            white_balance_temp: None,
+            sensor: "cie1931".to_string(),
+            max_component_value: Float::INFINITY,
         }
     }
 }
@@ -81,5 +86,9 @@ impl_from_entity! {
         "diagonal" => diagonal,
         "filename" => filename,
         "savefp16" => save_fp16,
+        "iso" => iso,
+        "whitebalance" => white_balance_temp,
+        "sensor" => sensor,
+        "maxcomponentvalue" => max_component_value
     }
 }

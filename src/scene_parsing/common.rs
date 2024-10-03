@@ -143,6 +143,27 @@ impl TryFrom<Value> for Option<bool> {
     }
 }
 
+impl TryFrom<Value> for String {
+    type Error = PbrtParseError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        value
+            .into_str()
+            .map_err(|found_val| PbrtParseError::IncorrectType {
+                expected: ValueType::Str.to_string(),
+                found: found_val.to_string(),
+            })
+    }
+}
+
+impl TryFrom<Value> for Option<String> {
+    type Error = PbrtParseError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        String::try_from(value).map(Some)
+    }
+}
+
 impl TryFrom<Value> for Point3f {
     type Error = PbrtParseError;
 
@@ -547,6 +568,8 @@ pub enum PbrtParseError {
     IncorrectType { expected: String, found: String },
     #[error("unrecognized subtype \"{type_name}\" for {entity}")]
     UnrecognizedSubtype { entity: String, type_name: String },
+    #[error("parameter {name} has invalid value: {value:?}")]
+    InvalidValue { name: String, value: String },
 }
 
 #[cfg(test)]

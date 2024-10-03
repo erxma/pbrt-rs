@@ -54,8 +54,19 @@ pub static Z: LazyLock<SpectrumEnum> = LazyLock::new(|| {
     DenselySampledSpectrum::new(&pls, None, None).into()
 });
 
+/**
+ * The D illuminant at the given temperature.
+ */
+pub fn illum_d(temp: Float) -> SpectrumEnum {
+    todo!()
+}
+
 pub static ILLUMD65: LazyLock<SpectrumEnum> =
     LazyLock::new(|| PiecewiseLinearSpectrum::from_interleaved(&CIE_ILLUM_D6500, true).into());
+
+pub fn get_named_spectrum(name: &str) -> Option<SpectrumEnum> {
+    todo!()
+}
 
 pub const CIE_Y_INTEGRAL: Float = 106.856895;
 

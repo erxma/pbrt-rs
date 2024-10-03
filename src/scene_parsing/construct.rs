@@ -1,14 +1,17 @@
 use std::{io::Read, sync::Arc};
 
 use crate::{
-    camera::{CameraEnum, Film, OrthographicCamera, PerspectiveCamera, RGBFilm, RGBFilmParams},
+    camera::{
+        CameraEnum, Film, OrthographicCamera, PerspectiveCamera, PixelSensor, RGBFilm,
+        RGBFilmParams,
+    },
     color::{RGBColorSpace, SRGB},
-    core::{Point2i, Vec2f},
+    core::{Float, Point2i, Vec2f},
     imaging::{BoxFilter, FilterEnum, GaussianFilter, TriangleFilter},
     integrators::{IntegratorEnum, RandomWalkIntegrator, SimplePathIntegrator},
     lights::LightEnum,
     primitives::PrimitiveEnum,
-    sampling::{IndependentSampler, SamplerEnum},
+    sampling::{spectrum, IndependentSampler, SamplerEnum},
     scene_parsing::scene::parse_pbrt_file,
 };
 
@@ -25,7 +28,8 @@ pub fn create_scene_integrator(
 
     let filter = create_filter(description.options.filter);
     let color_space = get_color_space(description.options.color_space);
-    let film = create_film(description.options.film, filter, color_space);
+    let exposure_time = get_exposure_time(&description.options.camera);
+    let film = create_film(description.options.film, filter, color_space, exposure_time)?;
     let camera = create_camera(description.options.camera, film);
     let sampler = create_sampler(description.options.sampler);
 
@@ -50,19 +54,73 @@ fn get_color_space(desc: ColorSpace) -> &'static RGBColorSpace {
     }
 }
 
-fn create_film(desc: FilmDesc, filter: FilterEnum, color_space: &'static RGBColorSpace) -> Film {
-    match desc {
+fn create_film(
+    desc: FilmDesc,
+    filter: FilterEnum,
+    color_space: &'static RGBColorSpace,
+    exposure_time: Float,
+) -> Result<Film, PbrtParseError> {
+    let film = match desc {
         FilmDesc::Rgb(desc) => RGBFilm::new(RGBFilmParams {
             full_resolution: Point2i::new(desc.x_resolution as i32, desc.y_resolution as i32),
             pixel_bounds: todo!(),
             filter: Arc::new(filter),
             diagonal: desc.diagonal,
-            sensor: todo!(),
+            sensor: Arc::new(create_sensor(
+                &desc.sensor,
+                color_space,
+                exposure_time,
+                desc.iso,
+                desc.white_balance_temp,
+            )?),
             filename: desc.filename,
             color_space,
             max_component_value: todo!(),
         })
         .into(),
+    };
+
+    Ok(film)
+}
+
+fn create_sensor(
+    name: &str,
+    color_space: &'static RGBColorSpace,
+    exposure_time: Float,
+    iso: Float,
+    white_balance_temp: Option<Float>,
+) -> Result<PixelSensor, PbrtParseError> {
+    // Note from the original pbrt:
+    // "In the talk we mention using 312.5 for historical reasons. The
+    // choice of 100 here just means that the other parameters make nice
+    // 'round' numbers like 1 and 100."
+    let imaging_ratio = exposure_time * iso / 100.0;
+
+    let sensor = match name {
+        "cie1931" => PixelSensor::with_xyz_matching(color_space, None, imaging_ratio),
+        name => {
+            let sensor_illum = spectrum::illum_d(white_balance_temp.unwrap_or(6500.0));
+
+            let r = spectrum::get_named_spectrum(&format!("{name}_r")).ok_or(
+                PbrtParseError::InvalidValue {
+                    name: "sensor".to_string(),
+                    value: name.to_owned(),
+                },
+            )?;
+            // If the R spectrum exists, these should as well
+            let g = spectrum::get_named_spectrum(&format!("{name}_g")).unwrap();
+            let b = spectrum::get_named_spectrum(&format!("{name}_b")).unwrap();
+
+            PixelSensor::with_rgb_matching(color_space, &r, &g, &b, &sensor_illum, imaging_ratio)
+        }
+    };
+    Ok(sensor)
+}
+
+fn get_exposure_time(desc: &Camera) -> Float {
+    match desc {
+        Camera::Orthographic(desc) => desc.shutter_close - desc.shutter_open,
+        Camera::Perspective(desc) => desc.shutter_close - desc.shutter_open,
     }
 }
 

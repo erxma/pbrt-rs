@@ -1,22 +1,32 @@
-use std::{io::Read, sync::Arc};
+use std::{borrow::Cow, io::Read, sync::Arc};
 
 use crate::{
     camera::{
-        CameraEnum, Film, OrthographicCamera, PerspectiveCamera, PixelSensor, RGBFilm,
+        Camera, CameraEnum, Film, OrthographicCamera, PerspectiveCamera, PixelSensor, RGBFilm,
         RGBFilmParams,
     },
     color::{RGBColorSpace, SRGB},
-    core::{Bounds2i, Float, Point2i, Vec2f},
+    core::{constants::PI, Bounds2i, Float, Point2i, Transform, Vec2f},
     imaging::{BoxFilter, FilterEnum, GaussianFilter, TriangleFilter},
     integrators::{IntegratorEnum, RandomWalkIntegrator, SimplePathIntegrator},
-    lights::LightEnum,
+    lights::{DirectionalLight, LightEnum, UniformInfiniteLight},
     primitives::PrimitiveEnum,
-    sampling::{spectrum, IndependentSampler, SamplerEnum},
+    sampling::{
+        spectrum::{
+            self, BlackbodySpectrum, RgbAlbedoSpectrum, RgbIlluminantSpectrum,
+            RgbUnboundedSpectrum, SpectrumEnum,
+        },
+        IndependentSampler, SamplerEnum,
+    },
     scene_parsing::scene::parse_pbrt_file,
 };
 
 use super::{
-    directives::{Camera, ColorSpace, Film as FilmDesc, Filter, Integrator, Sampler},
+    common::Spectrum as SpectrumDesc,
+    directives::{
+        Camera as CameraDesc, ColorSpace, Film as FilmDesc, Filter, Integrator, Light as LightDesc,
+        Sampler,
+    },
     PbrtParseError,
 };
 
@@ -32,6 +42,8 @@ pub fn create_scene_integrator(
     let film = create_film(description.options.film, filter, color_space, exposure_time)?;
     let camera = create_camera(description.options.camera, film);
     let sampler = create_sampler(description.options.sampler);
+
+    let lights = create_lights(description.world.lights, &camera, color_space)?;
 
     todo!()
 }
@@ -85,7 +97,7 @@ fn create_film(
 
 fn create_sensor(
     name: &str,
-    color_space: &'static RGBColorSpace,
+    color_space: &RGBColorSpace,
     exposure_time: Float,
     iso: Float,
     white_balance_temp: Option<Float>,
@@ -117,16 +129,16 @@ fn create_sensor(
     Ok(sensor)
 }
 
-fn get_exposure_time(desc: &Camera) -> Float {
+fn get_exposure_time(desc: &CameraDesc) -> Float {
     match desc {
-        Camera::Orthographic(desc) => desc.shutter_close - desc.shutter_open,
-        Camera::Perspective(desc) => desc.shutter_close - desc.shutter_open,
+        CameraDesc::Orthographic(desc) => desc.shutter_close - desc.shutter_open,
+        CameraDesc::Perspective(desc) => desc.shutter_close - desc.shutter_open,
     }
 }
 
-fn create_camera(desc: Camera, film: Film) -> CameraEnum {
+fn create_camera(desc: CameraDesc, film: Film) -> CameraEnum {
     match desc {
-        Camera::Orthographic(desc) => OrthographicCamera::builder()
+        CameraDesc::Orthographic(desc) => OrthographicCamera::builder()
             .film(film)
             .focal_distance(desc.focal_distance)
             .lens_radius(desc.lens_radius)
@@ -136,7 +148,7 @@ fn create_camera(desc: Camera, film: Film) -> CameraEnum {
             .build()
             .into(),
 
-        Camera::Perspective(desc) => PerspectiveCamera::builder()
+        CameraDesc::Perspective(desc) => PerspectiveCamera::builder()
             .film(film)
             .focal_distance(desc.focal_distance)
             .fov(desc.fov_degs)
@@ -179,4 +191,136 @@ fn create_integrator(
         )
         .into(),
     }
+}
+
+fn create_lights(
+    descs: impl IntoIterator<Item = LightDesc>,
+    camera: &impl Camera,
+    color_space: &'static RGBColorSpace,
+) -> Result<Vec<LightEnum>, PbrtParseError> {
+    descs
+        .into_iter()
+        .map(|desc| create_light(desc, camera, color_space))
+        .collect()
+}
+
+fn create_light(
+    desc: LightDesc,
+    camera: &impl Camera,
+    color_space: &'static RGBColorSpace,
+) -> Result<LightEnum, PbrtParseError> {
+    let light = match desc {
+        LightDesc::Distant(desc) => {
+            let w = (desc.from - desc.to).normalized();
+            let (w, v1, v2) = w.coordinate_system();
+            let transform = Transform::from_arr([
+                [v1.x(), v2.x(), w.x(), 0.0],
+                [v1.y(), v2.y(), w.y(), 0.0],
+                [v1.z(), v2.z(), w.z(), 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]);
+            let final_render_from_light = camera
+                .camera_transform()
+                .render_from_world(desc.render_from_light * transform);
+
+            let radiance;
+            match desc.radiance {
+                Some(spec) => {
+                    radiance = Cow::Owned(create_spectrum(
+                        spec,
+                        SpectrumType::Illuminant,
+                        color_space,
+                    )?);
+                }
+                None => {
+                    radiance = Cow::Borrowed(&color_space.illuminant);
+                }
+            }
+
+            let mut scale = desc.scale;
+            // Scale the light spectrum to be equivalent to 1 nit
+            scale /= radiance.to_photometric();
+            // Adjust scale to meet target illuminance value.
+            // Like for IBLs we measure illuminance as incident on an upward-facing patch.
+            if let Some(illuminance) = desc.illuminance {
+                scale *= illuminance;
+            }
+
+            DirectionalLight::new(final_render_from_light, &*radiance, scale).into()
+        }
+
+        LightDesc::Infinite(desc) => {
+            // TODO: Support other infinite lights once implemented
+            let radiance;
+            match desc.radiance {
+                Some(spec) => {
+                    radiance = Cow::Owned(create_spectrum(
+                        spec,
+                        SpectrumType::Illuminant,
+                        color_space,
+                    )?);
+                }
+                None => {
+                    // Default: color space's std illuminant
+                    radiance = Cow::Borrowed(&color_space.illuminant);
+                }
+            }
+
+            let mut scale = desc.scale;
+            // Scale the light spectrum to be equivalent to 1 nit
+            scale /= radiance.to_photometric();
+            if let Some(illuminance) = desc.illuminance {
+                // If the scene specifies desired illuminance, first calculate
+                // the illuminance from a uniform hemispherical emission
+                // of L_v then use this to scale the emission spectrum.
+                let k_e = PI;
+                scale *= illuminance / k_e;
+            }
+
+            UniformInfiniteLight::new(&*radiance, scale).into()
+        }
+    };
+
+    Ok(light)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SpectrumType {
+    Albedo,
+    Unbounded,
+    Illuminant,
+}
+
+fn create_spectrum(
+    desc: SpectrumDesc,
+    spectrum_type: SpectrumType,
+    color_space: &'static RGBColorSpace,
+) -> Result<SpectrumEnum, PbrtParseError> {
+    let spectrum = match desc {
+        SpectrumDesc::Rgb(rgb) => {
+            if rgb.r < 0.0 || rgb.g < 0.0 || rgb.b < 0.0 {
+                return Err(PbrtParseError::InvalidValue {
+                    name: "RGB color".to_string(),
+                    value: rgb.to_string(),
+                });
+            }
+            match spectrum_type {
+                SpectrumType::Albedo => {
+                    if rgb.r > 1.0 || rgb.g > 1.0 || rgb.b > 1.0 {
+                        return Err(PbrtParseError::InvalidValue {
+                            name: "albedo RGB color".to_string(),
+                            value: rgb.to_string(),
+                        });
+                    }
+                    RgbAlbedoSpectrum::new(color_space, rgb).into()
+                }
+                SpectrumType::Unbounded => RgbUnboundedSpectrum::new(color_space, rgb).into(),
+                SpectrumType::Illuminant => RgbIlluminantSpectrum::new(color_space, rgb).into(),
+            }
+        }
+
+        SpectrumDesc::BlackbodyTemp(temp) => BlackbodySpectrum::new(temp).into(),
+    };
+
+    Ok(spectrum)
 }

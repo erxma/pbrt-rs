@@ -982,7 +982,7 @@ impl Spectrum for RgbUnboundedSpectrum {
 pub struct RgbIlluminantSpectrum {
     scale: Float,
     rsp: RGBSigmoidPolynomial,
-    illuminant: &'static DenselySampledSpectrum,
+    illuminant: &'static SpectrumEnum,
 }
 
 impl RgbIlluminantSpectrum {

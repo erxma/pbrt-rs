@@ -302,19 +302,6 @@ impl TryFrom<Value> for Alpha {
 pub(super) enum Spectrum {
     Rgb(RGB),
     BlackbodyTemp(Float),
-    ColorSpaceIlluminant(ColorSpace),
-}
-
-impl From<ColorSpace> for Spectrum {
-    fn from(value: ColorSpace) -> Self {
-        Self::ColorSpaceIlluminant(value)
-    }
-}
-
-impl From<ColorSpace> for Option<Spectrum> {
-    fn from(value: ColorSpace) -> Self {
-        Some(Spectrum::from(value))
-    }
 }
 
 impl TryFrom<Value> for Spectrum {
@@ -478,7 +465,6 @@ macro_rules! impl_from_entity {
     (
         $struct_name:ty,
         $(CTM => $transform_field:ident$(,)?)?
-        $(ColorSpace => $color_space_field:ident$(,)?)?
         $(
             required {
                 $(
@@ -503,7 +489,6 @@ macro_rules! impl_from_entity {
                 let mut result = <$struct_name>::default();
 
                 $(result.$transform_field = ctx.current_transform.clone().into();)?
-                $(result.$color_space_field = ctx.color_space.unwrap().into();)?
 
                 $(
                     $(

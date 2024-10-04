@@ -1,5 +1,5 @@
 use crate::{
-    core::{Float, Point3f},
+    core::{Float, Point3f, Transform},
     scene_parsing::{
         common::{impl_from_entity, EntityDirective, FromEntity, ParseContext, Spectrum},
         PbrtParseError,
@@ -29,16 +29,18 @@ impl FromEntity for Light {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct DirectionalLight {
-    illuminance: Option<Float>,
-    scale: Float,
-    radiance: Option<Spectrum>,
-    from: Point3f,
-    to: Point3f,
+    pub render_from_light: Transform,
+    pub illuminance: Option<Float>,
+    pub scale: Float,
+    pub radiance: Option<Spectrum>,
+    pub from: Point3f,
+    pub to: Point3f,
 }
 
 impl Default for DirectionalLight {
     fn default() -> Self {
         Self {
+            render_from_light: Transform::IDENTITY,
             illuminance: None,
             scale: 1.0,
             radiance: None,
@@ -50,7 +52,6 @@ impl Default for DirectionalLight {
 
 impl_from_entity! {
     DirectionalLight,
-    ColorSpace => radiance,
     has_defaults {
         "illuminance" => illuminance,
         "scale" => scale,
@@ -62,11 +63,11 @@ impl_from_entity! {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct InfiniteLight {
-    illuminance: Option<Float>,
-    scale: Float,
+    pub illuminance: Option<Float>,
+    pub scale: Float,
     // filename: PathBuf,
     // portal: [Point3f; 4];
-    radiance: Option<Spectrum>,
+    pub radiance: Option<Spectrum>,
 }
 
 impl Default for InfiniteLight {
@@ -81,7 +82,6 @@ impl Default for InfiniteLight {
 
 impl_from_entity! {
     InfiniteLight,
-    ColorSpace => radiance,
     has_defaults {
         "illuminance" => illuminance,
         "scale" => scale,

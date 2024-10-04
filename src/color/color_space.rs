@@ -7,7 +7,7 @@ use std::{
 use crate::{
     core::{lerp, Float, Point2f, SquareMatrix},
     math,
-    sampling::spectrum::{DenselySampledSpectrum, Spectrum, ILLUMD65},
+    sampling::spectrum::{DenselySampledSpectrum, Spectrum, SpectrumEnum, ILLUMD65},
     util::{data::SRGB_TABLE, routines::find_interval},
 };
 
@@ -27,7 +27,7 @@ pub struct RGBColorSpace {
     pub w: Point2f,
     /// Spectral power distribution of the whitepoint, i.e. the light source
     /// color defining the whitepoint.
-    pub illuminant: DenselySampledSpectrum,
+    pub illuminant: SpectrumEnum,
     /// Matrix transforming from RGB color space to CIE XYZ color space.
     pub xyz_from_rgb: SquareMatrix<3>,
     /// Matrix transforming from CIE XYZ color space to RGB color space.
@@ -81,7 +81,7 @@ impl RGBColorSpace {
             g,
             b,
             w,
-            illuminant: DenselySampledSpectrum::new(illuminant, None, None),
+            illuminant: DenselySampledSpectrum::new(illuminant, None, None).into(),
             xyz_from_rgb,
             rgb_from_xyz,
             rgb_to_spectrum_table,

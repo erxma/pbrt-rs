@@ -4,7 +4,7 @@ use crate::core::Transform;
 
 use super::{
     common::{directive, Directive, FromEntity, ParseContext},
-    directives::{Camera, ColorSpace, Film, Filter, Integrator, Sampler, Shape},
+    directives::{Camera, ColorSpace, Film, Filter, Integrator, Light, Sampler, Shape},
     PbrtParseError,
 };
 
@@ -65,6 +65,7 @@ impl OptionsBuilder {
 #[derive(Debug, Default)]
 pub struct World {
     pub shapes: Vec<Shape>,
+    pub lights: Vec<Light>,
 }
 
 pub(super) fn parse_pbrt_file(
@@ -197,6 +198,9 @@ fn parse_world_section(
             Directive::Entity(entity) => match entity.identifier {
                 "Shape" => {
                     world.shapes.push(Shape::from_entity(entity, &context)?);
+                }
+                "Light" => {
+                    world.lights.push(Light::from_entity(entity, &context)?);
                 }
                 invalid_name => {
                     if !ignore_unrecognized_directives {

@@ -4,7 +4,9 @@ use crate::core::Transform;
 
 use super::{
     common::{directive, Directive, FromEntity, ParseContext},
-    directives::{Camera, ColorSpace, Film, Filter, Integrator, Light, Sampler, Shape},
+    directives::{
+        Accelerator, Camera, ColorSpace, Film, Filter, Integrator, Light, Sampler, Shape,
+    },
     PbrtParseError,
 };
 
@@ -22,6 +24,7 @@ pub struct Options {
     pub film: Film,
     pub filter: Filter,
     pub integrator: Integrator,
+    pub accelerator: Accelerator,
 }
 
 #[derive(Debug, Default)]
@@ -32,6 +35,7 @@ struct OptionsBuilder {
     film: OnceCell<Film>,
     filter: OnceCell<Filter>,
     integrator: OnceCell<Integrator>,
+    accelerator: OnceCell<Accelerator>,
 }
 
 impl OptionsBuilder {
@@ -46,6 +50,7 @@ impl OptionsBuilder {
         let color_space = self.color_space.take().unwrap_or_default();
         let filter = self.filter.take().unwrap_or_default();
         let integrator = self.integrator.take().unwrap_or_default();
+        let accelerator = self.accelerator.take().unwrap_or_default();
 
         // Camera may use film to determine some defaults, but it may come
         // before film, so it's provided here
@@ -58,6 +63,7 @@ impl OptionsBuilder {
             film,
             filter,
             integrator,
+            accelerator,
         })
     }
 }
@@ -148,6 +154,14 @@ fn parse_options_section(
                         .integrator
                         .set(Integrator::from_entity(entity, &context)?)
                         .map_err(|_| PbrtParseError::RepeatedDirective("Integrator".to_string()))?;
+                }
+                "Accelerator" => {
+                    options_builder
+                        .accelerator
+                        .set(Accelerator::from_entity(entity, &context)?)
+                        .map_err(|_| {
+                            PbrtParseError::RepeatedDirective("Accelerator".to_string())
+                        })?;
                 }
                 invalid_name => {
                     if !ignore_unrecognized_directives {

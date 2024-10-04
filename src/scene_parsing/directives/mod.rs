@@ -1,3 +1,4 @@
+mod accelerators;
 mod cameras;
 mod color_spaces;
 mod film;
@@ -8,6 +9,7 @@ mod samplers;
 mod shapes;
 mod transforms;
 
+pub(super) use accelerators::Accelerator;
 pub(super) use cameras::Camera;
 pub(super) use color_spaces::ColorSpace;
 pub(super) use film::Film;

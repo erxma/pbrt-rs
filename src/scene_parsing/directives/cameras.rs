@@ -1,8 +1,7 @@
 use crate::{
     core::{Float, Transform},
-    scene_parsing::{
-        common::{impl_from_entity, EntityDirective, FromEntity, ParseContext},
-        PbrtParseError,
+    scene_parsing::common::{
+        impl_from_entity, EntityDirective, FromEntity, ParseContext, PbrtParseError,
     },
 };
 
@@ -65,9 +64,9 @@ impl FromEntity for Camera {
             "perspective" => PerspectiveCamera::from_entity(entity, ctx).map(Camera::Perspective),
             "realistic" => todo!(),
             "spherical" => todo!(),
-            invalid_type => Err(PbrtParseError::UnrecognizedSubtype {
+            invalid_type => Err(PbrtParseError::UnrecognizedVariant {
                 entity: "Camera".to_string(),
-                type_name: invalid_type.to_owned(),
+                variant_name: invalid_type.to_owned(),
             }),
         }
     }

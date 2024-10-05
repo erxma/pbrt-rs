@@ -1,7 +1,4 @@
-use crate::scene_parsing::{
-    common::{EntityDirective, FromEntity, ParseContext},
-    PbrtParseError,
-};
+use crate::scene_parsing::common::{EntityDirective, FromEntity, ParseContext, PbrtParseError};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ColorSpace {
@@ -26,9 +23,9 @@ impl FromEntity for ColorSpace {
 
         match entity.subtype {
             "srgb" => Ok(Self::Srgb),
-            invalid_type => Err(PbrtParseError::UnrecognizedSubtype {
+            invalid_type => Err(PbrtParseError::UnrecognizedVariant {
                 entity: "ColorSpace".to_string(),
-                type_name: invalid_type.to_owned(),
+                variant_name: invalid_type.to_owned(),
             }),
         }
     }

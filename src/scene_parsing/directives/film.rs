@@ -1,10 +1,11 @@
 use std::path::PathBuf;
 
+use strum::EnumString;
+
 use crate::{
     core::Float,
-    scene_parsing::{
-        common::{impl_from_entity, EntityDirective, FromEntity, ParseContext},
-        PbrtParseError,
+    scene_parsing::common::{
+        impl_from_entity, EntityDirective, FromEntity, ParseContext, PbrtParseError, Value,
     },
 };
 
@@ -33,9 +34,9 @@ impl FromEntity for Film {
 
         match entity.subtype {
             "rgb" => RgbFilm::from_entity(entity, ctx).map(Film::Rgb),
-            invalid_type => Err(PbrtParseError::UnrecognizedSubtype {
+            invalid_type => Err(PbrtParseError::UnrecognizedVariant {
                 entity: "Film".to_string(),
-                type_name: invalid_type.to_owned(),
+                variant_name: invalid_type.to_owned(),
             }),
         }
     }
@@ -52,7 +53,7 @@ pub struct RgbFilm {
     pub save_fp16: bool,
     pub iso: Float,
     pub white_balance_temp: Option<Float>,
-    pub sensor: String,
+    pub sensor: SensorName,
     pub max_component_value: Float,
 }
 
@@ -70,7 +71,7 @@ impl Default for RgbFilm {
             save_fp16: true,
             iso: 100.0,
             white_balance_temp: None,
-            sensor: "cie1931".to_string(),
+            sensor: SensorName::Cie1931,
             max_component_value: Float::INFINITY,
         }
     }
@@ -90,5 +91,32 @@ impl_from_entity! {
         "whitebalance" => white_balance_temp,
         "sensor" => sensor,
         "maxcomponentvalue" => max_component_value
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, strum::Display)]
+pub enum SensorName {
+    #[strum(serialize = "cie1931")]
+    Cie1931,
+    #[strum(serialize = "canon_eos_100d")]
+    CanonEos100d,
+}
+
+impl TryFrom<Value> for SensorName {
+    type Error = PbrtParseError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        let incorrect_type_err = PbrtParseError::IncorrectType {
+            expected: "sensor_name".to_string(),
+            found: value.clone(),
+        };
+
+        if let Value::Str(string) = value {
+            if let Ok(sensor) = string.parse() {
+                return Ok(sensor);
+            }
+        }
+
+        Err(incorrect_type_err)
     }
 }

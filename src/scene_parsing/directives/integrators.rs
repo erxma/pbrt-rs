@@ -1,6 +1,5 @@
-use crate::scene_parsing::{
-    common::{impl_from_entity, EntityDirective, FromEntity, ParseContext},
-    PbrtParseError,
+use crate::scene_parsing::common::{
+    impl_from_entity, EntityDirective, FromEntity, ParseContext, PbrtParseError,
 };
 
 #[derive(Clone, Debug)]
@@ -27,9 +26,9 @@ impl FromEntity for Integrator {
             "simplepath" => {
                 SimplePathIntegrator::from_entity(entity, ctx).map(Integrator::SimplePath)
             }
-            invalid_type => Err(PbrtParseError::UnrecognizedSubtype {
+            invalid_type => Err(PbrtParseError::UnrecognizedVariant {
                 entity: "Integrator".to_string(),
-                type_name: invalid_type.to_owned(),
+                variant_name: invalid_type.to_owned(),
             }),
         }
     }

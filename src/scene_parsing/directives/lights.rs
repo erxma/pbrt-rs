@@ -1,8 +1,7 @@
 use crate::{
     core::{Float, Point3f, Transform},
-    scene_parsing::{
-        common::{impl_from_entity, EntityDirective, FromEntity, ParseContext, Spectrum},
-        PbrtParseError,
+    scene_parsing::common::{
+        impl_from_entity, EntityDirective, FromEntity, ParseContext, PbrtParseError, Spectrum,
     },
 };
 
@@ -19,9 +18,9 @@ impl FromEntity for Light {
         match entity.subtype {
             "distant" => DirectionalLight::from_entity(entity, ctx).map(Light::Distant),
             "infinite" => InfiniteLight::from_entity(entity, ctx).map(Light::Infinite),
-            invalid_type => Err(PbrtParseError::UnrecognizedSubtype {
+            invalid_type => Err(PbrtParseError::UnrecognizedVariant {
                 entity: "LightSource".to_string(),
-                type_name: invalid_type.to_owned(),
+                variant_name: invalid_type.to_owned(),
             }),
         }
     }

@@ -1,8 +1,7 @@
 use crate::{
     core::Float,
-    scene_parsing::{
-        common::{impl_from_entity, Alpha, EntityDirective, FromEntity, ParseContext},
-        PbrtParseError,
+    scene_parsing::common::{
+        impl_from_entity, Alpha, EntityDirective, FromEntity, ParseContext, PbrtParseError,
     },
 };
 
@@ -17,9 +16,9 @@ impl FromEntity for Shape {
 
         match entity.subtype {
             "sphere" => Sphere::from_entity(entity, ctx).map(Shape::Sphere),
-            invalid_type => Err(PbrtParseError::UnrecognizedSubtype {
+            invalid_type => Err(PbrtParseError::UnrecognizedVariant {
                 entity: "Shape".to_string(),
-                type_name: invalid_type.to_owned(),
+                variant_name: invalid_type.to_owned(),
             }),
         }
     }

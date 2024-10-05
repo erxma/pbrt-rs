@@ -3,11 +3,10 @@ use std::{cell::OnceCell, collections::HashMap, io::Read};
 use crate::core::Transform;
 
 use super::{
-    common::{directive, Directive, FromEntity, ParseContext},
+    common::{directive, Directive, FromEntity, ParseContext, PbrtParseError},
     directives::{
         Accelerator, Camera, ColorSpace, Film, Filter, Integrator, Light, Sampler, Shape, Texture,
     },
-    PbrtParseError,
 };
 
 #[derive(Debug)]
@@ -166,7 +165,7 @@ fn parse_options_section(
                 }
                 invalid_name => {
                     if !ignore_unrecognized_directives {
-                        return Err(PbrtParseError::UnrecognizedOrIllegalDirective(
+                        return Err(PbrtParseError::UnrecognizedDirective(
                             invalid_name.to_owned(),
                         ));
                     }
@@ -176,7 +175,7 @@ fn parse_options_section(
                 context.current_transform =
                     Transform::from(transform_directive) * context.current_transform;
             }
-            Directive::Texture(texture_directive) => {
+            Directive::Texture(_) => {
                 return Err(PbrtParseError::IllegalForSection("Texture".to_string()));
             }
             Directive::WorldBegin => {
@@ -219,7 +218,7 @@ fn parse_world_section(
                 }
                 invalid_name => {
                     if !ignore_unrecognized_directives {
-                        return Err(PbrtParseError::UnrecognizedOrIllegalDirective(
+                        return Err(PbrtParseError::UnrecognizedDirective(
                             invalid_name.to_owned(),
                         ));
                     }
@@ -232,7 +231,7 @@ fn parse_world_section(
             Directive::Texture(texture_directive) => {
                 let (name, texture) = Texture::from_directive(texture_directive, &context)?;
                 if world.textures.insert(name.clone(), texture).is_some() {
-                    return Err(PbrtParseError::IllegalForSection("WorldBegin".to_string()));
+                    return Err(PbrtParseError::RedefinedName(name));
                 }
             }
             Directive::WorldBegin => {
@@ -253,9 +252,7 @@ fn parse_world_section(
     }
 
     if !stored_contexts_stack.is_empty() {
-        return Err(PbrtParseError::Incomplete(
-            "Attribute scope(s) not closed".to_string(),
-        ));
+        return Err(PbrtParseError::UnclosedAttributeScope);
     }
 
     Ok(world)

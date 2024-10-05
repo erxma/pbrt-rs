@@ -29,9 +29,9 @@ use super::directives::{
 };
 
 #[derive(Clone, Debug, PartialEq, EnumAsInner, strum::Display)]
-pub(super) enum Value {
-    Int(i32),
-    IntArray(Vec<i32>),
+pub enum Value {
+    Int(Int),
+    IntArray(Vec<Int>),
     Float(Float),
     FloatArray(Vec<Float>),
     Bool(bool),
@@ -40,6 +40,8 @@ pub(super) enum Value {
     Rgb(RGB),
     BlackbodyTemp(Float),
 }
+
+pub(super) type Int = i64;
 
 #[derive(Clone, Debug, PartialEq, EnumString, strum::Display)]
 pub(super) enum ValueType {
@@ -60,24 +62,22 @@ pub(super) enum ValueType {
 }
 
 macro_rules! impl_num_try_from_value {
-    ($ty:ty, $from:ident, $($from_arr:ident)?) => {
+    ($ty:ty, $from:ident, $from_arr:ident) => {
         impl TryFrom<Value> for $ty {
             type Error = PbrtParseError;
 
             fn try_from(value: Value) -> Result<Self, Self::Error> {
                 match value {
-                    Value::$from(val) => NumCast::from(val).ok_or(value),
-                    $(
-                        // Also allow implicit conversion from single elem array to single
-                        Value::$from_arr(ref arr) if arr.len() == 1 => {
-                            NumCast::from(arr[0]).ok_or(value)
-                        }
-                    )?
+                    Value::$from(val) => val.try_into().map_err(|_| value),
+                    // Also allow implicit conversion from single elem array to single
+                    Value::$from_arr(ref arr) if arr.len() == 1 => {
+                        NumCast::from(arr[0]).ok_or(value)
+                    }
                     _ => Err(value),
                 }
                 .map_err(|found_val| PbrtParseError::IncorrectType {
-                    expected: ValueType::Int.to_string(),
-                    found: found_val.to_string(),
+                    expected: stringify!($ty).to_string(),
+                    found: found_val,
                 })
             }
         }
@@ -89,72 +89,48 @@ macro_rules! impl_num_try_from_value {
                 <$ty>::try_from(value).map(Some)
             }
         }
+
+        impl<const N: usize> TryFrom<Value> for [$ty; N] {
+            type Error = PbrtParseError;
+
+            fn try_from(value: Value) -> Result<Self, Self::Error> {
+                let incorrect_type_err = PbrtParseError::IncorrectType {
+                    expected: format!("{}[{N}]", stringify!($ty)),
+                    found: value.clone(),
+                };
+
+                if let Value::$from_arr(vec) = value {
+                    let len = vec.len();
+                    let converted: Result<Vec<_>, _> =
+                        vec.into_iter().map(|int| int.try_into()).collect();
+
+                    if let Ok(vec) = converted {
+                        vec.try_into().map_err(|_| PbrtParseError::IncorrectLength {
+                            expected: N,
+                            found: len,
+                        })
+                    } else {
+                        Err(incorrect_type_err)
+                    }
+                } else {
+                    Err(incorrect_type_err)
+                }
+            }
+        }
+
+        impl<const N: usize> TryFrom<Value> for Option<[$ty; N]> {
+            type Error = PbrtParseError;
+
+            fn try_from(value: Value) -> Result<Self, Self::Error> {
+                <[$ty; N]>::try_from(value).map(Some)
+            }
+        }
     };
 }
 
 impl_num_try_from_value!(usize, Int, IntArray);
 impl_num_try_from_value!(u64, Int, IntArray);
 impl_num_try_from_value!(Float, Float, FloatArray);
-
-impl<const N: usize> TryFrom<Value> for [Float; N] {
-    type Error = PbrtParseError;
-
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        value
-            .into_float_array()
-            .map_err(|found_val| PbrtParseError::IncorrectType {
-                expected: ValueType::Float.to_string(),
-                found: found_val.to_string(),
-            })
-            .and_then(|vec| {
-                let len = vec.len();
-                vec.try_into().map_err(|_| PbrtParseError::IncorrectType {
-                    expected: format!("array of length {}", N),
-                    found: format!("array of length {}", len),
-                })
-            })
-    }
-}
-
-impl<const N: usize> TryFrom<Value> for Option<[Float; N]> {
-    type Error = PbrtParseError;
-
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        <[Float; N]>::try_from(value).map(Some)
-    }
-}
-
-impl<const N: usize> TryFrom<Value> for [usize; N] {
-    type Error = PbrtParseError;
-
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        value
-            .into_int_array()
-            .map_err(|found_val| PbrtParseError::IncorrectType {
-                expected: ValueType::Int.to_string(),
-                found: found_val.to_string(),
-            })
-            .and_then(|vec| {
-                let len = vec.len();
-                vec.into_iter()
-                    .map(|int| int as usize)
-                    .collect::<Vec<_>>()
-                    .try_into()
-                    .map_err(|_| PbrtParseError::IncorrectType {
-                        expected: format!("array of length {}", N),
-                        found: format!("array of length {}", len),
-                    })
-            })
-    }
-}
-
-impl<const N: usize> TryFrom<Value> for Option<[usize; N]> {
-    type Error = PbrtParseError;
-
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        <[usize; N]>::try_from(value).map(Some)
-    }
-}
 
 impl TryFrom<Value> for bool {
     type Error = PbrtParseError;
@@ -163,8 +139,8 @@ impl TryFrom<Value> for bool {
         value
             .into_bool()
             .map_err(|found_val| PbrtParseError::IncorrectType {
-                expected: ValueType::Bool.to_string(),
-                found: found_val.to_string(),
+                expected: "bool".to_string(),
+                found: found_val,
             })
     }
 }
@@ -185,7 +161,7 @@ impl TryFrom<Value> for String {
             .into_str()
             .map_err(|found_val| PbrtParseError::IncorrectType {
                 expected: ValueType::Str.to_string(),
-                found: found_val.to_string(),
+                found: found_val,
             })
     }
 }
@@ -206,7 +182,7 @@ impl TryFrom<Value> for Point3f {
             .into_point()
             .map_err(|found_val| PbrtParseError::IncorrectType {
                 expected: ValueType::Point.to_string(),
-                found: found_val.to_string(),
+                found: found_val,
             })
     }
 }
@@ -227,8 +203,8 @@ impl TryFrom<Value> for PathBuf {
             .into_str()
             .map(PathBuf::from)
             .map_err(|found_val| PbrtParseError::IncorrectType {
-                expected: ValueType::Str.to_string(),
-                found: found_val.to_string(),
+                expected: "PathBuf".to_string(),
+                found: found_val,
             })
     }
 }
@@ -314,8 +290,8 @@ impl TryFrom<Value> for Spectrum {
             Value::Rgb(rgb) => Ok(Self::Rgb(rgb)),
             Value::BlackbodyTemp(temp) => Ok(Self::BlackbodyTemp(temp)),
             _ => Err(PbrtParseError::IncorrectType {
-                expected: "rgb or blackbody".to_string(),
-                found: value.to_string(),
+                expected: "spectrum".to_string(),
+                found: value,
             }),
         }
     }
@@ -383,11 +359,11 @@ fn param(input: &mut &str) -> PResult<(String, Value)> {
     .verify_map(|((ty, name), val)| {
         let val = match ty {
             ValueType::Int => match val {
-                Literal::Atomic(val) => Value::Int(val.into_num().ok()? as i32),
+                Literal::Atomic(val) => Value::Int(val.into_num().ok()? as Int),
                 Literal::Array(arr) => {
                     let int_arr = arr
                         .into_iter()
-                        .map(|v| v.into_num().map(|v| v as i32))
+                        .map(|v| v.into_num().map(|v| v as Int))
                         .collect::<Result<_, _>>()
                         .ok()?;
                     Value::IntArray(int_arr)
@@ -570,31 +546,32 @@ pub enum PbrtParseError {
     #[error("failed to read scene file")]
     IoError(#[from] std::io::Error),
 
-    #[error("directive is illegal in the current section: {0}")]
+    #[error("directive is illegal in the current section: `{0}`")]
     IllegalForSection(String),
-    #[error("missing required global option: {0}")]
+    #[error("missing required global option: `{0}`")]
     MissingRequiredOption(String),
-    #[error("directive is unrecognized or illegal in the current section: {0}")]
-    UnrecognizedOrIllegalDirective(String),
+    #[error("unrecognized directive: `{0}`")]
+    UnrecognizedDirective(String),
     #[error("the `{0}` directive should only appear once, but was repeated")]
     RepeatedDirective(String),
     #[error("name `{0}` is already defined and cannot be redefined")]
     RedefinedName(String),
-    #[error("`{0}`")]
-    Incomplete(String),
-    #[error("name `{0}` is not defined")]
-    UndefinedName(String),
+    #[error("attribute scope was not closed with AttributeEnd")]
+    UnclosedAttributeScope,
 
-    #[error("missing required parameter {0}")]
-    MissingRequiredParameter(String),
-    #[error("unexpected parameter for this entity: {0}")]
+    #[error("unexpected parameter for this entity: `{0}`")]
     UnexpectedParameter(String),
-    #[error("incorrect type for parameter (expected {expected}, found {found})")]
-    IncorrectType { expected: String, found: String },
-    #[error("unrecognized subtype \"{type_name}\" for {entity}")]
-    UnrecognizedSubtype { entity: String, type_name: String },
-    #[error("parameter {name} has invalid value: {value:?}")]
-    InvalidValue { name: String, value: String },
+    #[error(
+        "incorrect type for this parameter (expected type convertable to {expected}, found {found})",
+    )]
+    IncorrectType { expected: String, found: Value },
+    #[error("incorrect length for this array (expected {expected}, found {found})")]
+    IncorrectLength { expected: usize, found: usize },
+    #[error("unrecognized variant \"{variant_name}\" for {entity}")]
+    UnrecognizedVariant {
+        entity: String,
+        variant_name: String,
+    },
 }
 
 #[cfg(test)]

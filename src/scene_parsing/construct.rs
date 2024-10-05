@@ -5,6 +5,8 @@ use std::{
     sync::Arc,
 };
 
+use thiserror::Error;
+
 use crate::{
     camera::{
         Camera, CameraEnum, Film, OrthographicCamera, PerspectiveCamera, PixelSensor, RGBFilm,
@@ -30,18 +32,17 @@ use crate::{
 };
 
 use super::{
-    common::Spectrum as SpectrumDesc,
+    common::{PbrtParseError, Spectrum as SpectrumDesc},
     directives::{
         Camera as CameraDesc, ColorSpace, Film as FilmDesc, Filter, Integrator, Light as LightDesc,
-        Sampler, Texture,
+        Sampler, SensorName, Texture,
     },
-    PbrtParseError,
 };
 
 pub fn create_scene_integrator(
     file: impl Read,
     ignore_unrecognized_directives: bool,
-) -> Result<IntegratorEnum, PbrtParseError> {
+) -> Result<IntegratorEnum, ReadSceneError> {
     let description = parse_pbrt_file(file, ignore_unrecognized_directives)?;
 
     let filter = create_filter(description.options.filter);
@@ -51,9 +52,19 @@ pub fn create_scene_integrator(
     let camera = create_camera(description.options.camera, film);
     let sampler = create_sampler(description.options.sampler);
 
-    let lights = create_lights(description.world.lights, &camera, color_space)?;
+    let lights = create_lights(description.world.lights, &camera, color_space);
 
     todo!()
+}
+
+#[derive(Error, Debug)]
+pub enum ReadSceneError {
+    #[error("failed to parse pbrt scene file")]
+    ParseError(#[from] PbrtParseError),
+    #[error("texture `{name}` isn't valid for its usage, which expects {expected}")]
+    TextureMismatch { name: String, expected: String },
+    #[error("texture `{0}` is not defined")]
+    UndefinedTexture(String),
 }
 
 fn create_filter(desc: Filter) -> FilterEnum {
@@ -79,7 +90,7 @@ fn create_film(
     filter: FilterEnum,
     color_space: &'static RGBColorSpace,
     exposure_time: Float,
-) -> Result<Film, PbrtParseError> {
+) -> Result<Film, ReadSceneError> {
     let film = match desc {
         FilmDesc::Rgb(desc) => RGBFilm::new(RGBFilmParams {
             full_resolution: Point2i::new(desc.x_resolution as i32, desc.y_resolution as i32),
@@ -87,7 +98,7 @@ fn create_film(
             filter: Arc::new(filter),
             diagonal: desc.diagonal,
             sensor: Arc::new(create_sensor(
-                &desc.sensor,
+                desc.sensor,
                 color_space,
                 exposure_time,
                 desc.iso,
@@ -104,12 +115,12 @@ fn create_film(
 }
 
 fn create_sensor(
-    name: &str,
+    name: SensorName,
     color_space: &RGBColorSpace,
     exposure_time: Float,
     iso: Float,
     white_balance_temp: Option<Float>,
-) -> Result<PixelSensor, PbrtParseError> {
+) -> Result<PixelSensor, ReadSceneError> {
     // Note from the original pbrt:
     // "In the talk we mention using 312.5 for historical reasons. The
     // choice of 100 here just means that the other parameters make nice
@@ -117,17 +128,12 @@ fn create_sensor(
     let imaging_ratio = exposure_time * iso / 100.0;
 
     let sensor = match name {
-        "cie1931" => PixelSensor::with_xyz_matching(color_space, None, imaging_ratio),
+        SensorName::Cie1931 => PixelSensor::with_xyz_matching(color_space, None, imaging_ratio),
         name => {
             let sensor_illum = spectrum::illum_d(white_balance_temp.unwrap_or(6500.0));
 
-            let r = spectrum::get_named_spectrum(&format!("{name}_r")).ok_or(
-                PbrtParseError::InvalidValue {
-                    name: "sensor".to_string(),
-                    value: name.to_owned(),
-                },
-            )?;
-            // If the R spectrum exists, these should as well
+            let r = spectrum::get_named_spectrum(&format!("{name}_r"))
+                .unwrap_or_else(|| panic!("RGB matching spectra for {name} should be available"));
             let g = spectrum::get_named_spectrum(&format!("{name}_g")).unwrap();
             let b = spectrum::get_named_spectrum(&format!("{name}_b")).unwrap();
 
@@ -205,7 +211,7 @@ fn create_lights(
     descs: impl IntoIterator<Item = LightDesc>,
     camera: &impl Camera,
     color_space: &'static RGBColorSpace,
-) -> Result<Vec<LightEnum>, PbrtParseError> {
+) -> Vec<LightEnum> {
     descs
         .into_iter()
         .map(|desc| create_light(desc, camera, color_space))
@@ -216,8 +222,8 @@ fn create_light(
     desc: LightDesc,
     camera: &impl Camera,
     color_space: &'static RGBColorSpace,
-) -> Result<LightEnum, PbrtParseError> {
-    let light = match desc {
+) -> LightEnum {
+    match desc {
         LightDesc::Distant(desc) => {
             let w = (desc.from - desc.to).normalized();
             let (w, v1, v2) = w.coordinate_system();
@@ -231,19 +237,12 @@ fn create_light(
                 .camera_transform()
                 .render_from_world(desc.render_from_light * transform);
 
-            let radiance;
-            match desc.radiance {
-                Some(spec) => {
-                    radiance = Cow::Owned(create_spectrum(
-                        spec,
-                        SpectrumType::Illuminant,
-                        color_space,
-                    )?);
-                }
-                None => {
-                    radiance = Cow::Borrowed(&color_space.illuminant);
-                }
-            }
+            let radiance = match desc.radiance {
+                Some(spec) => Cow::Owned(
+                    create_spectrum(spec, SpectrumType::Illuminant, color_space).unwrap(),
+                ),
+                None => Cow::Borrowed(&color_space.illuminant),
+            };
 
             let mut scale = desc.scale;
             // Scale the light spectrum to be equivalent to 1 nit
@@ -262,11 +261,9 @@ fn create_light(
             let radiance;
             match desc.radiance {
                 Some(spec) => {
-                    radiance = Cow::Owned(create_spectrum(
-                        spec,
-                        SpectrumType::Illuminant,
-                        color_space,
-                    )?);
+                    radiance = Cow::Owned(
+                        create_spectrum(spec, SpectrumType::Illuminant, color_space).unwrap(),
+                    );
                 }
                 None => {
                     // Default: color space's std illuminant
@@ -287,9 +284,7 @@ fn create_light(
 
             UniformInfiniteLight::new(&*radiance, scale).into()
         }
-    };
-
-    Ok(light)
+    }
 }
 
 #[derive(Debug, Default)]
@@ -306,15 +301,16 @@ impl Textures {
     fn get_float_texture(
         &mut self,
         name: impl Into<String>,
-    ) -> Result<Arc<FloatTextureEnum>, PbrtParseError> {
+    ) -> Result<Arc<FloatTextureEnum>, ReadSceneError> {
         let texture = match self.float_textures.entry(name.into()) {
             hash_map::Entry::Occupied(occupied) => occupied.get().clone(),
             hash_map::Entry::Vacant(vacant) => {
+                let name = vacant.key();
                 let desc = self
                     .uncreated_descs
-                    .remove(vacant.key())
-                    .ok_or_else(|| PbrtParseError::UndefinedName(vacant.key().clone()))?;
-                let texture = Arc::new(create_float_texture(desc)?);
+                    .remove(name)
+                    .ok_or_else(|| ReadSceneError::UndefinedTexture(name.clone()))?;
+                let texture = Arc::new(create_float_texture(name, desc)?);
                 vacant.insert(texture.clone());
                 texture
             }
@@ -328,7 +324,7 @@ impl Textures {
         name: impl Into<String>,
         spectrum_type: SpectrumType,
         color_space: &'static RGBColorSpace,
-    ) -> Result<Arc<SpectrumTextureEnum>, PbrtParseError> {
+    ) -> Result<Arc<SpectrumTextureEnum>, ReadSceneError> {
         let spectra = match spectrum_type {
             SpectrumType::Albedo => &mut self.albedo_spectrum_textures,
             SpectrumType::Unbounded => &mut self.unbounded_spectrum_textures,
@@ -338,11 +334,17 @@ impl Textures {
         let texture = match spectra.entry(name.into()) {
             hash_map::Entry::Occupied(occupied) => occupied.get().clone(),
             hash_map::Entry::Vacant(vacant) => {
+                let name = vacant.key();
                 let desc = self
                     .uncreated_descs
-                    .remove(vacant.key())
-                    .ok_or_else(|| PbrtParseError::UndefinedName(vacant.key().clone()))?;
-                let texture = Arc::new(create_spectrum_texture(desc, spectrum_type, color_space)?);
+                    .remove(name)
+                    .ok_or_else(|| ReadSceneError::UndefinedTexture(name.clone()))?;
+                let texture = Arc::new(create_spectrum_texture(
+                    name,
+                    desc,
+                    spectrum_type,
+                    color_space,
+                )?);
                 vacant.insert(texture.clone());
                 texture
             }
@@ -352,14 +354,15 @@ impl Textures {
     }
 }
 
-fn create_float_texture(desc: Texture) -> Result<FloatTextureEnum, PbrtParseError> {
-    let not_float_err = PbrtParseError::IncorrectType {
+fn create_float_texture(name: &str, desc: Texture) -> Result<FloatTextureEnum, ReadSceneError> {
+    let not_float_err = |_| ReadSceneError::TextureMismatch {
+        name: name.to_owned(),
         expected: "float texture".to_string(),
-        found: "spectrum texture".into(),
     };
+
     let texture = match desc {
         Texture::Constant(desc) => {
-            ConstantFloatTexture::new(desc.value.into_float().map_err(|_| not_float_err)?).into()
+            ConstantFloatTexture::new(desc.value.into_float().map_err(not_float_err)?).into()
         }
     };
 
@@ -367,20 +370,29 @@ fn create_float_texture(desc: Texture) -> Result<FloatTextureEnum, PbrtParseErro
 }
 
 fn create_spectrum_texture(
+    name: &str,
     desc: Texture,
     spectrum_type: SpectrumType,
     color_space: &'static RGBColorSpace,
-) -> Result<SpectrumTextureEnum, PbrtParseError> {
-    let not_spectrum_err = PbrtParseError::IncorrectType {
+) -> Result<SpectrumTextureEnum, ReadSceneError> {
+    let not_spectrum_err = |_| ReadSceneError::TextureMismatch {
+        name: name.to_owned(),
         expected: "spectrum texture".to_string(),
-        found: "float texture".into(),
     };
+    let invalid_albedo_err = |_| ReadSceneError::TextureMismatch {
+        name: name.to_owned(),
+        expected: "RGB albedo spectrum texture (RGB components must be <= 1)".to_string(),
+    };
+
     let texture = match desc {
-        Texture::Constant(desc) => ConstantSpectrumTexture::new(create_spectrum(
-            desc.value.into_spectrum().map_err(|_| not_spectrum_err)?,
-            spectrum_type,
-            color_space,
-        )?)
+        Texture::Constant(desc) => ConstantSpectrumTexture::new(
+            create_spectrum(
+                desc.value.into_spectrum().map_err(not_spectrum_err)?,
+                spectrum_type,
+                color_space,
+            )
+            .map_err(invalid_albedo_err)?,
+        )
         .into(),
     };
 
@@ -394,33 +406,25 @@ enum SpectrumType {
     Illuminant,
 }
 
+#[derive(Debug)]
+struct InvalidAlbedoRgb;
+
 fn create_spectrum(
     desc: SpectrumDesc,
     spectrum_type: SpectrumType,
     color_space: &'static RGBColorSpace,
-) -> Result<SpectrumEnum, PbrtParseError> {
+) -> Result<SpectrumEnum, InvalidAlbedoRgb> {
     let spectrum = match desc {
-        SpectrumDesc::Rgb(rgb) => {
-            if rgb.r < 0.0 || rgb.g < 0.0 || rgb.b < 0.0 {
-                return Err(PbrtParseError::InvalidValue {
-                    name: "RGB color".to_string(),
-                    value: rgb.to_string(),
-                });
-            }
-            match spectrum_type {
-                SpectrumType::Albedo => {
-                    if rgb.r > 1.0 || rgb.g > 1.0 || rgb.b > 1.0 {
-                        return Err(PbrtParseError::InvalidValue {
-                            name: "albedo RGB color".to_string(),
-                            value: rgb.to_string(),
-                        });
-                    }
-                    RgbAlbedoSpectrum::new(color_space, rgb).into()
+        SpectrumDesc::Rgb(rgb) => match spectrum_type {
+            SpectrumType::Albedo => {
+                if rgb.r > 1.0 || rgb.g > 1.0 || rgb.b > 1.0 {
+                    return Err(InvalidAlbedoRgb);
                 }
-                SpectrumType::Unbounded => RgbUnboundedSpectrum::new(color_space, rgb).into(),
-                SpectrumType::Illuminant => RgbIlluminantSpectrum::new(color_space, rgb).into(),
+                RgbAlbedoSpectrum::new(color_space, rgb).into()
             }
-        }
+            SpectrumType::Unbounded => RgbUnboundedSpectrum::new(color_space, rgb).into(),
+            SpectrumType::Illuminant => RgbIlluminantSpectrum::new(color_space, rgb).into(),
+        },
 
         SpectrumDesc::BlackbodyTemp(temp) => BlackbodySpectrum::new(temp).into(),
     };

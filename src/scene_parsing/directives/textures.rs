@@ -7,9 +7,8 @@ use winnow::{
 
 use crate::{
     core::Float,
-    scene_parsing::{
-        common::{param_map, ParameterMap, ParseContext, Spectrum, Value},
-        PbrtParseError,
+    scene_parsing::common::{
+        param_map, ParameterMap, ParseContext, PbrtParseError, Spectrum, Value,
     },
 };
 
@@ -52,9 +51,9 @@ impl Texture {
         let texture = match directive.subtype {
             "constant" => ConstantTexture::from_directive(directive).map(Texture::Constant)?,
             invalid_type => {
-                return Err(PbrtParseError::UnrecognizedSubtype {
+                return Err(PbrtParseError::UnrecognizedVariant {
                     entity: "Texture".to_string(),
-                    type_name: invalid_type.to_owned(),
+                    variant_name: invalid_type.to_owned(),
                 });
             }
         };
@@ -77,22 +76,22 @@ impl ConstantTextureData {
                     Ok(Self::Spectrum(Spectrum::try_from(value)?))
                 }
                 _ => Err(PbrtParseError::IncorrectType {
-                    expected: "spectrum texture".to_string(),
-                    found: value.to_string(),
+                    expected: "spectrum".to_string(),
+                    found: value,
                 }),
             },
 
             "float" => value
                 .into_float()
                 .map_err(|found_value| PbrtParseError::IncorrectType {
-                    expected: "float texture".to_string(),
-                    found: found_value.to_string(),
+                    expected: "float".to_string(),
+                    found: found_value,
                 })
                 .map(|f| Self::Float(f as Float)),
 
-            _ => Err(PbrtParseError::IncorrectType {
-                expected: "spectrum or float texture".to_string(),
-                found: value.to_string(),
+            _ => Err(PbrtParseError::UnrecognizedVariant {
+                entity: "Texture".to_string(),
+                variant_name: class.to_owned(),
             }),
         }
     }

@@ -1,4 +1,9 @@
-use std::{borrow::Cow, io::Read, sync::Arc};
+use std::{
+    borrow::Cow,
+    collections::{hash_map, HashMap},
+    io::Read,
+    sync::Arc,
+};
 
 use crate::{
     camera::{
@@ -10,6 +15,9 @@ use crate::{
     imaging::{BoxFilter, FilterEnum, GaussianFilter, TriangleFilter},
     integrators::{IntegratorEnum, RandomWalkIntegrator, SimplePathIntegrator},
     lights::{DirectionalLight, LightEnum, UniformInfiniteLight},
+    materials::{
+        ConstantFloatTexture, ConstantSpectrumTexture, FloatTextureEnum, SpectrumTextureEnum,
+    },
     primitives::PrimitiveEnum,
     sampling::{
         spectrum::{
@@ -25,7 +33,7 @@ use super::{
     common::Spectrum as SpectrumDesc,
     directives::{
         Camera as CameraDesc, ColorSpace, Film as FilmDesc, Filter, Integrator, Light as LightDesc,
-        Sampler,
+        Sampler, Texture,
     },
     PbrtParseError,
 };
@@ -282,6 +290,101 @@ fn create_light(
     };
 
     Ok(light)
+}
+
+#[derive(Debug, Default)]
+struct Textures {
+    float_textures: HashMap<String, Arc<FloatTextureEnum>>,
+    albedo_spectrum_textures: HashMap<String, Arc<SpectrumTextureEnum>>,
+    unbounded_spectrum_textures: HashMap<String, Arc<SpectrumTextureEnum>>,
+    illuminant_spectrum_textures: HashMap<String, Arc<SpectrumTextureEnum>>,
+
+    uncreated_descs: HashMap<String, Texture>,
+}
+
+impl Textures {
+    fn get_float_texture(
+        &mut self,
+        name: impl Into<String>,
+    ) -> Result<Arc<FloatTextureEnum>, PbrtParseError> {
+        let texture = match self.float_textures.entry(name.into()) {
+            hash_map::Entry::Occupied(occupied) => occupied.get().clone(),
+            hash_map::Entry::Vacant(vacant) => {
+                let desc = self
+                    .uncreated_descs
+                    .remove(vacant.key())
+                    .ok_or_else(|| PbrtParseError::UndefinedName(vacant.key().clone()))?;
+                let texture = Arc::new(create_float_texture(desc)?);
+                vacant.insert(texture.clone());
+                texture
+            }
+        };
+
+        Ok(texture)
+    }
+
+    fn get_spectrum_texture(
+        &mut self,
+        name: impl Into<String>,
+        spectrum_type: SpectrumType,
+        color_space: &'static RGBColorSpace,
+    ) -> Result<Arc<SpectrumTextureEnum>, PbrtParseError> {
+        let spectra = match spectrum_type {
+            SpectrumType::Albedo => &mut self.albedo_spectrum_textures,
+            SpectrumType::Unbounded => &mut self.unbounded_spectrum_textures,
+            SpectrumType::Illuminant => &mut self.illuminant_spectrum_textures,
+        };
+
+        let texture = match spectra.entry(name.into()) {
+            hash_map::Entry::Occupied(occupied) => occupied.get().clone(),
+            hash_map::Entry::Vacant(vacant) => {
+                let desc = self
+                    .uncreated_descs
+                    .remove(vacant.key())
+                    .ok_or_else(|| PbrtParseError::UndefinedName(vacant.key().clone()))?;
+                let texture = Arc::new(create_spectrum_texture(desc, spectrum_type, color_space)?);
+                vacant.insert(texture.clone());
+                texture
+            }
+        };
+
+        Ok(texture)
+    }
+}
+
+fn create_float_texture(desc: Texture) -> Result<FloatTextureEnum, PbrtParseError> {
+    let not_float_err = PbrtParseError::IncorrectType {
+        expected: "float texture".to_string(),
+        found: "spectrum texture".into(),
+    };
+    let texture = match desc {
+        Texture::Constant(desc) => {
+            ConstantFloatTexture::new(desc.value.into_float().map_err(|_| not_float_err)?).into()
+        }
+    };
+
+    Ok(texture)
+}
+
+fn create_spectrum_texture(
+    desc: Texture,
+    spectrum_type: SpectrumType,
+    color_space: &'static RGBColorSpace,
+) -> Result<SpectrumTextureEnum, PbrtParseError> {
+    let not_spectrum_err = PbrtParseError::IncorrectType {
+        expected: "spectrum texture".to_string(),
+        found: "float texture".into(),
+    };
+    let texture = match desc {
+        Texture::Constant(desc) => ConstantSpectrumTexture::new(create_spectrum(
+            desc.value.into_spectrum().map_err(|_| not_spectrum_err)?,
+            spectrum_type,
+            color_space,
+        )?)
+        .into(),
+    };
+
+    Ok(texture)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

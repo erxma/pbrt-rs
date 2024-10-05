@@ -12,5 +12,5 @@ pub use material::{
 };
 pub use textures::{
     ConstantFloatTexture, ConstantSpectrumTexture, FloatTexture, FloatTextureEnum, SpectrumTexture,
-    SpectrumTextureEnum,
+    SpectrumTextureEnum, TextureEnum,
 };

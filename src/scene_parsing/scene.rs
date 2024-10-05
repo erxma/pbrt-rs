@@ -1,11 +1,11 @@
-use std::{cell::OnceCell, io::Read};
+use std::{cell::OnceCell, collections::HashMap, io::Read};
 
 use crate::core::Transform;
 
 use super::{
     common::{directive, Directive, FromEntity, ParseContext},
     directives::{
-        Accelerator, Camera, ColorSpace, Film, Filter, Integrator, Light, Sampler, Shape,
+        Accelerator, Camera, ColorSpace, Film, Filter, Integrator, Light, Sampler, Shape, Texture,
     },
     PbrtParseError,
 };
@@ -72,6 +72,7 @@ impl OptionsBuilder {
 pub struct World {
     pub shapes: Vec<Shape>,
     pub lights: Vec<Light>,
+    pub textures: HashMap<String, Texture>,
 }
 
 pub(super) fn parse_pbrt_file(
@@ -84,7 +85,7 @@ pub(super) fn parse_pbrt_file(
 
     let mut input: &str = buf.as_str();
     let options = parse_options_section(&mut input, ignore_unrecognized_directives)?;
-    let world = parse_world_section(&mut input, &options, ignore_unrecognized_directives)?;
+    let world = parse_world_section(&mut input, ignore_unrecognized_directives)?;
 
     Ok(SceneDescription { options, world })
 }
@@ -175,6 +176,9 @@ fn parse_options_section(
                 context.current_transform =
                     Transform::from(transform_directive) * context.current_transform;
             }
+            Directive::Texture(texture_directive) => {
+                return Err(PbrtParseError::IllegalForSection("Texture".to_string()));
+            }
             Directive::WorldBegin => {
                 break;
             }
@@ -198,14 +202,11 @@ fn parse_options_section(
 
 fn parse_world_section(
     input: &mut &str,
-    options: &Options,
     ignore_unrecognized_directives: bool,
 ) -> Result<World, PbrtParseError> {
     let mut world = World::default();
-    let mut context = ParseContext {
-        color_space: Some(options.color_space),
-        ..Default::default()
-    };
+    let mut context = ParseContext::default();
+    let mut stored_contexts_stack = Vec::new();
 
     while let Ok(directive) = directive(input) {
         match directive {
@@ -228,16 +229,33 @@ fn parse_world_section(
                 context.current_transform =
                     Transform::from(transform_directive) * context.current_transform;
             }
+            Directive::Texture(texture_directive) => {
+                let (name, texture) = Texture::from_directive(texture_directive, &context)?;
+                if world.textures.insert(name.clone(), texture).is_some() {
+                    return Err(PbrtParseError::IllegalForSection("WorldBegin".to_string()));
+                }
+            }
             Directive::WorldBegin => {
                 return Err(PbrtParseError::IllegalForSection("WorldBegin".to_string()));
             }
             Directive::AttributeBegin => {
-                todo!()
+                stored_contexts_stack.push(context.clone());
             }
             Directive::AttributeEnd => {
-                todo!()
+                if stored_contexts_stack.is_empty() {
+                    return Err(PbrtParseError::IllegalForSection(
+                        "AttributeEnd".to_string(),
+                    ));
+                }
+                context = stored_contexts_stack.pop().unwrap();
             }
         }
+    }
+
+    if !stored_contexts_stack.is_empty() {
+        return Err(PbrtParseError::Incomplete(
+            "Attribute scope(s) not closed".to_string(),
+        ));
     }
 
     Ok(world)

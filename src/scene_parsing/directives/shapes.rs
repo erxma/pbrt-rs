@@ -1,7 +1,7 @@
 use crate::{
     core::Float,
     scene_parsing::{
-        common::{impl_from_entity, Alpha, EntityDirective, FromEntity},
+        common::{impl_from_entity, Alpha, EntityDirective, FromEntity, ParseContext},
         PbrtParseError,
     },
 };
@@ -12,10 +12,7 @@ pub enum Shape {
 }
 
 impl FromEntity for Shape {
-    fn from_entity(
-        entity: EntityDirective,
-        ctx: &crate::scene_parsing::common::ParseContext,
-    ) -> Result<Self, PbrtParseError> {
+    fn from_entity(entity: EntityDirective, ctx: &ParseContext) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Shape");
 
         match entity.subtype {

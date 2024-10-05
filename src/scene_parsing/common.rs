@@ -24,7 +24,9 @@ use crate::{
     core::{Float, Point3f, Transform},
 };
 
-use super::directives::{transform_directive, ColorSpace, TransformDirective};
+use super::directives::{
+    texture_directive, transform_directive, TextureDirective, TransformDirective,
+};
 
 #[derive(Clone, Debug, PartialEq, EnumAsInner, strum::Display)]
 pub(super) enum Value {
@@ -443,14 +445,12 @@ fn param(input: &mut &str) -> PResult<(String, Value)> {
 #[derive(Clone, Debug)]
 pub struct ParseContext {
     pub current_transform: Transform,
-    pub color_space: Option<ColorSpace>,
 }
 
 impl Default for ParseContext {
     fn default() -> Self {
         Self {
             current_transform: Transform::IDENTITY,
-            color_space: None,
         }
     }
 }
@@ -523,6 +523,7 @@ pub(super) use impl_from_entity;
 pub(super) enum Directive<'a> {
     Entity(EntityDirective<'a>),
     Transform(TransformDirective),
+    Texture(TextureDirective<'a>),
     WorldBegin,
     AttributeBegin,
     AttributeEnd,
@@ -533,6 +534,7 @@ pub(super) fn directive<'a>(input: &mut &'a str) -> PResult<Directive<'a>> {
         alt((
             entity_directive.map(Directive::Entity),
             transform_directive.map(Directive::Transform),
+            texture_directive.map(Directive::Texture),
             "WorldBegin".map(|_| Directive::WorldBegin),
             "AttributeBegin".map(|_| Directive::AttributeBegin),
             "AttributeEnd".map(|_| Directive::AttributeEnd),
@@ -576,6 +578,12 @@ pub enum PbrtParseError {
     UnrecognizedOrIllegalDirective(String),
     #[error("the `{0}` directive should only appear once, but was repeated")]
     RepeatedDirective(String),
+    #[error("name `{0}` is already defined and cannot be redefined")]
+    RedefinedName(String),
+    #[error("`{0}`")]
+    Incomplete(String),
+    #[error("name `{0}` is not defined")]
+    UndefinedName(String),
 
     #[error("missing required parameter {0}")]
     MissingRequiredParameter(String),

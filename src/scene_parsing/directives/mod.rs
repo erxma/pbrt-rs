@@ -7,6 +7,7 @@ mod integrators;
 mod lights;
 mod samplers;
 mod shapes;
+mod textures;
 mod transforms;
 
 pub(super) use accelerators::Accelerator;
@@ -18,4 +19,5 @@ pub(super) use integrators::Integrator;
 pub(super) use lights::Light;
 pub(super) use samplers::Sampler;
 pub(super) use shapes::Shape;
+pub(super) use textures::{texture_directive, Texture, TextureDirective};
 pub(super) use transforms::{transform_directive, TransformDirective};

@@ -10,6 +10,13 @@ use super::TextureEvalContext;
 
 #[enum_dispatch]
 #[derive(Debug)]
+pub enum TextureEnum {
+    Float(FloatTextureEnum),
+    Spectrum(SpectrumTextureEnum),
+}
+
+#[enum_dispatch]
+#[derive(Debug)]
 pub enum FloatTextureEnum {
     Constant(ConstantFloatTexture),
 }

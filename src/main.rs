@@ -1,6 +1,7 @@
-use std::{path::PathBuf, sync::Arc, time::Instant};
+use std::{fs::File, path::PathBuf, sync::Arc, time::Instant};
 
-use log::info;
+use clap::Parser;
+use log::{error, info};
 use pbrt_rs::{
     camera::{Camera, PerspectiveCamera, PixelSensor, RGBFilm, RGBFilmParams},
     color::{RGB, SRGB},
@@ -19,18 +20,35 @@ use pbrt_rs::{
         },
         IndependentSampler,
     },
+    scene_parsing::create_scene_integrator,
     shapes::{BilinearPatch, BilinearPatchMesh, Sphere},
 };
 use time::{macros::format_description, OffsetDateTime};
 
 fn main() {
+    let mut args = CliArgs::parse();
+    // If unspecified, default out file to "render_{timestamp}.exr"
+    args.out_file.get_or_insert_with(|| {
+        let timestamp = OffsetDateTime::now_local()
+            .unwrap()
+            .format(&format_description!(
+                "[year]-[month]-[day]T[hour]:[minute]:[second]"
+            ))
+            .unwrap();
+        PathBuf::from(format!("render_{timestamp}.exr"))
+    });
+
     let log_env = env_logger::Env::default().default_filter_or("info");
     env_logger::init_from_env(log_env);
     info!("Initialized logger.");
 
     let start = Instant::now();
 
-    render_cpu();
+    let render_result = render_cpu(&args);
+    if let Err(err) = render_result {
+        error!("Render failed: {err}");
+        return;
+    }
 
     let secs_elapsed = start.elapsed().as_secs();
     let hours = secs_elapsed / 3600;
@@ -40,7 +58,16 @@ fn main() {
     info!("Render took {hours}h {mins}m {secs}s.");
 }
 
-fn render_cpu() {
+fn render_cpu(args: &CliArgs) -> anyhow::Result<()> {
+    let scene_file = File::open(args.scene_file.clone())?;
+    let mut integrator = create_scene_integrator(scene_file, false)?;
+
+    integrator.render();
+
+    Ok(())
+}
+
+fn manual_scene_integrator(args: &CliArgs) -> impl Integrate {
     let camera_from_world = Transform::look_at(
         Point3f::new(3.0, 4.0, 1.5),
         Point3f::new(0.5, 0.5, 0.0),
@@ -59,15 +86,7 @@ fn render_cpu() {
         diagonal: 35.0,
         filter,
         sensor,
-        filename: PathBuf::from(format!(
-            "render_{}.exr",
-            OffsetDateTime::now_local()
-                .unwrap()
-                .format(&format_description!(
-                    "[year]-[month]-[day]T[hour]:[minute]:[second]"
-                ))
-                .unwrap()
-        )),
+        filename: args.out_file.clone().unwrap(),
         color_space: &SRGB,
         max_component_value: Float::INFINITY,
     })
@@ -220,7 +239,8 @@ fn render_cpu() {
         BVHSplitMethod::Middle,
     );
     let lights = vec![inf_light, sun_light];
-    let mut integrator = SimplePathIntegrator::new(
+
+    SimplePathIntegrator::new(
         5,
         true,
         true,
@@ -228,7 +248,14 @@ fn render_cpu() {
         sampler.into(),
         aggregate.into(),
         lights,
-    );
+    )
+}
 
-    integrator.render();
+#[derive(Parser)]
+struct CliArgs {
+    /// .pbrt scene file to render.
+    scene_file: PathBuf,
+    /// The file to output the resulting render to.
+    #[arg(short, long = "out")]
+    out_file: Option<PathBuf>,
 }

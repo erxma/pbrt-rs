@@ -11,6 +11,7 @@ pub use material::{
     TextureEvaluator, UniversalTextureEvaluator,
 };
 pub use textures::{
-    ConstantFloatTexture, ConstantSpectrumTexture, FloatTexture, FloatTextureEnum, SpectrumTexture,
-    SpectrumTextureEnum, TextureEnum,
+    CheckerboardFloatTexture, CheckerboardSpectrumTexture, ConstantFloatTexture,
+    ConstantSpectrumTexture, FloatTexture, FloatTextureEnum, SpectrumTexture, SpectrumTextureEnum,
+    TextureEnum,
 };

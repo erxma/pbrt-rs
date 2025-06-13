@@ -6,15 +6,15 @@ use winnow::{
 };
 
 use crate::{
+    color::RGB,
     core::Float,
-    scene_parsing::common::{
-        param_map, ParameterMap, ParseContext, PbrtParseError, Spectrum, Value,
-    },
+    scene_parsing::common::{param_map, ParameterMap, ParseContext, PbrtParseError, Spectrum},
 };
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum Texture {
-    Constant(ConstantTexture),
+#[derive(Clone, Debug, derive_more::From, EnumAsInner)]
+pub enum TextureDesc {
+    Float(FloatTextureDesc),
+    Spectrum(SpectrumTextureDesc),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -42,14 +42,15 @@ pub fn texture_directive<'a>(input: &mut &'a str) -> PResult<TextureDirective<'a
     .parse_next(input)
 }
 
-impl Texture {
+impl TextureDesc {
     pub fn from_directive(
         directive: TextureDirective,
-        _ctx: &ParseContext,
+        ctx: &ParseContext,
     ) -> Result<(String, Self), PbrtParseError> {
         let name = directive.name.to_string();
-        let texture = match directive.subtype {
-            "constant" => ConstantTexture::from_directive(directive).map(Texture::Constant)?,
+        let texture = match directive.class {
+            "float" => FloatTextureDesc::from_directive(directive, ctx).map(Self::from)?,
+            "spectrum" => SpectrumTextureDesc::from_directive(directive, ctx).map(Self::from)?,
             invalid_type => {
                 return Err(PbrtParseError::UnrecognizedVariant {
                     entity: "Texture".to_string(),
@@ -62,42 +63,58 @@ impl Texture {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, EnumAsInner)]
-pub enum ConstantTextureData {
-    Spectrum(Spectrum),
-    Float(Float),
+#[derive(Clone, Debug, derive_more::From)]
+pub enum FloatTextureDesc {
+    Constant(ConstantFloatTexture),
 }
 
-impl ConstantTextureData {
-    fn try_from_with_class(value: Value, class: &str) -> Result<Self, PbrtParseError> {
-        match class {
-            "spectrum" => match value {
-                Value::Rgb(_) | Value::BlackbodyTemp(_) => {
-                    Ok(Self::Spectrum(Spectrum::try_from(value)?))
-                }
-                _ => Err(PbrtParseError::IncorrectType {
-                    expected: "spectrum".to_string(),
-                    found: value,
-                }),
-            },
+impl FloatTextureDesc {
+    pub fn from_directive(
+        directive: TextureDirective,
+        _ctx: &ParseContext,
+    ) -> Result<Self, PbrtParseError> {
+        let texture = match directive.subtype {
+            "constant" => {
+                ConstantFloatTexture::from_directive(directive).map(FloatTextureDesc::Constant)?
+            }
+            invalid_type => {
+                return Err(PbrtParseError::UnrecognizedVariant {
+                    entity: "Float Texture".to_string(),
+                    variant_name: invalid_type.to_owned(),
+                });
+            }
+        };
 
-            "float" => value
-                .into_float()
-                .map_err(|found_value| PbrtParseError::IncorrectType {
-                    expected: "float".to_string(),
-                    found: found_value,
-                })
-                .map(|f| Self::Float(f as Float)),
-
-            _ => Err(PbrtParseError::UnrecognizedVariant {
-                entity: "Texture".to_string(),
-                variant_name: class.to_owned(),
-            }),
-        }
+        Ok(texture)
     }
 }
 
-macro_rules! impl_texture_from_directive {
+#[derive(Clone, Debug, derive_more::From)]
+pub enum SpectrumTextureDesc {
+    Constant(ConstantSpectrumTexture),
+}
+
+impl SpectrumTextureDesc {
+    pub fn from_directive(
+        directive: TextureDirective,
+        _ctx: &ParseContext,
+    ) -> Result<Self, PbrtParseError> {
+        let texture = match directive.subtype {
+            "constant" => ConstantSpectrumTexture::from_directive(directive)
+                .map(SpectrumTextureDesc::Constant)?,
+            invalid_type => {
+                return Err(PbrtParseError::UnrecognizedVariant {
+                    entity: "Spectrum Texture".to_string(),
+                    variant_name: invalid_type.to_owned(),
+                });
+            }
+        };
+
+        Ok(texture)
+    }
+}
+
+macro_rules! struct_from_param_map {
     (
         $struct_name:ty,
         $(
@@ -165,22 +182,40 @@ macro_rules! impl_texture_from_directive {
     };
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct ConstantTexture {
-    pub value: ConstantTextureData,
+#[derive(Clone, Debug)]
+pub struct ConstantFloatTexture {
+    pub value: Float,
 }
 
-impl Default for ConstantTexture {
+impl Default for ConstantFloatTexture {
+    fn default() -> Self {
+        Self { value: 1.0 }
+    }
+}
+
+struct_from_param_map! {
+    ConstantFloatTexture,
+    has_defaults {
+        "value" => value
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ConstantSpectrumTexture {
+    pub value: Spectrum,
+}
+
+impl Default for ConstantSpectrumTexture {
     fn default() -> Self {
         Self {
-            value: ConstantTextureData::Float(1.0),
+            value: Spectrum::Rgb(RGB::new(1.0, 1.0, 1.0)),
         }
     }
 }
 
-impl_texture_from_directive! {
-    ConstantTexture,
-    has_defaults_textures {
+struct_from_param_map! {
+    ConstantSpectrumTexture,
+    has_defaults {
         "value" => value
     }
 }

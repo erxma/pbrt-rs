@@ -28,14 +28,17 @@ use crate::{
         },
         IndependentSampler, SamplerEnum,
     },
-    scene_parsing::scene::parse_pbrt_file,
+    scene_parsing::{
+        directives::{FloatTextureDesc, SpectrumTextureDesc},
+        scene::parse_pbrt_file,
+    },
 };
 
 use super::{
     common::{PbrtParseError, Spectrum as SpectrumDesc},
     directives::{
         Camera as CameraDesc, ColorSpace, Film as FilmDesc, Filter, Integrator, Light as LightDesc,
-        Sampler, SensorName, Texture,
+        Sampler, SensorName, TextureDesc,
     },
 };
 
@@ -294,7 +297,7 @@ struct Textures {
     unbounded_spectrum_textures: HashMap<String, Arc<SpectrumTextureEnum>>,
     illuminant_spectrum_textures: HashMap<String, Arc<SpectrumTextureEnum>>,
 
-    uncreated_descs: HashMap<String, Texture>,
+    uncreated_descs: HashMap<String, TextureDesc>,
 }
 
 impl Textures {
@@ -354,16 +357,16 @@ impl Textures {
     }
 }
 
-fn create_float_texture(name: &str, desc: Texture) -> Result<FloatTextureEnum, ReadSceneError> {
+fn create_float_texture(name: &str, desc: TextureDesc) -> Result<FloatTextureEnum, ReadSceneError> {
     let not_float_err = |_| ReadSceneError::TextureMismatch {
         name: name.to_owned(),
         expected: "float texture".to_string(),
     };
 
+    let desc = desc.into_float().map_err(not_float_err)?;
+
     let texture = match desc {
-        Texture::Constant(desc) => {
-            ConstantFloatTexture::new(desc.value.into_float().map_err(not_float_err)?).into()
-        }
+        FloatTextureDesc::Constant(desc) => ConstantFloatTexture::new(desc.value).into(),
     };
 
     Ok(texture)
@@ -371,7 +374,7 @@ fn create_float_texture(name: &str, desc: Texture) -> Result<FloatTextureEnum, R
 
 fn create_spectrum_texture(
     name: &str,
-    desc: Texture,
+    desc: TextureDesc,
     spectrum_type: SpectrumType,
     color_space: &'static RGBColorSpace,
 ) -> Result<SpectrumTextureEnum, ReadSceneError> {
@@ -384,14 +387,11 @@ fn create_spectrum_texture(
         expected: "RGB albedo spectrum texture (RGB components must be <= 1)".to_string(),
     };
 
+    let desc = desc.into_spectrum().map_err(not_spectrum_err)?;
+
     let texture = match desc {
-        Texture::Constant(desc) => ConstantSpectrumTexture::new(
-            create_spectrum(
-                desc.value.into_spectrum().map_err(not_spectrum_err)?,
-                spectrum_type,
-                color_space,
-            )
-            .map_err(invalid_albedo_err)?,
+        SpectrumTextureDesc::Constant(desc) => ConstantSpectrumTexture::new(
+            create_spectrum(desc.value, spectrum_type, color_space).map_err(invalid_albedo_err)?,
         )
         .into(),
     };

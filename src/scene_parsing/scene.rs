@@ -5,7 +5,8 @@ use crate::core::Transform;
 use super::{
     common::{directive, Directive, FromEntity, ParseContext, PbrtParseError},
     directives::{
-        Accelerator, Camera, ColorSpace, Film, Filter, Integrator, Light, Sampler, Shape, Texture,
+        Accelerator, Camera, ColorSpace, Film, Filter, Integrator, Light, Sampler, Shape,
+        TextureDesc,
     },
 };
 
@@ -71,7 +72,7 @@ impl OptionsBuilder {
 pub struct World {
     pub shapes: Vec<Shape>,
     pub lights: Vec<Light>,
-    pub textures: HashMap<String, Texture>,
+    pub textures: HashMap<String, TextureDesc>,
 }
 
 pub(super) fn parse_pbrt_file(
@@ -229,7 +230,7 @@ fn parse_world_section(
                     Transform::from(transform_directive) * context.current_transform;
             }
             Directive::Texture(texture_directive) => {
-                let (name, texture) = Texture::from_directive(texture_directive, &context)?;
+                let (name, texture) = TextureDesc::from_directive(texture_directive, &context)?;
                 if world.textures.insert(name.clone(), texture).is_some() {
                     return Err(PbrtParseError::RedefinedName(name));
                 }

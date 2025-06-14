@@ -4,6 +4,7 @@ use std::{
     str::FromStr,
 };
 
+use delegate::delegate;
 use enum_as_inner::EnumAsInner;
 use itertools::Itertools;
 use num_traits::NumCast;
@@ -305,7 +306,37 @@ impl TryFrom<Value> for Option<Spectrum> {
     }
 }
 
-pub(super) type ParameterMap = HashMap<String, Value>;
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct ParameterMap(HashMap<String, Value>);
+
+impl ParameterMap {
+    delegate! {
+        to self.0 {
+            pub fn remove(&mut self, key: &str) -> Option<Value>;
+            pub fn is_empty(&self) -> bool;
+        }
+    }
+
+    pub(super) fn check_no_remaining_params(self) -> Result<(), PbrtParseError> {
+        if let Some(unexpected_name) = self.0.into_keys().next() {
+            Err(PbrtParseError::UnexpectedParameter(unexpected_name))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl FromIterator<(String, Value)> for ParameterMap {
+    fn from_iter<T: IntoIterator<Item = (String, Value)>>(iter: T) -> Self {
+        Self(HashMap::from_iter(iter))
+    }
+}
+
+impl From<HashMap<String, Value>> for ParameterMap {
+    fn from(value: HashMap<String, Value>) -> Self {
+        Self(value)
+    }
+}
 
 pub(super) fn param_map(input: &mut &str) -> PResult<ParameterMap> {
     // Already seen param names, to check for uniqueness.
@@ -484,9 +515,7 @@ macro_rules! impl_from_entity {
                     )*
                 )?
 
-                if let Some(unexpected_name) = entity.param_map.into_keys().next() {
-                    return Err(PbrtParseError::UnexpectedParameter(unexpected_name));
-                }
+                entity.param_map.check_no_remaining_params()?;
 
                 Ok(result)
             }
@@ -494,6 +523,58 @@ macro_rules! impl_from_entity {
     };
 }
 pub(super) use impl_from_entity;
+
+// Similar to impl_from_entity, allowing use with more manual steps
+macro_rules! params_map_to_fields {
+    (
+        $param_map:expr => $result:ident,
+        $(
+            required {
+                $(
+                    $required_field:ident = $required_name:literal $(=> $required_convert:expr)?
+                ),* $(,)?
+            }
+        )?
+        $(
+            has_defaults {
+                $(
+                    $defaulted_field:ident = $defaulted_name:literal $(=> $defaulted_convert:expr)?
+                ),* $(,)?
+            }
+        )?
+    ) => {
+        $(
+            $(
+                params_map_to_fields!(@required $param_map => $result, $required_field = $required_name $(=> $required_convert)?);
+            )*
+        )?
+
+        $(
+            $(
+                params_map_to_fields!(@defaulted $param_map => $result, $defaulted_field = $defaulted_name $(=> $defaulted_convert)?);
+            )*
+        )?
+    };
+    (@required $param_map:expr => $result:ident, $field:ident = $name:literal) => {
+        params_map_to_fields!(@required $param_map => $result, $field = $name => std::convert::identity)
+    };
+    (@required $param_map:expr => $result:ident, $field:ident = $name:literal => $convert_fn:expr) => {
+        if let Some(value) = $param_map.remove($name) {
+            $result.$field = $convert_fn(value.try_into()?);
+        } else {
+            return Err(PbrtParseError::MissingRequiredParameter($name.to_string()));
+        }
+    };
+    (@defaulted $param_map:expr => $result:ident, $field:ident = $name:literal) => {
+        params_map_to_fields!(@defaulted $param_map => $result, $field = $name => std::convert::identity)
+    };
+    (@defaulted $param_map:expr => $result:ident, $field:ident = $name:literal => $convert_fn:expr) => {
+        if let Some(value) = $param_map.remove($name) {
+            $result.$field = $convert_fn(value.try_into()?);
+        }
+    }
+}
+pub(super) use params_map_to_fields;
 
 #[derive(Clone, Debug, PartialEq)]
 pub(super) enum Directive<'a> {
@@ -561,6 +642,8 @@ pub enum PbrtParseError {
 
     #[error("unexpected parameter for this entity: `{0}`")]
     UnexpectedParameter(String),
+    #[error("entity is missing required parameter `{0}`")]
+    MissingRequiredParameter(String),
     #[error(
         "incorrect type for this parameter (expected type convertable to {expected}, found {found})",
     )]
@@ -707,7 +790,8 @@ mod test {
             convert_args!(hashmap! (
                 "foo" => Value::Float(1.0),
                 "bar" => Value::Int(2)
-            )),
+            ))
+            .into(),
         );
     }
 }

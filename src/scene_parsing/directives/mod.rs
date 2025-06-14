@@ -20,6 +20,7 @@ pub(super) use lights::Light;
 pub(super) use samplers::Sampler;
 pub(super) use shapes::Shape;
 pub(super) use textures::{
-    texture_directive, FloatTextureDesc, SpectrumTextureDesc, TextureDesc, TextureDirective,
+    texture_directive, FloatTextureDesc, FromTextureDirective, SpectrumTextureDesc, TextureDesc,
+    TextureDirective,
 };
 pub(super) use transforms::{transform_directive, TransformDirective};

@@ -5,8 +5,8 @@ use crate::core::Transform;
 use super::{
     common::{directive, Directive, FromEntity, ParseContext, PbrtParseError},
     directives::{
-        Accelerator, Camera, ColorSpace, Film, Filter, Integrator, Light, Sampler, Shape,
-        TextureDesc,
+        Accelerator, Camera, ColorSpace, Film, Filter, FromTextureDirective as _, Integrator,
+        Light, Sampler, Shape, TextureDesc,
     },
 };
 
@@ -230,7 +230,8 @@ fn parse_world_section(
                     Transform::from(transform_directive) * context.current_transform;
             }
             Directive::Texture(texture_directive) => {
-                let (name, texture) = TextureDesc::from_directive(texture_directive, &context)?;
+                let name = texture_directive.name.to_owned();
+                let texture = TextureDesc::from_directive(texture_directive, &context)?;
                 if world.textures.insert(name.clone(), texture).is_some() {
                     return Err(PbrtParseError::RedefinedName(name));
                 }

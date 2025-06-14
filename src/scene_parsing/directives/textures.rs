@@ -8,7 +8,9 @@ use winnow::{
 use crate::{
     color::RGB,
     core::Float,
-    scene_parsing::common::{param_map, ParameterMap, ParseContext, PbrtParseError, Spectrum},
+    scene_parsing::common::{
+        param_map, params_map_to_fields, ParameterMap, ParseContext, PbrtParseError, Spectrum,
+    },
 };
 
 #[derive(Clone, Debug, derive_more::From, EnumAsInner)]
@@ -42,50 +44,50 @@ pub fn texture_directive<'a>(input: &mut &'a str) -> PResult<TextureDirective<'a
     .parse_next(input)
 }
 
-impl TextureDesc {
-    pub fn from_directive(
+pub trait FromTextureDirective {
+    fn from_directive(
         directive: TextureDirective,
         ctx: &ParseContext,
-    ) -> Result<(String, Self), PbrtParseError> {
-        let name = directive.name.to_string();
-        let texture = match directive.class {
-            "float" => FloatTextureDesc::from_directive(directive, ctx).map(Self::from)?,
-            "spectrum" => SpectrumTextureDesc::from_directive(directive, ctx).map(Self::from)?,
-            invalid_type => {
-                return Err(PbrtParseError::UnrecognizedVariant {
-                    entity: "Texture".to_string(),
-                    variant_name: invalid_type.to_owned(),
-                });
-            }
-        };
+    ) -> Result<Self, PbrtParseError>
+    where
+        Self: Sized;
+}
 
-        Ok((name, texture))
+impl FromTextureDirective for TextureDesc {
+    fn from_directive(
+        directive: TextureDirective,
+        ctx: &ParseContext,
+    ) -> Result<Self, PbrtParseError> {
+        match directive.subtype {
+            "float" => FloatTextureDesc::from_directive(directive, ctx).map(Self::Float),
+            "spectrum" => SpectrumTextureDesc::from_directive(directive, ctx).map(Self::Spectrum),
+            invalid_type => Err(PbrtParseError::UnrecognizedVariant {
+                entity: "Texture".to_string(),
+                variant_name: invalid_type.to_owned(),
+            }),
+        }
     }
 }
 
-#[derive(Clone, Debug, derive_more::From)]
+#[derive(Clone, Debug)]
 pub enum FloatTextureDesc {
     Constant(ConstantFloatTexture),
 }
 
-impl FloatTextureDesc {
-    pub fn from_directive(
+impl FromTextureDirective for FloatTextureDesc {
+    fn from_directive(
         directive: TextureDirective,
-        _ctx: &ParseContext,
+        ctx: &ParseContext,
     ) -> Result<Self, PbrtParseError> {
-        let texture = match directive.subtype {
-            "constant" => {
-                ConstantFloatTexture::from_directive(directive).map(FloatTextureDesc::Constant)?
-            }
-            invalid_type => {
-                return Err(PbrtParseError::UnrecognizedVariant {
-                    entity: "Float Texture".to_string(),
-                    variant_name: invalid_type.to_owned(),
-                });
-            }
-        };
+        assert_eq!(directive.subtype, "float");
 
-        Ok(texture)
+        match directive.class {
+            "constant" => ConstantFloatTexture::from_directive(directive, ctx).map(Self::Constant),
+            invalid_type => Err(PbrtParseError::UnrecognizedVariant {
+                entity: "Float Texture".to_string(),
+                variant_name: invalid_type.to_owned(),
+            }),
+        }
     }
 }
 
@@ -94,92 +96,23 @@ pub enum SpectrumTextureDesc {
     Constant(ConstantSpectrumTexture),
 }
 
-impl SpectrumTextureDesc {
-    pub fn from_directive(
+impl FromTextureDirective for SpectrumTextureDesc {
+    fn from_directive(
         directive: TextureDirective,
-        _ctx: &ParseContext,
+        ctx: &ParseContext,
     ) -> Result<Self, PbrtParseError> {
-        let texture = match directive.subtype {
-            "constant" => ConstantSpectrumTexture::from_directive(directive)
-                .map(SpectrumTextureDesc::Constant)?,
-            invalid_type => {
-                return Err(PbrtParseError::UnrecognizedVariant {
-                    entity: "Spectrum Texture".to_string(),
-                    variant_name: invalid_type.to_owned(),
-                });
+        assert_eq!(directive.subtype, "spectrum");
+
+        match directive.class {
+            "constant" => {
+                ConstantSpectrumTexture::from_directive(directive, ctx).map(Self::Constant)
             }
-        };
-
-        Ok(texture)
-    }
-}
-
-macro_rules! struct_from_param_map {
-    (
-        $struct_name:ty,
-        $(
-            required {
-                $(
-                    $required_name:literal => $required_field:ident
-                ),* $(,)?
-            }
-        )?
-        $(
-            has_defaults {
-                $(
-                    $defaulted_name:literal => $defaulted_field:ident
-                ),* $(,)?
-            }
-        )?
-        $(
-            has_defaults_textures {
-                $(
-                    $defaulted_texture_name:literal => $defaulted_texture_field:ident
-                ),* $(,)?
-            }
-        )?
-    ) => {
-        impl $struct_name {
-            #[allow(unused_variables)]
-            fn from_directive(
-                mut directive: TextureDirective,
-            ) -> Result<Self, PbrtParseError> {
-                let mut result = <$struct_name>::default();
-
-                $(
-                    $(
-                        if let Some(value) = directive.param_map.remove($required_name) {
-                            result.$required_field = value.try_into()?;
-                        } else {
-                            return Err(PbrtParseError::MissingRequiredParameter($required_name.to_string()));
-                        }
-                    )*
-                )?
-
-                $(
-                    $(
-                        if let Some(value) = directive.param_map.remove($defaulted_name) {
-                            result.$defaulted_field = value.try_into()?;
-                        }
-                    )*
-                )?
-
-                $(
-                    $(
-                        if let Some(value) = directive.param_map.remove($defaulted_texture_name) {
-                            result.$defaulted_texture_field = ConstantTextureData::try_from_with_class(value, directive.class)?;
-                        }
-                    )*
-                )?
-
-                if let Some(unexpected_name) = directive.param_map.into_keys().next() {
-                    return Err(PbrtParseError::UnexpectedParameter(unexpected_name));
-                }
-
-                Ok(result)
-            }
+            invalid_type => Err(PbrtParseError::UnrecognizedVariant {
+                entity: "Spectrum Texture".to_string(),
+                variant_name: invalid_type.to_owned(),
+            }),
         }
-    };
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -193,10 +126,21 @@ impl Default for ConstantFloatTexture {
     }
 }
 
-struct_from_param_map! {
-    ConstantFloatTexture,
-    has_defaults {
-        "value" => value
+impl FromTextureDirective for ConstantFloatTexture {
+    fn from_directive(
+        mut directive: TextureDirective,
+        _ctx: &ParseContext,
+    ) -> Result<Self, PbrtParseError> {
+        let mut result = Self::default();
+        params_map_to_fields! {
+            directive.param_map => result,
+            has_defaults {
+                value = "value"
+            }
+        }
+        directive.param_map.check_no_remaining_params()?;
+
+        Ok(result)
     }
 }
 
@@ -213,9 +157,20 @@ impl Default for ConstantSpectrumTexture {
     }
 }
 
-struct_from_param_map! {
-    ConstantSpectrumTexture,
-    has_defaults {
-        "value" => value
+impl FromTextureDirective for ConstantSpectrumTexture {
+    fn from_directive(
+        mut directive: TextureDirective,
+        _ctx: &ParseContext,
+    ) -> Result<Self, PbrtParseError> {
+        let mut result = Self::default();
+        params_map_to_fields! {
+            directive.param_map => result,
+            has_defaults {
+                value = "value"
+            }
+        }
+        directive.param_map.check_no_remaining_params()?;
+
+        Ok(result)
     }
 }

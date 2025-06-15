@@ -41,6 +41,7 @@ pub enum Value {
     Point(Point3f),
     Rgb(RGB),
     BlackbodyTemp(Float),
+    TextureName(String),
 }
 
 pub(super) type Int = i64;
@@ -61,6 +62,8 @@ pub(super) enum ValueType {
     Rgb,
     #[strum(serialize = "blackbody")]
     Blackbody,
+    #[strum(serialize = "texture")]
+    TextureName,
 }
 
 macro_rules! impl_num_try_from_value {
@@ -447,6 +450,7 @@ fn param(input: &mut &str) -> PResult<(String, Value)> {
                 ))
             }
             ValueType::Blackbody => Value::BlackbodyTemp(*val.as_atomic()?.as_num()? as Float),
+            ValueType::TextureName => Value::TextureName(val.into_atomic().ok()?.into_str().ok()?),
         };
 
         Some((name.to_owned(), val))

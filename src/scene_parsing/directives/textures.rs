@@ -80,6 +80,7 @@ pub enum FloatTextureDesc {
     Constant(ConstantFloatTexture),
     Checkerboard2D(CheckerboardFloatTexture2D),
     Checkerboard3D(CheckerboardFloatTexture3D),
+    Named(String),
 }
 
 impl FromTextureDirective for FloatTextureDesc {
@@ -106,6 +107,7 @@ impl TryFrom<Value> for FloatTextureDesc {
         let texture = match value {
             // A float value is interpreted as a constant texture with that value
             Value::Float(value) => ConstantFloatTexture { value }.into(),
+            Value::TextureName(name) => Self::Named(name),
             _ => {
                 return Err(PbrtParseError::IncorrectType {
                     expected: "float".to_string(),
@@ -124,6 +126,7 @@ pub enum SpectrumTextureDesc {
     Constant(ConstantSpectrumTexture),
     Checkerboard2D(CheckerboardSpectrumTexture2D),
     Checkerboard3D(CheckerboardSpectrumTexture3D),
+    Named(String),
 }
 
 impl FromTextureDirective for SpectrumTextureDesc {
@@ -168,6 +171,7 @@ impl TryFrom<Value> for SpectrumTextureDesc {
         let texture = match value {
             // An RGB value is interpreted as a constant texture with that color
             Value::Rgb(rgb) => ConstantSpectrumTexture::with_rgb(rgb).into(),
+            Value::TextureName(name) => Self::Named(name),
             _ => {
                 return Err(PbrtParseError::IncorrectType {
                     expected: "RGB".to_string(),

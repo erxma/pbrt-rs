@@ -1,6 +1,7 @@
 use std::{
     borrow::Cow,
     collections::{hash_map, HashMap},
+    fmt::DebugStruct,
     io::Read,
     sync::Arc,
 };
@@ -303,7 +304,7 @@ struct Textures {
 }
 
 impl Textures {
-    fn get_float_texture(
+    fn get_named_float_texture(
         &mut self,
         name: impl Into<String>,
     ) -> Result<Arc<FloatTextureEnum>, ReadSceneError> {
@@ -329,7 +330,7 @@ impl Textures {
         Ok(texture)
     }
 
-    fn get_spectrum_texture(
+    fn get_named_spectrum_texture(
         &mut self,
         name: impl Into<String>,
         spectrum_type: SpectrumType,
@@ -394,6 +395,9 @@ fn create_float_texture(
                 .unwrap();
             CheckerboardFloatTexture::new_3d(subtextures, desc.mapping).into()
         }
+        FloatTextureDesc::Named(_) => {
+            panic!("create_float_texture shouldn't be used for a texture name reference")
+        }
     };
 
     Ok(texture)
@@ -434,6 +438,9 @@ fn create_spectrum_texture(
                 .unwrap();
             CheckerboardSpectrumTexture::new_3d(subtextures, desc.mapping).into()
         }
+        SpectrumTextureDesc::Named(_) => {
+            panic!("create_spectrum_texture shouldn't be used for a texture name reference")
+        }
     };
 
     Ok(texture)
@@ -442,12 +449,23 @@ fn create_spectrum_texture(
 fn create_material(
     desc: MaterialDesc,
     color_space: &'static RGBColorSpace,
+    textures: &mut Textures,
 ) -> Result<MaterialEnum, ReadSceneError> {
+    // Helper for getting constructed textures based on description -
+    // If referring to a named one, query the Textures collection;
+    // Otherwise, create it ad hoc
+    let mut get_spectrum_texture =
+        |desc: SpectrumTextureDesc, spectrum_type: SpectrumType| match desc {
+            SpectrumTextureDesc::Named(name) => {
+                textures.get_named_spectrum_texture(name, spectrum_type, color_space)
+            }
+            _ => create_spectrum_texture("", desc, spectrum_type, color_space).map(Arc::new),
+        };
+
     let material = match desc {
         MaterialDesc::Diffuse(desc) => {
-            let reflectance =
-                create_spectrum_texture("", desc.reflectance, SpectrumType::Albedo, color_space)?;
-            DiffuseMaterial::new(Arc::new(reflectance)).into()
+            let reflectance = get_spectrum_texture(desc.reflectance, SpectrumType::Albedo)?;
+            DiffuseMaterial::new(reflectance).into()
         }
     };
 

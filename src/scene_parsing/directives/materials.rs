@@ -27,7 +27,7 @@ impl FromEntity for MaterialDesc {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct DiffuseMaterial {
-    reflectance: SpectrumTextureDesc,
+    pub reflectance: SpectrumTextureDesc,
 }
 
 impl Default for DiffuseMaterial {

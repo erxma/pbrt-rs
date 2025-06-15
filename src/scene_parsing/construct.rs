@@ -19,7 +19,8 @@ use crate::{
     lights::{DirectionalLight, LightEnum, UniformInfiniteLight},
     materials::{
         CheckerboardFloatTexture, CheckerboardSpectrumTexture, ConstantFloatTexture,
-        ConstantSpectrumTexture, FloatTextureEnum, SpectrumTextureEnum,
+        ConstantSpectrumTexture, DiffuseMaterial, FloatTextureEnum, MaterialEnum,
+        SpectrumTextureEnum,
     },
     primitives::PrimitiveEnum,
     sampling::{
@@ -30,7 +31,7 @@ use crate::{
         IndependentSampler, SamplerEnum,
     },
     scene_parsing::{
-        directives::{FloatTextureDesc, SpectrumTextureDesc},
+        directives::{FloatTextureDesc, MaterialDesc, SpectrumTextureDesc},
         scene::parse_pbrt_file,
     },
 };
@@ -313,7 +314,12 @@ impl Textures {
                 let desc = self
                     .uncreated_descs
                     .remove(name)
-                    .ok_or_else(|| ReadSceneError::UndefinedTexture(name.clone()))?;
+                    .ok_or_else(|| ReadSceneError::UndefinedTexture(name.clone()))?
+                    .into_float()
+                    .map_err(|_| ReadSceneError::TextureMismatch {
+                        name: name.to_owned(),
+                        expected: "float texture".to_string(),
+                    })?;
                 let texture = Arc::new(create_float_texture(name, desc)?);
                 vacant.insert(texture.clone());
                 texture
@@ -342,7 +348,12 @@ impl Textures {
                 let desc = self
                     .uncreated_descs
                     .remove(name)
-                    .ok_or_else(|| ReadSceneError::UndefinedTexture(name.clone()))?;
+                    .ok_or_else(|| ReadSceneError::UndefinedTexture(name.clone()))?
+                    .into_spectrum()
+                    .map_err(|_| ReadSceneError::TextureMismatch {
+                        name: name.to_owned(),
+                        expected: "spectrum texture".to_string(),
+                    })?;
                 let texture = Arc::new(create_spectrum_texture(
                     name,
                     desc,
@@ -358,14 +369,10 @@ impl Textures {
     }
 }
 
-fn create_float_texture(name: &str, desc: TextureDesc) -> Result<FloatTextureEnum, ReadSceneError> {
-    let not_float_err = |_| ReadSceneError::TextureMismatch {
-        name: name.to_owned(),
-        expected: "float texture".to_string(),
-    };
-
-    let desc = desc.into_float().map_err(not_float_err)?;
-
+fn create_float_texture(
+    name: &str,
+    desc: FloatTextureDesc,
+) -> Result<FloatTextureEnum, ReadSceneError> {
     let create_subtextures = |descs: Vec<FloatTextureDesc>| {
         descs
             .into_iter()
@@ -394,20 +401,14 @@ fn create_float_texture(name: &str, desc: TextureDesc) -> Result<FloatTextureEnu
 
 fn create_spectrum_texture(
     name: &str,
-    desc: TextureDesc,
+    desc: SpectrumTextureDesc,
     spectrum_type: SpectrumType,
     color_space: &'static RGBColorSpace,
 ) -> Result<SpectrumTextureEnum, ReadSceneError> {
-    let not_spectrum_err = |_| ReadSceneError::TextureMismatch {
-        name: name.to_owned(),
-        expected: "spectrum texture".to_string(),
-    };
     let invalid_albedo_err = |_| ReadSceneError::TextureMismatch {
         name: name.to_owned(),
         expected: "RGB albedo spectrum texture (RGB components must be <= 1)".to_string(),
     };
-
-    let desc = desc.into_spectrum().map_err(not_spectrum_err)?;
 
     let create_subtextures = |descs: Vec<SpectrumTextureDesc>| {
         descs
@@ -436,6 +437,21 @@ fn create_spectrum_texture(
     };
 
     Ok(texture)
+}
+
+fn create_material(
+    desc: MaterialDesc,
+    color_space: &'static RGBColorSpace,
+) -> Result<MaterialEnum, ReadSceneError> {
+    let material = match desc {
+        MaterialDesc::Diffuse(desc) => {
+            let reflectance =
+                create_spectrum_texture("", desc.reflectance, SpectrumType::Albedo, color_space)?;
+            DiffuseMaterial::new(Arc::new(reflectance)).into()
+        }
+    };
+
+    Ok(material)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

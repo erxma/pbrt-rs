@@ -18,7 +18,8 @@ use crate::{
     integrators::{IntegratorEnum, RandomWalkIntegrator, SimplePathIntegrator},
     lights::{DirectionalLight, LightEnum, UniformInfiniteLight},
     materials::{
-        ConstantFloatTexture, ConstantSpectrumTexture, FloatTextureEnum, SpectrumTextureEnum,
+        CheckerboardFloatTexture, CheckerboardSpectrumTexture, ConstantFloatTexture,
+        ConstantSpectrumTexture, FloatTextureEnum, SpectrumTextureEnum,
     },
     primitives::PrimitiveEnum,
     sampling::{
@@ -365,8 +366,27 @@ fn create_float_texture(name: &str, desc: TextureDesc) -> Result<FloatTextureEnu
 
     let desc = desc.into_float().map_err(not_float_err)?;
 
+    let create_subtextures = |descs: Vec<FloatTextureDesc>| {
+        descs
+            .into_iter()
+            .map(|desc| create_float_texture("", desc.into()))
+            .collect::<Result<Vec<_>, _>>()
+    };
+
     let texture = match desc {
         FloatTextureDesc::Constant(desc) => ConstantFloatTexture::new(desc.value).into(),
+        FloatTextureDesc::Checkerboard2D(desc) => {
+            let subtextures = create_subtextures(vec![*desc.tex1, *desc.tex2])?
+                .try_into()
+                .unwrap();
+            CheckerboardFloatTexture::new_2d(subtextures, desc.mapping).into()
+        }
+        FloatTextureDesc::Checkerboard3D(desc) => {
+            let subtextures = create_subtextures(vec![*desc.tex1, *desc.tex2])?
+                .try_into()
+                .unwrap();
+            CheckerboardFloatTexture::new_3d(subtextures, desc.mapping).into()
+        }
     };
 
     Ok(texture)
@@ -389,11 +409,30 @@ fn create_spectrum_texture(
 
     let desc = desc.into_spectrum().map_err(not_spectrum_err)?;
 
+    let create_subtextures = |descs: Vec<SpectrumTextureDesc>| {
+        descs
+            .into_iter()
+            .map(|desc| create_spectrum_texture("", desc.into(), spectrum_type, color_space))
+            .collect::<Result<Vec<_>, _>>()
+    };
+
     let texture = match desc {
         SpectrumTextureDesc::Constant(desc) => ConstantSpectrumTexture::new(
             create_spectrum(desc.value, spectrum_type, color_space).map_err(invalid_albedo_err)?,
         )
         .into(),
+        SpectrumTextureDesc::Checkerboard2D(desc) => {
+            let subtextures = create_subtextures(vec![*desc.tex1, *desc.tex2])?
+                .try_into()
+                .unwrap();
+            CheckerboardSpectrumTexture::new_2d(subtextures, desc.mapping).into()
+        }
+        SpectrumTextureDesc::Checkerboard3D(desc) => {
+            let subtextures = create_subtextures(vec![*desc.tex1, *desc.tex2])?
+                .try_into()
+                .unwrap();
+            CheckerboardSpectrumTexture::new_3d(subtextures, desc.mapping).into()
+        }
     };
 
     Ok(texture)

@@ -310,6 +310,7 @@ impl TryFrom<Value> for Option<Spectrum> {
 pub(super) struct ParameterMap(HashMap<String, Value>);
 
 impl ParameterMap {
+    // Expose necessary methods of inner HashMap
     delegate! {
         to self.0 {
             pub fn remove(&mut self, key: &str) -> Option<Value>;
@@ -317,6 +318,11 @@ impl ParameterMap {
         }
     }
 
+    /// If `self` has no items left, returns `Ok(())``.
+    ///
+    /// Otherwise, returns an error with one of the remaining keys.
+    ///
+    /// Used for raising an error for having irrelevant/unrecognized parameters for a directive.
     pub(super) fn check_no_remaining_params(self) -> Result<(), PbrtParseError> {
         if let Some(unexpected_name) = self.0.into_keys().next() {
             Err(PbrtParseError::UnexpectedParameter(unexpected_name))
@@ -648,6 +654,8 @@ pub enum PbrtParseError {
         "incorrect type for this parameter (expected type convertable to {expected}, found {found})",
     )]
     IncorrectType { expected: String, found: Value },
+    #[error("invalid value for this parameter (expected {expected}, found {found})")]
+    InvalidValue { expected: String, found: Value },
     #[error("incorrect length for this array (expected {expected}, found {found})")]
     IncorrectLength { expected: usize, found: usize },
     #[error("unrecognized variant \"{variant_name}\" for {entity}")]

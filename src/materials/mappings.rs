@@ -3,7 +3,7 @@ use enum_dispatch::enum_dispatch;
 use crate::core::{Float, Normal3f, Point2f, Point3f, SurfaceInteraction, Vec3f};
 
 #[enum_dispatch]
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum TextureMapping2DEnum {
     Uv(UvMapping),
 }
@@ -61,7 +61,7 @@ impl TextureEvalContext {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct UvMapping {
     pub su: Float,
     pub sv: Float,
@@ -95,7 +95,7 @@ impl TextureMapping2D for UvMapping {
 }
 
 #[enum_dispatch]
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum TextureMapping3DEnum {
     PointTransform(PointTransformMapping),
 }
@@ -105,8 +105,8 @@ pub trait TextureMapping3D {
     fn map(&self, ctx: &TextureEvalContext) -> TexCoord3D;
 }
 
-#[derive(Debug)]
-pub struct PointTransformMapping {}
+#[derive(Clone, Debug, PartialEq)]
+pub struct PointTransformMapping;
 
 impl TextureMapping3D for PointTransformMapping {
     fn map(&self, _ctx: &TextureEvalContext) -> TexCoord3D {

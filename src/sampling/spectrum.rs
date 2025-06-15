@@ -54,9 +54,7 @@ pub static Z: LazyLock<SpectrumEnum> = LazyLock::new(|| {
     DenselySampledSpectrum::new(&pls, None, None).into()
 });
 
-/**
- * The D illuminant at the given temperature.
- */
+/// The D illuminant at the given temperature.
 pub fn illum_d(temp: Float) -> SpectrumEnum {
     todo!()
 }

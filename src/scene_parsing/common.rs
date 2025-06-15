@@ -23,6 +23,7 @@ use winnow::{
 use crate::{
     color::RGB,
     core::{Float, Point3f, Transform},
+    scene_parsing::directives::MaterialDesc,
 };
 
 use super::directives::{
@@ -458,12 +459,14 @@ fn param(input: &mut &str) -> PResult<(String, Value)> {
 #[derive(Clone, Debug)]
 pub struct ParseContext {
     pub current_transform: Transform,
+    pub current_material: Option<MaterialDesc>,
 }
 
 impl Default for ParseContext {
     fn default() -> Self {
         Self {
             current_transform: Transform::IDENTITY,
+            current_material: None,
         }
     }
 }

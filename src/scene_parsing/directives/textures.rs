@@ -221,7 +221,7 @@ pub struct ConstantSpectrumTexture {
 
 impl ConstantSpectrumTexture {
     /// Create a texture of a constant RGB color.
-    const fn with_rgb(rgb: RGB) -> Self {
+    pub const fn with_rgb(rgb: RGB) -> Self {
         Self {
             value: Spectrum::Rgb(rgb),
         }

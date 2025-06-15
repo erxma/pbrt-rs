@@ -1,6 +1,6 @@
 use std::{cell::OnceCell, collections::HashMap, io::Read};
 
-use crate::core::Transform;
+use crate::{core::Transform, scene_parsing::directives::MaterialDesc};
 
 use super::{
     common::{directive, Directive, FromEntity, ParseContext, PbrtParseError},
@@ -216,6 +216,9 @@ fn parse_world_section(
                 }
                 "Light" => {
                     world.lights.push(Light::from_entity(entity, &context)?);
+                }
+                "Material" => {
+                    context.current_material = Some(MaterialDesc::from_entity(entity, &context)?);
                 }
                 invalid_name => {
                     if !ignore_unrecognized_directives {

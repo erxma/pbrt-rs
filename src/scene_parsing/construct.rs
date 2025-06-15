@@ -1,7 +1,6 @@
 use std::{
     borrow::Cow,
     collections::{hash_map, HashMap},
-    fmt::DebugStruct,
     io::Read,
     sync::Arc,
 };
@@ -20,13 +19,13 @@ use crate::{
     lights::{DirectionalLight, LightEnum, UniformInfiniteLight},
     materials::{
         CheckerboardFloatTexture, CheckerboardSpectrumTexture, ConstantFloatTexture,
-        ConstantSpectrumTexture, DiffuseMaterial, FloatTextureEnum, MaterialEnum,
-        SpectrumTextureEnum,
+        ConstantSpectrumTexture, DielectricMaterial, DiffuseMaterial, FloatTextureEnum,
+        MaterialEnum, SpectrumTextureEnum,
     },
     primitives::PrimitiveEnum,
     sampling::{
         spectrum::{
-            self, BlackbodySpectrum, RgbAlbedoSpectrum, RgbIlluminantSpectrum,
+            self, BlackbodySpectrum, ConstantSpectrum, RgbAlbedoSpectrum, RgbIlluminantSpectrum,
             RgbUnboundedSpectrum, SpectrumEnum,
         },
         IndependentSampler, SamplerEnum,
@@ -451,25 +450,57 @@ fn create_material(
     color_space: &'static RGBColorSpace,
     textures: &mut Textures,
 ) -> Result<MaterialEnum, ReadSceneError> {
-    // Helper for getting constructed textures based on description -
-    // If referring to a named one, query the Textures collection;
-    // Otherwise, create it ad hoc
-    let mut get_spectrum_texture =
-        |desc: SpectrumTextureDesc, spectrum_type: SpectrumType| match desc {
-            SpectrumTextureDesc::Named(name) => {
-                textures.get_named_spectrum_texture(name, spectrum_type, color_space)
-            }
-            _ => create_spectrum_texture("", desc, spectrum_type, color_space).map(Arc::new),
-        };
-
     let material = match desc {
         MaterialDesc::Diffuse(desc) => {
-            let reflectance = get_spectrum_texture(desc.reflectance, SpectrumType::Albedo)?;
+            let reflectance = get_spectrum_texture(
+                textures,
+                desc.reflectance,
+                SpectrumType::Albedo,
+                color_space,
+            )?;
             DiffuseMaterial::new(reflectance).into()
+        }
+        MaterialDesc::Dielectric(desc) => {
+            let u_roughness = get_float_texture(
+                textures,
+                desc.u_roughness.or(desc.roughness.clone()).unwrap(),
+            )?;
+            let v_roughness =
+                get_float_texture(textures, desc.v_roughness.or(desc.roughness).unwrap())?;
+            let eta =
+                Arc::new(create_spectrum(desc.eta, SpectrumType::Unbounded, color_space).unwrap());
+            DielectricMaterial::new(u_roughness, v_roughness, desc.remap_roughness, eta).into()
         }
     };
 
     Ok(material)
+}
+
+// Helpers for getting constructed textures based on description -
+// If referring to a named one, query the Textures collection;
+// Otherwise, create it ad hoc
+fn get_float_texture(
+    textures: &mut Textures,
+    desc: FloatTextureDesc,
+) -> Result<Arc<FloatTextureEnum>, ReadSceneError> {
+    match desc {
+        FloatTextureDesc::Named(name) => textures.get_named_float_texture(name),
+        _ => create_float_texture("", desc).map(Arc::new),
+    }
+}
+
+fn get_spectrum_texture(
+    textures: &mut Textures,
+    desc: SpectrumTextureDesc,
+    spectrum_type: SpectrumType,
+    color_space: &'static RGBColorSpace,
+) -> Result<Arc<SpectrumTextureEnum>, ReadSceneError> {
+    match desc {
+        SpectrumTextureDesc::Named(name) => {
+            textures.get_named_spectrum_texture(name, spectrum_type, color_space)
+        }
+        _ => create_spectrum_texture("", desc, spectrum_type, color_space).map(Arc::new),
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -488,6 +519,7 @@ fn create_spectrum(
     color_space: &'static RGBColorSpace,
 ) -> Result<SpectrumEnum, InvalidAlbedoRgb> {
     let spectrum = match desc {
+        SpectrumDesc::Constant(val) => ConstantSpectrum::new(val).into(),
         SpectrumDesc::Rgb(rgb) => match spectrum_type {
             SpectrumType::Albedo => {
                 if rgb.r > 1.0 || rgb.g > 1.0 || rgb.b > 1.0 {

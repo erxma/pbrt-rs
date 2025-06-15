@@ -283,6 +283,7 @@ impl TryFrom<Value> for Alpha {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(super) enum Spectrum {
+    Constant(Float),
     Rgb(RGB),
     BlackbodyTemp(Float),
 }
@@ -292,6 +293,7 @@ impl TryFrom<Value> for Spectrum {
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         match value {
+            Value::Float(val) => Ok(Self::Constant(val)),
             Value::Rgb(rgb) => Ok(Self::Rgb(rgb)),
             Value::BlackbodyTemp(temp) => Ok(Self::BlackbodyTemp(temp)),
             _ => Err(PbrtParseError::IncorrectType {
@@ -317,6 +319,7 @@ impl ParameterMap {
     // Expose necessary methods of inner HashMap
     delegate! {
         to self.0 {
+            pub fn contains_key(&self, key: &str) -> bool;
             pub fn remove(&mut self, key: &str) -> Option<Value>;
             pub fn is_empty(&self) -> bool;
         }
@@ -330,6 +333,21 @@ impl ParameterMap {
     pub(super) fn check_no_remaining_params(self) -> Result<(), PbrtParseError> {
         if let Some(unexpected_name) = self.0.into_keys().next() {
             Err(PbrtParseError::UnexpectedParameter(unexpected_name))
+        } else {
+            Ok(())
+        }
+    }
+
+    pub(super) fn check_mutually_exclusive(
+        &self,
+        set1: &[&str],
+        set2: &[&str],
+    ) -> Result<(), PbrtParseError> {
+        let uses_set1 = set1.iter().any(|s| self.contains_key(s));
+        let uses_set2 = set2.iter().any(|s| self.contains_key(s));
+
+        if (uses_set1 && uses_set2) {
+            Err(PbrtParseError::MutuallyExclusiveParameters)
         } else {
             Ok(())
         }
@@ -657,6 +675,8 @@ pub enum PbrtParseError {
     UnexpectedParameter(String),
     #[error("entity is missing required parameter `{0}`")]
     MissingRequiredParameter(String),
+    #[error("entity specifies mutually exclusive parameters")]
+    MutuallyExclusiveParameters,
     #[error(
         "incorrect type for this parameter (expected type convertable to {expected}, found {found})",
     )]

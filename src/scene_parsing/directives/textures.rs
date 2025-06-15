@@ -120,6 +120,14 @@ impl TryFrom<Value> for FloatTextureDesc {
     }
 }
 
+impl TryFrom<Value> for Option<FloatTextureDesc> {
+    type Error = PbrtParseError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        FloatTextureDesc::try_from(value).map(Some)
+    }
+}
+
 /// Enum of the descriptions for all classes of spectrum-type texture implementations.
 #[derive(Clone, Debug, PartialEq, derive_more::From)]
 pub enum SpectrumTextureDesc {
@@ -181,6 +189,14 @@ impl TryFrom<Value> for SpectrumTextureDesc {
         };
 
         Ok(texture)
+    }
+}
+
+impl TryFrom<Value> for Option<SpectrumTextureDesc> {
+    type Error = PbrtParseError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        SpectrumTextureDesc::try_from(value).map(Some)
     }
 }
 

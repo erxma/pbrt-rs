@@ -22,7 +22,7 @@ use winnow::{
 
 use crate::{
     color::RGB,
-    core::{Float, Point3f, Transform},
+    core::{Float, Normal3f, Point2f, Point3f, Transform, Vec2f, Vec3f},
     scene_parsing::directives::MaterialDesc,
 };
 
@@ -38,7 +38,11 @@ pub enum Value {
     FloatArray(Vec<Float>),
     Bool(bool),
     Str(String),
-    Point(Point3f),
+    Point2(Point2f),
+    Vec2(Vec2f),
+    Point3(Point3f),
+    Vec3(Vec3f),
+    Normal(Normal3f),
     Rgb(RGB),
     BlackbodyTemp(Float),
     TextureName(String),
@@ -56,8 +60,16 @@ pub(super) enum ValueType {
     Bool,
     #[strum(serialize = "string")]
     Str,
-    #[strum(serialize = "point")]
-    Point,
+    #[strum(serialize = "point2")]
+    Point2,
+    #[strum(serialize = "vector2")]
+    Vec2,
+    #[strum(serialize = "point3")]
+    Point3,
+    #[strum(serialize = "vector3")]
+    Vec3,
+    #[strum(serialize = "normal")]
+    Normal,
     #[strum(serialize = "rgb")]
     Rgb,
     #[strum(serialize = "blackbody")]
@@ -130,6 +142,34 @@ macro_rules! impl_num_try_from_value {
                 <[$ty; N]>::try_from(value).map(Some)
             }
         }
+
+        impl TryFrom<Value> for Vec<$ty> {
+            type Error = PbrtParseError;
+
+            fn try_from(value: Value) -> Result<Self, Self::Error> {
+                let incorrect_type_err = PbrtParseError::IncorrectType {
+                    expected: format!("{}[]", stringify!($ty)),
+                    found: value.clone(),
+                };
+
+                if let Value::$from_arr(vec) = value {
+                    let converted: Result<Vec<_>, _> =
+                        vec.into_iter().map(|num| num.try_into()).collect();
+
+                    converted.map_err(|_| incorrect_type_err)
+                } else {
+                    Err(incorrect_type_err)
+                }
+            }
+        }
+
+        impl TryFrom<Value> for Option<Vec<$ty>> {
+            type Error = PbrtParseError;
+
+            fn try_from(value: Value) -> Result<Self, Self::Error> {
+                Vec::try_from(value).map(Some)
+            }
+        }
     };
 }
 
@@ -179,26 +219,75 @@ impl TryFrom<Value> for Option<String> {
     }
 }
 
-impl TryFrom<Value> for Point3f {
-    type Error = PbrtParseError;
+macro_rules! impl_tuple_try_from_value {
+    ($ty:ty, $from:ident, $from_arr:ident, $n:expr) => {
+        impl TryFrom<Value> for $ty {
+            type Error = PbrtParseError;
 
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        value
-            .into_point()
-            .map_err(|found_val| PbrtParseError::IncorrectType {
-                expected: ValueType::Point.to_string(),
-                found: found_val,
-            })
-    }
+            fn try_from(value: Value) -> Result<Self, Self::Error> {
+                if let Value::$from(value) = value {
+                    Ok(value)
+                } else {
+                    Err(PbrtParseError::IncorrectType {
+                        expected: ValueType::$from.to_string(),
+                        found: value,
+                    })
+                }
+            }
+        }
+
+        impl TryFrom<Value> for Option<$ty> {
+            type Error = PbrtParseError;
+
+            fn try_from(value: Value) -> Result<Self, Self::Error> {
+                <$ty>::try_from(value).map(Some)
+            }
+        }
+
+        impl TryFrom<Value> for Vec<$ty> {
+            type Error = PbrtParseError;
+
+            fn try_from(value: Value) -> Result<Self, Self::Error> {
+                let incorrect_type_err = PbrtParseError::IncorrectType {
+                    expected: format!("{}[]", stringify!($ty)),
+                    found: value.clone(),
+                };
+
+                if let Value::$from_arr(vec) = value {
+                    if vec.len() % $n != 0 {
+                        return Err(PbrtParseError::InvalidValue {
+                            expected: format!(
+                                "array length that is a multiple of {}",
+                                stringify!($n)
+                            ),
+                            found: Value::Int(vec.len() as i64),
+                        });
+                    }
+
+                    let result: Result<Vec<_>, _> = vec.chunks($n).map(<$ty>::try_from).collect();
+                    result.map_err(|_| incorrect_type_err)
+                } else {
+                    Err(incorrect_type_err)
+                }
+            }
+        }
+
+        impl TryFrom<Value> for Option<Vec<$ty>> {
+            type Error = PbrtParseError;
+
+            fn try_from(value: Value) -> Result<Self, Self::Error> {
+                Vec::try_from(value).map(Some)
+            }
+        }
+    };
 }
 
-impl TryFrom<Value> for Option<Point3f> {
-    type Error = PbrtParseError;
-
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        Point3f::try_from(value).map(Some)
-    }
-}
+impl_tuple_try_from_value!(Point2f, Point2, FloatArray, 2);
+impl_tuple_try_from_value!(Vec2f, Vec2, FloatArray, 2);
+impl_tuple_try_from_value!(Point3f, Point3, FloatArray, 3);
+impl_tuple_try_from_value!(Vec3f, Vec3, FloatArray, 3);
+impl_tuple_try_from_value!(Normal3f, Normal, FloatArray, 3);
+impl_tuple_try_from_value!(RGB, Rgb, FloatArray, 3);
 
 impl TryFrom<Value> for PathBuf {
     type Error = PbrtParseError;
@@ -346,7 +435,7 @@ impl ParameterMap {
         let uses_set1 = set1.iter().any(|s| self.contains_key(s));
         let uses_set2 = set2.iter().any(|s| self.contains_key(s));
 
-        if (uses_set1 && uses_set2) {
+        if uses_set1 && uses_set2 {
             Err(PbrtParseError::MutuallyExclusiveParameters)
         } else {
             Ok(())
@@ -418,6 +507,7 @@ fn param(input: &mut &str) -> PResult<(String, Value)> {
     .verify_map(|((ty, name), val)| {
         let val = match ty {
             ValueType::Int => match val {
+                // FIXME: Can't assume `as`` is valid; array could have floats
                 Literal::Atomic(val) => Value::Int(val.into_num().ok()? as Int),
                 Literal::Array(arr) => {
                     let int_arr = arr
@@ -445,12 +535,54 @@ fn param(input: &mut &str) -> PResult<(String, Value)> {
             // have this case
             ValueType::Bool => Value::Bool(*val.as_atomic()?.as_bool()?),
             ValueType::Str => Value::Str(val.into_atomic().ok()?.into_str().ok()?),
-            ValueType::Point => {
+            ValueType::Point2 => {
+                let arr = val.as_array()?;
+                if arr.len() != 2 {
+                    return None;
+                }
+                Value::Point2(Point2f::new(
+                    *arr[0].as_num()? as Float,
+                    *arr[1].as_num()? as Float,
+                ))
+            }
+            ValueType::Vec2 => {
+                let arr = val.as_array()?;
+                if arr.len() != 2 {
+                    return None;
+                }
+                Value::Vec2(Vec2f::new(
+                    *arr[0].as_num()? as Float,
+                    *arr[1].as_num()? as Float,
+                ))
+            }
+            ValueType::Point3 => {
                 let arr = val.as_array()?;
                 if arr.len() != 3 {
                     return None;
                 }
-                Value::Point(Point3f::new(
+                Value::Point3(Point3f::new(
+                    *arr[0].as_num()? as Float,
+                    *arr[1].as_num()? as Float,
+                    *arr[2].as_num()? as Float,
+                ))
+            }
+            ValueType::Vec3 => {
+                let arr = val.as_array()?;
+                if arr.len() != 3 {
+                    return None;
+                }
+                Value::Vec3(Vec3f::new(
+                    *arr[0].as_num()? as Float,
+                    *arr[1].as_num()? as Float,
+                    *arr[2].as_num()? as Float,
+                ))
+            }
+            ValueType::Normal => {
+                let arr = val.as_array()?;
+                if arr.len() != 3 {
+                    return None;
+                }
+                Value::Normal(Normal3f::new(
                     *arr[0].as_num()? as Float,
                     *arr[1].as_num()? as Float,
                     *arr[2].as_num()? as Float,
@@ -804,17 +936,57 @@ mod test {
     }
 
     #[test]
-    fn rgb_param() {
+    fn tuple_params_single() {
         assert_parses_to(
             param,
             &mut r#""rgb foo" [0.5 .6   0]"#,
             ("foo".to_string(), Value::Rgb(RGB::new(0.5, 0.6, 0.0))),
         );
+
+        assert_parses_to(
+            param,
+            &mut r#""point2 foo" [.6   0]"#,
+            ("foo".to_string(), Value::Point2(Point2f::new(0.6, 0.0))),
+        );
+
+        assert_parses_to(
+            param,
+            &mut r#""vector2 foo" [.6   0]"#,
+            ("foo".to_string(), Value::Vec2(Vec2f::new(0.6, 0.0))),
+        );
+
+        assert_parses_to(
+            param,
+            &mut r#""point3 foo" [0.5 .6   0]"#,
+            (
+                "foo".to_string(),
+                Value::Point3(Point3f::new(0.5, 0.6, 0.0)),
+            ),
+        );
+
+        assert_parses_to(
+            param,
+            &mut r#""vector3 foo" [0.5 .6   0]"#,
+            ("foo".to_string(), Value::Vec3(Vec3f::new(0.5, 0.6, 0.0))),
+        );
+
+        assert_parses_to(
+            param,
+            &mut r#""normal foo" [0.5 .6   0]"#,
+            (
+                "foo".to_string(),
+                Value::Normal(Normal3f::new(0.5, 0.6, 0.0)),
+            ),
+        );
     }
 
     #[test]
-    fn rgb_param_wrong_length() {
+    fn tuple_params_wrong_length() {
         assert!(param.parse(&mut r#""rgb foo" [0.5 .6 0 0.1]"#).is_err());
+        assert!(param.parse(&mut r#""point2 foo" [0.5 .6 0]"#).is_err());
+        assert!(param.parse(&mut r#""vector2 foo" [0.5 .6 0]"#).is_err());
+        assert!(param.parse(&mut r#""point3 foo" [0.5 .6]"#).is_err());
+        assert!(param.parse(&mut r#""vector3 foo" [0.5 .6]"#).is_err());
     }
 
     #[test]
@@ -828,5 +1000,43 @@ mod test {
             ))
             .into(),
         );
+    }
+
+    #[test]
+    fn tuple_vec_from_array_param() {
+        let result =
+            <Vec<RGB>>::try_from(Value::FloatArray(vec![0.5, 0.6, 0.0, 1.0, 0.3, 0.2])).unwrap();
+        assert_eq!(
+            result,
+            vec![RGB::new(0.5, 0.6, 0.0), RGB::new(1.0, 0.3, 0.2)]
+        );
+
+        let result =
+            <Vec<Point3f>>::try_from(Value::FloatArray(vec![0.5, 0.6, 0.0, 1.0, 0.3, 0.2]))
+                .unwrap();
+        assert_eq!(
+            result,
+            vec![Point3f::new(0.5, 0.6, 0.0), Point3f::new(1.0, 0.3, 0.2)]
+        );
+
+        let result =
+            <Vec<Vec2f>>::try_from(Value::FloatArray(vec![0.5, 0.6, 0.0, 1.0, 0.3, 0.2])).unwrap();
+        assert_eq!(
+            result,
+            vec![
+                Vec2f::new(0.5, 0.6),
+                Vec2f::new(0.0, 1.0),
+                Vec2f::new(0.3, 0.2)
+            ]
+        );
+    }
+
+    #[test]
+    fn tuple_vec_from_array_param_wrong_length() {
+        assert!(
+            <Vec<Point3f>>::try_from(Value::FloatArray(vec![0.5, 0.6, 0.0, 1.0, 0.3])).is_err()
+        );
+
+        assert!(<Vec<Vec2f>>::try_from(Value::FloatArray(vec![0.5, 0.6, 0.0])).is_err());
     }
 }

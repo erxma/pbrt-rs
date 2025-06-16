@@ -191,9 +191,20 @@ impl Tuple<3, Float> for Point3f {}
 impl_tuple_math_ops!(Point3f; 3; Float);
 
 impl From<[Float; 3]> for Point3f {
+    #[inline]
     fn from(arr: [Float; 3]) -> Self {
         let [x, y, z] = arr;
         Self::new(x, y, z)
+    }
+}
+
+impl TryFrom<&[Float]> for Point3f {
+    type Error = std::array::TryFromSliceError;
+
+    #[inline]
+    fn try_from(slice: &[Float]) -> Result<Self, Self::Error> {
+        let arr: [Float; 3] = slice.try_into()?;
+        Ok(Self::from(arr))
     }
 }
 
@@ -532,9 +543,20 @@ impl Tuple<2, Float> for Point2f {}
 impl_tuple_math_ops!(Point2f; 2; Float);
 
 impl From<[Float; 2]> for Point2f {
+    #[inline]
     fn from(arr: [Float; 2]) -> Self {
         let [x, y] = arr;
         Self::new(x, y)
+    }
+}
+
+impl TryFrom<&[Float]> for Point2f {
+    type Error = std::array::TryFromSliceError;
+
+    #[inline]
+    fn try_from(slice: &[Float]) -> Result<Self, Self::Error> {
+        let arr: [Float; 2] = slice.try_into()?;
+        Ok(Self::from(arr))
     }
 }
 

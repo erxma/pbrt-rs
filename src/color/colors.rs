@@ -150,8 +150,19 @@ impl Tuple<3, Float> for RGB {}
 impl_tuple_math_ops!(RGB; 3; Float);
 
 impl From<[Float; 3]> for RGB {
+    #[inline]
     fn from(arr: [Float; 3]) -> Self {
         Self::new(arr[0], arr[1], arr[2])
+    }
+}
+
+impl TryFrom<&[Float]> for RGB {
+    type Error = std::array::TryFromSliceError;
+
+    #[inline]
+    fn try_from(slice: &[Float]) -> Result<Self, Self::Error> {
+        let arr: [Float; 3] = slice.try_into()?;
+        Ok(Self::from(arr))
     }
 }
 

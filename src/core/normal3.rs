@@ -28,9 +28,20 @@ impl Tuple<3, Float> for Normal3f {}
 impl_tuple_math_ops!(Normal3f; 3; Float);
 
 impl From<[Float; 3]> for Normal3f {
+    #[inline]
     fn from(arr: [Float; 3]) -> Self {
         let [x, y, z] = arr;
         Self::new(x, y, z)
+    }
+}
+
+impl TryFrom<&[Float]> for Normal3f {
+    type Error = std::array::TryFromSliceError;
+
+    #[inline]
+    fn try_from(slice: &[Float]) -> Result<Self, Self::Error> {
+        let arr: [Float; 3] = slice.try_into()?;
+        Ok(Self::from(arr))
     }
 }
 

@@ -31,9 +31,12 @@ use crate::{
         IndependentSampler, SamplerEnum,
     },
     scene_parsing::{
-        directives::{FloatTextureDesc, MaterialDesc, SpectrumTextureDesc},
+        common::ParseContext,
+        directives::{FloatTextureDesc, MaterialDesc, ShapeDesc, SpectrumTextureDesc},
         scene::parse_pbrt_file,
     },
+    shapes::{BilinearPatch, BilinearPatchMesh, ShapeEnum, Sphere},
+    util::error::BuilderError,
 };
 
 use super::{
@@ -66,6 +69,8 @@ pub fn create_scene_integrator(
 pub enum ReadSceneError {
     #[error("failed to parse pbrt scene file")]
     ParseError(#[from] PbrtParseError),
+    #[error("error during construct: {0}")]
+    BuilderError(#[from] BuilderError),
     #[error("texture `{name}` isn't valid for its usage, which expects {expected}")]
     TextureMismatch { name: String, expected: String },
     #[error("texture `{0}` is not defined")]
@@ -501,6 +506,62 @@ fn get_spectrum_texture(
         }
         _ => create_spectrum_texture("", desc, spectrum_type, color_space).map(Arc::new),
     }
+}
+
+#[derive(Debug, Default)]
+struct Meshes {
+    bilinear_patches: Vec<BilinearPatchMesh>,
+}
+
+fn create_shape(
+    desc: ShapeDesc,
+    ctx: &ParseContext,
+    all_meshes: &mut Meshes,
+    camera: &impl Camera,
+) -> Result<Vec<ShapeEnum>, ReadSceneError> {
+    let mut shapes = Vec::new();
+
+    match desc {
+        ShapeDesc::Sphere(desc) => {
+            let sphere = Sphere::builder()
+                .radius(desc.radius)
+                .z_min(desc.z_min)
+                .z_max(desc.z_max)
+                .phi_max(desc.phi_max)
+                .reverse_orientation(false) // TODO: Check ReverseOrientation statement once added
+                .render_from_object(
+                    camera
+                        .camera_transform()
+                        .render_from_world(ctx.current_transform.clone()),
+                )
+                .build()?;
+            shapes.push(sphere.into());
+        }
+        ShapeDesc::BilinearMesh(desc) => {
+            let mesh = BilinearPatchMesh::new(
+                &ctx.current_transform,
+                false,
+                desc.indices,
+                desc.positions,
+                desc.normals,
+                desc.uvs,
+            );
+
+            // This will be the index to this mesh once it's move into vec
+            let mesh_idx = all_meshes.bilinear_patches.len();
+
+            // For each patch in mesh, create a shape and push to shapes vec
+            for blp_idx in 0..mesh.num_patches() {
+                let patch = BilinearPatch::new(&mesh, mesh_idx, blp_idx);
+                shapes.push(patch.into())
+            }
+
+            // Finally, move mesh into vec of all
+            all_meshes.bilinear_patches.push(mesh);
+        }
+    };
+
+    Ok(shapes)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

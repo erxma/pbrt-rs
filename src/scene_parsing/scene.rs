@@ -6,7 +6,7 @@ use super::{
     common::{directive, Directive, FromEntity, ParseContext, PbrtParseError},
     directives::{
         Accelerator, Camera, ColorSpace, Film, Filter, FromTextureDirective as _, Integrator,
-        Light, Sampler, Shape, TextureDesc,
+        Light, Sampler, ShapeDesc, TextureDesc,
     },
 };
 
@@ -70,7 +70,7 @@ impl OptionsBuilder {
 
 #[derive(Debug, Default)]
 pub struct World {
-    pub shapes: Vec<Shape>,
+    pub shapes: Vec<ShapeDesc>,
     pub lights: Vec<Light>,
     pub textures: HashMap<String, TextureDesc>,
 }
@@ -212,7 +212,7 @@ fn parse_world_section(
         match directive {
             Directive::Entity(entity) => match entity.identifier {
                 "Shape" => {
-                    world.shapes.push(Shape::from_entity(entity, &context)?);
+                    world.shapes.push(ShapeDesc::from_entity(entity, &context)?);
                 }
                 "Light" => {
                     world.lights.push(Light::from_entity(entity, &context)?);

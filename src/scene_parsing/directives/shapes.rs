@@ -1,24 +1,24 @@
 use crate::{
     core::{Float, Normal3f, Point2f, Point3f, Vec3f},
     scene_parsing::common::{
-        impl_from_entity, params_map_to_fields, Alpha, EntityDirective, FromEntity, ParseContext,
-        PbrtParseError,
+        params_map_to_fields, Alpha, EntityDirective, FromEntity, ParseContext, PbrtParseError,
+        Value,
     },
 };
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Shape {
+pub enum ShapeDesc {
     Sphere(Sphere),
     BilinearMesh(BilinearMesh),
 }
 
-impl FromEntity for Shape {
+impl FromEntity for ShapeDesc {
     fn from_entity(entity: EntityDirective, ctx: &ParseContext) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Shape");
 
         match entity.subtype {
-            "sphere" => Sphere::from_entity(entity, ctx).map(Shape::Sphere),
-            "bilinearmesh" => BilinearMesh::from_entity(entity, ctx).map(Shape::BilinearMesh),
+            "sphere" => Sphere::from_entity(entity, ctx).map(ShapeDesc::Sphere),
+            "bilinearmesh" => BilinearMesh::from_entity(entity, ctx).map(ShapeDesc::BilinearMesh),
             invalid_type => Err(PbrtParseError::UnrecognizedVariant {
                 entity: "Shape".to_string(),
                 variant_name: invalid_type.to_owned(),
@@ -29,11 +29,11 @@ impl FromEntity for Shape {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Sphere {
-    alpha: Alpha,
-    radius: Float,
-    z_min: Option<Float>,
-    z_max: Option<Float>,
-    phi_max: Float,
+    pub alpha: Alpha,
+    pub radius: Float,
+    pub z_min: Float,
+    pub z_max: Float,
+    pub phi_max: Float,
 }
 
 impl Default for Sphere {
@@ -41,32 +41,53 @@ impl Default for Sphere {
         Self {
             alpha: Alpha::Constant(1.0),
             radius: 1.0,
-            z_min: None,
-            z_max: None,
+            z_min: 1.0,
+            z_max: 1.0,
             phi_max: 360.0,
         }
     }
 }
 
-impl_from_entity! {
-    Sphere,
-    has_defaults {
-        "alpha" => alpha,
-        "radius" => radius,
-        "zmin" => z_min,
-        "zmax" => z_max,
-        "phimax" => phi_max,
+impl FromEntity for Sphere {
+    fn from_entity(
+        mut entity: EntityDirective,
+        _ctx: &ParseContext,
+    ) -> Result<Self, PbrtParseError> {
+        let mut result = Self::default();
+
+        params_map_to_fields! {
+            entity.param_map => result,
+            has_defaults {
+                alpha = "alpha",
+                radius = "radius",
+                phi_max = "phimax"
+            }
+        }
+
+        // zmin, zmax default to -radius, radius from above
+        result.z_min = entity
+            .param_map
+            .remove("zmin")
+            .unwrap_or(Value::Float(-result.radius))
+            .try_into()?;
+        result.z_min = entity
+            .param_map
+            .remove("zmax")
+            .unwrap_or(Value::Float(result.radius))
+            .try_into()?;
+
+        Ok(result)
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct BilinearMesh {
-    alpha: Alpha,
-    indices: Vec<usize>,
-    positions: Vec<Point3f>,
-    normals: Option<Vec<Normal3f>>,
-    tangents: Option<Vec<Vec3f>>,
-    uvs: Option<Vec<Point2f>>,
+    pub alpha: Alpha,
+    pub indices: Vec<usize>,
+    pub positions: Vec<Point3f>,
+    pub normals: Option<Vec<Normal3f>>,
+    pub tangents: Option<Vec<Vec3f>>,
+    pub uvs: Option<Vec<Point2f>>,
 }
 
 impl Default for BilinearMesh {

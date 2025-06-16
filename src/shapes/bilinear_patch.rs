@@ -771,6 +771,10 @@ impl BilinearPatchMesh {
 
         true
     }
+
+    pub fn num_patches(&self) -> usize {
+        self.indices.len() / 4
+    }
 }
 
 pub struct BilinearIntersection {

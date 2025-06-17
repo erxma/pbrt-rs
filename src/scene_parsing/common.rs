@@ -614,6 +614,7 @@ fn param(input: &mut &str) -> PResult<(String, Value)> {
 pub struct GraphicsState {
     pub current_transform: Transform,
     pub current_material: Option<MaterialDesc>,
+    pub reverse_orientation: bool,
 }
 
 impl Default for GraphicsState {
@@ -621,6 +622,7 @@ impl Default for GraphicsState {
         Self {
             current_transform: Transform::IDENTITY,
             current_material: None,
+            reverse_orientation: false,
         }
     }
 }
@@ -747,6 +749,7 @@ pub(super) enum Directive<'a> {
     WorldBegin,
     AttributeBegin,
     AttributeEnd,
+    ReverseOrientation,
 }
 
 pub(super) fn directive<'a>(input: &mut &'a str) -> PResult<Directive<'a>> {
@@ -758,6 +761,7 @@ pub(super) fn directive<'a>(input: &mut &'a str) -> PResult<Directive<'a>> {
             "WorldBegin".map(|_| Directive::WorldBegin),
             "AttributeBegin".map(|_| Directive::AttributeBegin),
             "AttributeEnd".map(|_| Directive::AttributeEnd),
+            "ReverseOrientation".map(|_| Directive::ReverseOrientation),
         )),
         alt((multispace1, eof)),
     )

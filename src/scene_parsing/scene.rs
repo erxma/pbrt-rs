@@ -192,6 +192,11 @@ fn parse_options_section(
                     "AttributeEnd".to_string(),
                 ));
             }
+            Directive::ReverseOrientation => {
+                return Err(PbrtParseError::IllegalForSection(
+                    "ReverseOrientation".to_string(),
+                ));
+            }
         }
     }
 
@@ -252,6 +257,9 @@ fn parse_world_section(
                     ));
                 }
                 state = stored_states_stack.pop().unwrap();
+            }
+            Directive::ReverseOrientation => {
+                state.reverse_orientation = !state.reverse_orientation;
             }
         }
     }

@@ -528,7 +528,7 @@ fn create_shape(
                 .z_min(desc.z_min)
                 .z_max(desc.z_max)
                 .phi_max(desc.phi_max)
-                .reverse_orientation(false) // TODO: Check ReverseOrientation statement once added
+                .reverse_orientation(state.reverse_orientation)
                 .render_from_object(
                     camera
                         .camera_transform()
@@ -540,7 +540,7 @@ fn create_shape(
         ShapeDesc::BilinearMesh(desc) => {
             let mesh = BilinearPatchMesh::new(
                 &state.current_transform,
-                false,
+                state.reverse_orientation,
                 desc.indices,
                 desc.positions,
                 desc.normals,

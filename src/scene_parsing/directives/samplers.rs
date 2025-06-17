@@ -1,5 +1,5 @@
 use crate::scene_parsing::common::{
-    impl_from_entity, EntityDirective, FromEntity, ParseContext, PbrtParseError,
+    impl_from_entity, EntityDirective, FromEntity, GraphicsState, PbrtParseError,
 };
 
 #[derive(Clone, Debug)]
@@ -15,11 +15,13 @@ impl Default for Sampler {
 }
 
 impl FromEntity for Sampler {
-    fn from_entity(entity: EntityDirective, ctx: &ParseContext) -> Result<Self, PbrtParseError> {
+    fn from_entity(entity: EntityDirective, state: &GraphicsState) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Sampler");
 
         match entity.subtype {
-            "independent" => IndependentSampler::from_entity(entity, ctx).map(Sampler::Independent),
+            "independent" => {
+                IndependentSampler::from_entity(entity, state).map(Sampler::Independent)
+            }
             invalid_type => Err(PbrtParseError::UnrecognizedVariant {
                 entity: "Sampler".to_string(),
                 variant_name: invalid_type.to_owned(),

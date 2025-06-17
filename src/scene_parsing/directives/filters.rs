@@ -1,7 +1,7 @@
 use crate::{
     core::Float,
     scene_parsing::common::{
-        impl_from_entity, EntityDirective, FromEntity, ParseContext, PbrtParseError,
+        impl_from_entity, EntityDirective, FromEntity, GraphicsState, PbrtParseError,
     },
 };
 
@@ -19,13 +19,13 @@ impl Default for Filter {
 }
 
 impl FromEntity for Filter {
-    fn from_entity(entity: EntityDirective, ctx: &ParseContext) -> Result<Self, PbrtParseError> {
+    fn from_entity(entity: EntityDirective, state: &GraphicsState) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Filter");
 
         match entity.subtype {
-            "box" => BoxFilter::from_entity(entity, ctx).map(Filter::Box),
-            "gaussian" => GaussianFilter::from_entity(entity, ctx).map(Filter::Gaussian),
-            "triangle" => TriangleFilter::from_entity(entity, ctx).map(Filter::Triangle),
+            "box" => BoxFilter::from_entity(entity, state).map(Filter::Box),
+            "gaussian" => GaussianFilter::from_entity(entity, state).map(Filter::Gaussian),
+            "triangle" => TriangleFilter::from_entity(entity, state).map(Filter::Triangle),
             invalid_type => Err(PbrtParseError::UnrecognizedVariant {
                 entity: "Filter".to_string(),
                 variant_name: invalid_type.to_owned(),

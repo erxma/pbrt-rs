@@ -10,7 +10,7 @@ use crate::{
     core::Float,
     materials::{PointTransformMapping, TextureMapping2DEnum, TextureMapping3DEnum, UvMapping},
     scene_parsing::common::{
-        param_map, params_map_to_fields, ParameterMap, ParseContext, PbrtParseError, Spectrum,
+        param_map, params_map_to_fields, GraphicsState, ParameterMap, PbrtParseError, Spectrum,
         Value,
     },
 };
@@ -50,7 +50,7 @@ pub fn texture_directive<'a>(input: &mut &'a str) -> PResult<TextureDirective<'a
 pub trait FromTextureDirective {
     fn from_directive(
         directive: TextureDirective,
-        ctx: &ParseContext,
+        state: &GraphicsState,
     ) -> Result<Self, PbrtParseError>
     where
         Self: Sized;
@@ -59,12 +59,12 @@ pub trait FromTextureDirective {
 impl FromTextureDirective for TextureDesc {
     fn from_directive(
         directive: TextureDirective,
-        ctx: &ParseContext,
+        state: &GraphicsState,
     ) -> Result<Self, PbrtParseError> {
         // Use specific function for the subtype (float/spectrum)
         match directive.subtype {
-            "float" => FloatTextureDesc::from_directive(directive, ctx).map(Self::Float),
-            "spectrum" => SpectrumTextureDesc::from_directive(directive, ctx).map(Self::Spectrum),
+            "float" => FloatTextureDesc::from_directive(directive, state).map(Self::Float),
+            "spectrum" => SpectrumTextureDesc::from_directive(directive, state).map(Self::Spectrum),
             // Unrecognized
             invalid_type => Err(PbrtParseError::UnrecognizedVariant {
                 entity: "Texture".to_string(),
@@ -86,12 +86,14 @@ pub enum FloatTextureDesc {
 impl FromTextureDirective for FloatTextureDesc {
     fn from_directive(
         directive: TextureDirective,
-        ctx: &ParseContext,
+        state: &GraphicsState,
     ) -> Result<Self, PbrtParseError> {
         assert_eq!(directive.subtype, "float");
 
         match directive.class {
-            "constant" => ConstantFloatTexture::from_directive(directive, ctx).map(Self::Constant),
+            "constant" => {
+                ConstantFloatTexture::from_directive(directive, state).map(Self::Constant)
+            }
             invalid_type => Err(PbrtParseError::UnrecognizedVariant {
                 entity: "Float Texture".to_string(),
                 variant_name: invalid_type.to_owned(),
@@ -140,22 +142,22 @@ pub enum SpectrumTextureDesc {
 impl FromTextureDirective for SpectrumTextureDesc {
     fn from_directive(
         mut directive: TextureDirective,
-        ctx: &ParseContext,
+        state: &GraphicsState,
     ) -> Result<Self, PbrtParseError> {
         assert_eq!(directive.subtype, "spectrum");
 
         // Use specific function conversion for the class of texture
         match directive.class {
             "constant" => {
-                ConstantSpectrumTexture::from_directive(directive, ctx).map(Self::Constant)
+                ConstantSpectrumTexture::from_directive(directive, state).map(Self::Constant)
             }
             "checkerboard" => {
                 // Checkerboard has 2D and 3D cases, depending on parameter `dimension` (defaults to 2).
                 let dimension = get_checkerboard_dimension(&mut directive)?;
                 match dimension {
-                    2 => CheckerboardSpectrumTexture2D::from_directive(directive, ctx)
+                    2 => CheckerboardSpectrumTexture2D::from_directive(directive, state)
                         .map(Self::Checkerboard2D),
-                    3 => CheckerboardSpectrumTexture3D::from_directive(directive, ctx)
+                    3 => CheckerboardSpectrumTexture3D::from_directive(directive, state)
                         .map(Self::Checkerboard3D),
                     _ => Err(PbrtParseError::InvalidValue {
                         expected: "2 or 3".to_string(),
@@ -214,7 +216,7 @@ impl Default for ConstantFloatTexture {
 impl FromTextureDirective for ConstantFloatTexture {
     fn from_directive(
         mut directive: TextureDirective,
-        _ctx: &ParseContext,
+        _state: &GraphicsState,
     ) -> Result<Self, PbrtParseError> {
         let mut result = Self::default();
         params_map_to_fields! {
@@ -262,7 +264,7 @@ const CONSTANT_SPECTRUM_TEXTURE_1: SpectrumTextureDesc =
 impl FromTextureDirective for ConstantSpectrumTexture {
     fn from_directive(
         mut directive: TextureDirective,
-        _ctx: &ParseContext,
+        _state: &GraphicsState,
     ) -> Result<Self, PbrtParseError> {
         let mut result = Self::default();
         params_map_to_fields! {
@@ -310,7 +312,7 @@ impl Default for CheckerboardFloatTexture2D {
 impl FromTextureDirective for CheckerboardFloatTexture2D {
     fn from_directive(
         mut directive: TextureDirective,
-        ctx: &ParseContext,
+        state: &GraphicsState,
     ) -> Result<Self, PbrtParseError> {
         let mut result = Self::default();
 
@@ -323,7 +325,7 @@ impl FromTextureDirective for CheckerboardFloatTexture2D {
         }
         // Determine mapping based on params.
         // (Note this always overwrites Self::default)
-        result.mapping = TextureMapping2DEnum::from_directive(&mut directive, ctx)?;
+        result.mapping = TextureMapping2DEnum::from_directive(&mut directive, state)?;
 
         directive.param_map.check_no_remaining_params()?;
 
@@ -352,7 +354,7 @@ impl Default for CheckerboardSpectrumTexture2D {
 impl FromTextureDirective for CheckerboardSpectrumTexture2D {
     fn from_directive(
         mut directive: TextureDirective,
-        ctx: &ParseContext,
+        state: &GraphicsState,
     ) -> Result<Self, PbrtParseError> {
         let mut result = Self::default();
 
@@ -365,7 +367,7 @@ impl FromTextureDirective for CheckerboardSpectrumTexture2D {
         }
         // Determine mapping based on params.
         // (Note this always overwrites Self::default)
-        result.mapping = TextureMapping2DEnum::from_directive(&mut directive, ctx)?;
+        result.mapping = TextureMapping2DEnum::from_directive(&mut directive, state)?;
 
         directive.param_map.check_no_remaining_params()?;
 
@@ -394,7 +396,7 @@ impl Default for CheckerboardFloatTexture3D {
 impl FromTextureDirective for CheckerboardFloatTexture3D {
     fn from_directive(
         mut directive: TextureDirective,
-        _ctx: &ParseContext,
+        _state: &GraphicsState,
     ) -> Result<Self, PbrtParseError> {
         let mut result = Self::default();
 
@@ -436,7 +438,7 @@ impl Default for CheckerboardSpectrumTexture3D {
 impl FromTextureDirective for CheckerboardSpectrumTexture3D {
     fn from_directive(
         mut directive: TextureDirective,
-        _ctx: &ParseContext,
+        _state: &GraphicsState,
     ) -> Result<Self, PbrtParseError> {
         let mut result = Self::default();
 
@@ -461,7 +463,7 @@ impl FromTextureDirective for CheckerboardSpectrumTexture3D {
 impl TextureMapping2DEnum {
     fn from_directive(
         directive: &mut TextureDirective,
-        _ctx: &ParseContext,
+        _state: &GraphicsState,
     ) -> Result<Self, PbrtParseError> {
         // Get param value for string "mapping", default to "uv"
         let mapping_param = directive
@@ -514,7 +516,7 @@ mod test {
             .into(),
         };
 
-        let result = TextureDesc::from_directive(directive, &ParseContext::default()).unwrap();
+        let result = TextureDesc::from_directive(directive, &GraphicsState::default()).unwrap();
 
         let expected_tex1 = ConstantSpectrumTexture::with_rgb(RGB::new(0.1, 0.1, 0.1)).into();
         let expected_tex2 = ConstantSpectrumTexture::with_rgb(RGB::new(0.8, 0.8, 0.8)).into();

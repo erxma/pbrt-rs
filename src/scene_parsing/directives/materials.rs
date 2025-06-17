@@ -2,7 +2,7 @@ use crate::{
     color::RGB,
     scene_parsing::{
         common::{
-            impl_from_entity, params_map_to_fields, EntityDirective, FromEntity, ParseContext,
+            impl_from_entity, params_map_to_fields, EntityDirective, FromEntity, GraphicsState,
             PbrtParseError, Spectrum,
         },
         directives::{
@@ -19,10 +19,10 @@ pub enum MaterialDesc {
 }
 
 impl FromEntity for MaterialDesc {
-    fn from_entity(entity: EntityDirective, ctx: &ParseContext) -> Result<Self, PbrtParseError> {
+    fn from_entity(entity: EntityDirective, state: &GraphicsState) -> Result<Self, PbrtParseError> {
         // Use specific function for the subtype
         match entity.subtype {
-            "diffuse" => DiffuseMaterial::from_entity(entity, ctx).map(Self::Diffuse),
+            "diffuse" => DiffuseMaterial::from_entity(entity, state).map(Self::Diffuse),
             // Unrecognized
             invalid_type => Err(PbrtParseError::UnrecognizedVariant {
                 entity: "Material".to_string(),
@@ -76,7 +76,7 @@ impl Default for DielectricMaterial {
 impl FromEntity for DielectricMaterial {
     fn from_entity(
         mut entity: EntityDirective,
-        _ctx: &ParseContext,
+        _state: &GraphicsState,
     ) -> Result<Self, PbrtParseError> {
         let mut result = Self::default();
 

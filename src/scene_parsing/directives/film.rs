@@ -5,7 +5,7 @@ use strum::EnumString;
 use crate::{
     core::Float,
     scene_parsing::common::{
-        impl_from_entity, EntityDirective, FromEntity, ParseContext, PbrtParseError, Value,
+        impl_from_entity, EntityDirective, FromEntity, GraphicsState, PbrtParseError, Value,
     },
 };
 
@@ -29,11 +29,11 @@ impl Default for Film {
 }
 
 impl FromEntity for Film {
-    fn from_entity(entity: EntityDirective, ctx: &ParseContext) -> Result<Self, PbrtParseError> {
+    fn from_entity(entity: EntityDirective, state: &GraphicsState) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Film");
 
         match entity.subtype {
-            "rgb" => RgbFilm::from_entity(entity, ctx).map(Film::Rgb),
+            "rgb" => RgbFilm::from_entity(entity, state).map(Film::Rgb),
             invalid_type => Err(PbrtParseError::UnrecognizedVariant {
                 entity: "Film".to_string(),
                 variant_name: invalid_type.to_owned(),

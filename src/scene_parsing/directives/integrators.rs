@@ -1,5 +1,5 @@
 use crate::scene_parsing::common::{
-    impl_from_entity, EntityDirective, FromEntity, ParseContext, PbrtParseError,
+    impl_from_entity, EntityDirective, FromEntity, GraphicsState, PbrtParseError,
 };
 
 #[derive(Clone, Debug)]
@@ -16,15 +16,15 @@ impl Default for Integrator {
 }
 
 impl FromEntity for Integrator {
-    fn from_entity(entity: EntityDirective, ctx: &ParseContext) -> Result<Self, PbrtParseError> {
+    fn from_entity(entity: EntityDirective, state: &GraphicsState) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Integrator");
 
         match entity.subtype {
             "randomwalk" => {
-                RandomWalkIntegrator::from_entity(entity, ctx).map(Integrator::RandomWalk)
+                RandomWalkIntegrator::from_entity(entity, state).map(Integrator::RandomWalk)
             }
             "simplepath" => {
-                SimplePathIntegrator::from_entity(entity, ctx).map(Integrator::SimplePath)
+                SimplePathIntegrator::from_entity(entity, state).map(Integrator::SimplePath)
             }
             invalid_type => Err(PbrtParseError::UnrecognizedVariant {
                 entity: "Integrator".to_string(),

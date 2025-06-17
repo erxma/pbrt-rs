@@ -3,7 +3,7 @@ use std::{cell::OnceCell, collections::HashMap, io::Read};
 use crate::{core::Transform, scene_parsing::directives::MaterialDesc};
 
 use super::{
-    common::{directive, Directive, FromEntity, ParseContext, PbrtParseError},
+    common::{directive, Directive, FromEntity, GraphicsState, PbrtParseError},
     directives::{
         Accelerator, Camera, ColorSpace, Film, Filter, FromTextureDirective as _, Integrator,
         Light, Sampler, ShapeDesc, TextureDesc,
@@ -115,7 +115,7 @@ fn parse_options_section(
     ignore_unrecognized_directives: bool,
 ) -> Result<Options, PbrtParseError> {
     let options_builder = OptionsBuilder::empty();
-    let mut context = ParseContext::default();
+    let mut state = GraphicsState::default();
 
     while let Ok(directive) = directive(input) {
         match directive {
@@ -123,43 +123,43 @@ fn parse_options_section(
                 "Camera" => {
                     options_builder
                         .camera
-                        .set(Camera::from_entity(entity, &context)?)
+                        .set(Camera::from_entity(entity, &state)?)
                         .map_err(|_| PbrtParseError::RepeatedDirective("Camera".to_string()))?;
                 }
                 "Sampler" => {
                     options_builder
                         .sampler
-                        .set(Sampler::from_entity(entity, &context)?)
+                        .set(Sampler::from_entity(entity, &state)?)
                         .map_err(|_| PbrtParseError::RepeatedDirective("Sampler".to_string()))?;
                 }
                 "ColorSpace" => {
                     options_builder
                         .color_space
-                        .set(ColorSpace::from_entity(entity, &context)?)
+                        .set(ColorSpace::from_entity(entity, &state)?)
                         .map_err(|_| PbrtParseError::RepeatedDirective("ColorSpace".to_string()))?;
                 }
                 "Film" => {
                     options_builder
                         .film
-                        .set(Film::from_entity(entity, &context)?)
+                        .set(Film::from_entity(entity, &state)?)
                         .map_err(|_| PbrtParseError::RepeatedDirective("Film".to_string()))?;
                 }
                 "Filter" => {
                     options_builder
                         .filter
-                        .set(Filter::from_entity(entity, &context)?)
+                        .set(Filter::from_entity(entity, &state)?)
                         .map_err(|_| PbrtParseError::RepeatedDirective("Filter".to_string()))?;
                 }
                 "Integrator" => {
                     options_builder
                         .integrator
-                        .set(Integrator::from_entity(entity, &context)?)
+                        .set(Integrator::from_entity(entity, &state)?)
                         .map_err(|_| PbrtParseError::RepeatedDirective("Integrator".to_string()))?;
                 }
                 "Accelerator" => {
                     options_builder
                         .accelerator
-                        .set(Accelerator::from_entity(entity, &context)?)
+                        .set(Accelerator::from_entity(entity, &state)?)
                         .map_err(|_| {
                             PbrtParseError::RepeatedDirective("Accelerator".to_string())
                         })?;
@@ -173,8 +173,8 @@ fn parse_options_section(
                 }
             },
             Directive::Transform(transform_directive) => {
-                context.current_transform =
-                    Transform::from(transform_directive) * context.current_transform;
+                state.current_transform =
+                    Transform::from(transform_directive) * state.current_transform;
             }
             Directive::Texture(_) => {
                 return Err(PbrtParseError::IllegalForSection("Texture".to_string()));
@@ -205,20 +205,20 @@ fn parse_world_section(
     ignore_unrecognized_directives: bool,
 ) -> Result<World, PbrtParseError> {
     let mut world = World::default();
-    let mut context = ParseContext::default();
-    let mut stored_contexts_stack = Vec::new();
+    let mut state = GraphicsState::default();
+    let mut stored_states_stack = Vec::new();
 
     while let Ok(directive) = directive(input) {
         match directive {
             Directive::Entity(entity) => match entity.identifier {
                 "Shape" => {
-                    world.shapes.push(ShapeDesc::from_entity(entity, &context)?);
+                    world.shapes.push(ShapeDesc::from_entity(entity, &state)?);
                 }
                 "Light" => {
-                    world.lights.push(Light::from_entity(entity, &context)?);
+                    world.lights.push(Light::from_entity(entity, &state)?);
                 }
                 "Material" => {
-                    context.current_material = Some(MaterialDesc::from_entity(entity, &context)?);
+                    state.current_material = Some(MaterialDesc::from_entity(entity, &state)?);
                 }
                 invalid_name => {
                     if !ignore_unrecognized_directives {
@@ -229,12 +229,12 @@ fn parse_world_section(
                 }
             },
             Directive::Transform(transform_directive) => {
-                context.current_transform =
-                    Transform::from(transform_directive) * context.current_transform;
+                state.current_transform =
+                    Transform::from(transform_directive) * state.current_transform;
             }
             Directive::Texture(texture_directive) => {
                 let name = texture_directive.name.to_owned();
-                let texture = TextureDesc::from_directive(texture_directive, &context)?;
+                let texture = TextureDesc::from_directive(texture_directive, &state)?;
                 if world.textures.insert(name.clone(), texture).is_some() {
                     return Err(PbrtParseError::RedefinedName(name));
                 }
@@ -243,20 +243,20 @@ fn parse_world_section(
                 return Err(PbrtParseError::IllegalForSection("WorldBegin".to_string()));
             }
             Directive::AttributeBegin => {
-                stored_contexts_stack.push(context.clone());
+                stored_states_stack.push(state.clone());
             }
             Directive::AttributeEnd => {
-                if stored_contexts_stack.is_empty() {
+                if stored_states_stack.is_empty() {
                     return Err(PbrtParseError::IllegalForSection(
                         "AttributeEnd".to_string(),
                     ));
                 }
-                context = stored_contexts_stack.pop().unwrap();
+                state = stored_states_stack.pop().unwrap();
             }
         }
     }
 
-    if !stored_contexts_stack.is_empty() {
+    if !stored_states_stack.is_empty() {
         return Err(PbrtParseError::UnclosedAttributeScope);
     }
 

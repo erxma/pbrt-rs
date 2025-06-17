@@ -1,7 +1,7 @@
 use crate::{
     core::{Float, Normal3f, Point2f, Point3f, Vec3f},
     scene_parsing::common::{
-        params_map_to_fields, Alpha, EntityDirective, FromEntity, ParseContext, PbrtParseError,
+        params_map_to_fields, Alpha, EntityDirective, FromEntity, GraphicsState, PbrtParseError,
         Value,
     },
 };
@@ -13,12 +13,12 @@ pub enum ShapeDesc {
 }
 
 impl FromEntity for ShapeDesc {
-    fn from_entity(entity: EntityDirective, ctx: &ParseContext) -> Result<Self, PbrtParseError> {
+    fn from_entity(entity: EntityDirective, state: &GraphicsState) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Shape");
 
         match entity.subtype {
-            "sphere" => Sphere::from_entity(entity, ctx).map(ShapeDesc::Sphere),
-            "bilinearmesh" => BilinearMesh::from_entity(entity, ctx).map(ShapeDesc::BilinearMesh),
+            "sphere" => Sphere::from_entity(entity, state).map(ShapeDesc::Sphere),
+            "bilinearmesh" => BilinearMesh::from_entity(entity, state).map(ShapeDesc::BilinearMesh),
             invalid_type => Err(PbrtParseError::UnrecognizedVariant {
                 entity: "Shape".to_string(),
                 variant_name: invalid_type.to_owned(),
@@ -51,7 +51,7 @@ impl Default for Sphere {
 impl FromEntity for Sphere {
     fn from_entity(
         mut entity: EntityDirective,
-        _ctx: &ParseContext,
+        _state: &GraphicsState,
     ) -> Result<Self, PbrtParseError> {
         let mut result = Self::default();
 
@@ -106,7 +106,7 @@ impl Default for BilinearMesh {
 impl FromEntity for BilinearMesh {
     fn from_entity(
         mut entity: EntityDirective,
-        _ctx: &ParseContext,
+        _state: &GraphicsState,
     ) -> Result<Self, PbrtParseError> {
         let mut result = Self::default();
 

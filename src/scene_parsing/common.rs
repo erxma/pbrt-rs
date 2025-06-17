@@ -611,12 +611,12 @@ fn param(input: &mut &str) -> PResult<(String, Value)> {
 }
 
 #[derive(Clone, Debug)]
-pub struct ParseContext {
+pub struct GraphicsState {
     pub current_transform: Transform,
     pub current_material: Option<MaterialDesc>,
 }
 
-impl Default for ParseContext {
+impl Default for GraphicsState {
     fn default() -> Self {
         Self {
             current_transform: Transform::IDENTITY,
@@ -626,7 +626,7 @@ impl Default for ParseContext {
 }
 
 pub(super) trait FromEntity {
-    fn from_entity(entity: EntityDirective, ctx: &ParseContext) -> Result<Self, PbrtParseError>
+    fn from_entity(entity: EntityDirective, state: &GraphicsState) -> Result<Self, PbrtParseError>
     where
         Self: Sized;
 }
@@ -654,11 +654,11 @@ macro_rules! impl_from_entity {
             #[allow(unused_variables)]
             fn from_entity(
                 mut entity: crate::scene_parsing::common::EntityDirective,
-                ctx: &crate::scene_parsing::common::ParseContext,
+                state: &crate::scene_parsing::common::GraphicsState,
             ) -> Result<Self, PbrtParseError> {
                 let mut result = <$struct_name>::default();
 
-                $(result.$transform_field = ctx.current_transform.clone().into();)?
+                $(result.$transform_field = state.current_transform.clone().into();)?
 
                 $(
                     $(

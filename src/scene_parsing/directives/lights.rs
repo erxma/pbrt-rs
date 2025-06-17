@@ -1,7 +1,7 @@
 use crate::{
     core::{Float, Point3f, Transform},
     scene_parsing::common::{
-        impl_from_entity, EntityDirective, FromEntity, ParseContext, PbrtParseError, Spectrum,
+        impl_from_entity, EntityDirective, FromEntity, GraphicsState, PbrtParseError, Spectrum,
     },
 };
 
@@ -12,12 +12,12 @@ pub enum Light {
 }
 
 impl FromEntity for Light {
-    fn from_entity(entity: EntityDirective, ctx: &ParseContext) -> Result<Self, PbrtParseError> {
+    fn from_entity(entity: EntityDirective, state: &GraphicsState) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "LightSource");
 
         match entity.subtype {
-            "distant" => DirectionalLight::from_entity(entity, ctx).map(Light::Distant),
-            "infinite" => InfiniteLight::from_entity(entity, ctx).map(Light::Infinite),
+            "distant" => DirectionalLight::from_entity(entity, state).map(Light::Distant),
+            "infinite" => InfiniteLight::from_entity(entity, state).map(Light::Infinite),
             invalid_type => Err(PbrtParseError::UnrecognizedVariant {
                 entity: "LightSource".to_string(),
                 variant_name: invalid_type.to_owned(),

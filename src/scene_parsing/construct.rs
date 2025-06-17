@@ -31,7 +31,7 @@ use crate::{
         IndependentSampler, SamplerEnum,
     },
     scene_parsing::{
-        common::ParseContext,
+        common::GraphicsState,
         directives::{FloatTextureDesc, MaterialDesc, ShapeDesc, SpectrumTextureDesc},
         scene::parse_pbrt_file,
     },
@@ -515,7 +515,7 @@ struct Meshes {
 
 fn create_shape(
     desc: ShapeDesc,
-    ctx: &ParseContext,
+    state: &GraphicsState,
     all_meshes: &mut Meshes,
     camera: &impl Camera,
 ) -> Result<Vec<ShapeEnum>, ReadSceneError> {
@@ -532,14 +532,14 @@ fn create_shape(
                 .render_from_object(
                     camera
                         .camera_transform()
-                        .render_from_world(ctx.current_transform.clone()),
+                        .render_from_world(state.current_transform.clone()),
                 )
                 .build()?;
             shapes.push(sphere.into());
         }
         ShapeDesc::BilinearMesh(desc) => {
             let mesh = BilinearPatchMesh::new(
-                &ctx.current_transform,
+                &state.current_transform,
                 false,
                 desc.indices,
                 desc.positions,

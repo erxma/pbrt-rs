@@ -1,4 +1,4 @@
-use crate::scene_parsing::common::{EntityDirective, FromEntity, ParseContext, PbrtParseError};
+use crate::scene_parsing::common::{EntityDirective, FromEntity, GraphicsState, PbrtParseError};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ColorSpace {
@@ -12,7 +12,10 @@ impl Default for ColorSpace {
 }
 
 impl FromEntity for ColorSpace {
-    fn from_entity(entity: EntityDirective, _ctx: &ParseContext) -> Result<Self, PbrtParseError> {
+    fn from_entity(
+        entity: EntityDirective,
+        _state: &GraphicsState,
+    ) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "ColorSpace");
 
         if !entity.param_map.is_empty() {

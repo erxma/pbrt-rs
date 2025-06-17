@@ -1,7 +1,7 @@
 use crate::{
     core::Float,
     scene_parsing::common::{
-        impl_from_entity, EntityDirective, FromEntity, ParseContext, PbrtParseError,
+        impl_from_entity, EntityDirective, FromEntity, GraphicsState, PbrtParseError,
     },
 };
 
@@ -18,12 +18,12 @@ impl Default for Accelerator {
 }
 
 impl FromEntity for Accelerator {
-    fn from_entity(entity: EntityDirective, ctx: &ParseContext) -> Result<Self, PbrtParseError> {
+    fn from_entity(entity: EntityDirective, state: &GraphicsState) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Accelerator");
 
         match entity.subtype {
-            "bvh" => BvhAggregate::from_entity(entity, ctx).map(Accelerator::Bvh),
-            "kdtree" => KdTreeAggregate::from_entity(entity, ctx).map(Accelerator::KdTree),
+            "bvh" => BvhAggregate::from_entity(entity, state).map(Accelerator::Bvh),
+            "kdtree" => KdTreeAggregate::from_entity(entity, state).map(Accelerator::KdTree),
             invalid_type => Err(PbrtParseError::UnrecognizedVariant {
                 entity: "Accelerator".to_string(),
                 variant_name: invalid_type.to_owned(),

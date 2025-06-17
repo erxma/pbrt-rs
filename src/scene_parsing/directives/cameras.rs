@@ -1,7 +1,7 @@
 use crate::{
     core::{Float, Transform},
     scene_parsing::common::{
-        impl_from_entity, EntityDirective, FromEntity, ParseContext, PbrtParseError,
+        impl_from_entity, EntityDirective, FromEntity, GraphicsState, PbrtParseError,
     },
 };
 
@@ -54,14 +54,14 @@ impl Default for Camera {
 }
 
 impl FromEntity for Camera {
-    fn from_entity(entity: EntityDirective, ctx: &ParseContext) -> Result<Self, PbrtParseError> {
+    fn from_entity(entity: EntityDirective, state: &GraphicsState) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Camera");
 
         match entity.subtype {
             "orthographic" => {
-                OrthographicCamera::from_entity(entity, ctx).map(Camera::Orthographic)
+                OrthographicCamera::from_entity(entity, state).map(Camera::Orthographic)
             }
-            "perspective" => PerspectiveCamera::from_entity(entity, ctx).map(Camera::Perspective),
+            "perspective" => PerspectiveCamera::from_entity(entity, state).map(Camera::Perspective),
             "realistic" => todo!(),
             "spherical" => todo!(),
             invalid_type => Err(PbrtParseError::UnrecognizedVariant {

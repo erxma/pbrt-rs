@@ -130,44 +130,40 @@ fn manual_scene_integrator(args: &CliArgs) -> impl Integrate {
         .into(),
     );
 
-    let sphere = Arc::new(
-        Sphere::builder()
-            .radius(1.0)
-            .z_min(-1.0)
-            .z_max(1.0)
-            .phi_max(360.0)
-            .render_from_object(
-                camera
-                    .camera_transform()
-                    .render_from_world(Transform::IDENTITY),
-            )
-            .reverse_orientation(false)
-            .build()
-            .unwrap()
-            .into(),
-    );
+    let sphere = Sphere::builder()
+        .radius(1.0)
+        .z_min(-1.0)
+        .z_max(1.0)
+        .phi_max(360.0)
+        .render_from_object(
+            camera
+                .camera_transform()
+                .render_from_world(Transform::IDENTITY),
+        )
+        .reverse_orientation(false)
+        .build()
+        .unwrap()
+        .into();
     let rough_tex: Arc<FloatTextureEnum> = Arc::new(ConstantFloatTexture::new(0.0).into());
     let eta = Arc::new(ConstantSpectrum::new(1.5).into());
     let sphere_mat =
         Arc::new(DielectricMaterial::new(rough_tex.clone(), rough_tex, false, eta).into());
     let sphere_prim = Arc::new(SimplePrimitive::new(sphere, sphere_mat).into());
 
-    let sphere2 = Arc::new(
-        Sphere::builder()
-            .radius(1.5)
-            .z_min(-1.5)
-            .z_max(1.5)
-            .phi_max(360.0)
-            .render_from_object(
-                camera
-                    .camera_transform()
-                    .render_from_world(Transform::translate(Vec3f::new(-3.5, -2.0, 0.5))),
-            )
-            .reverse_orientation(false)
-            .build()
-            .unwrap()
-            .into(),
-    );
+    let sphere2 = Sphere::builder()
+        .radius(1.5)
+        .z_min(-1.5)
+        .z_max(1.5)
+        .phi_max(360.0)
+        .render_from_object(
+            camera
+                .camera_transform()
+                .render_from_world(Transform::translate(Vec3f::new(-3.5, -2.0, 0.5))),
+        )
+        .reverse_orientation(false)
+        .build()
+        .unwrap()
+        .into();
     let sphere2_mat_tex = Arc::new(
         ConstantSpectrumTexture::new(
             RgbAlbedoSpectrum::new(&SRGB, RGB::new(0.8, 0.45, 0.15)).into(),
@@ -177,22 +173,20 @@ fn manual_scene_integrator(args: &CliArgs) -> impl Integrate {
     let sphere2_mat = Arc::new(DiffuseMaterial::new(sphere2_mat_tex).into());
     let sphere2_prim = Arc::new(SimplePrimitive::new(sphere2, sphere2_mat).into());
 
-    let sphere3 = Arc::new(
-        Sphere::builder()
-            .radius(0.75)
-            .z_min(-0.75)
-            .z_max(0.75)
-            .phi_max(360.0)
-            .render_from_object(
-                camera
-                    .camera_transform()
-                    .render_from_world(Transform::translate(Vec3f::new(-0.3, -3.0, -0.25))),
-            )
-            .reverse_orientation(false)
-            .build()
-            .unwrap()
-            .into(),
-    );
+    let sphere3 = Sphere::builder()
+        .radius(0.75)
+        .z_min(-0.75)
+        .z_max(0.75)
+        .phi_max(360.0)
+        .render_from_object(
+            camera
+                .camera_transform()
+                .render_from_world(Transform::translate(Vec3f::new(-0.3, -3.0, -0.25))),
+        )
+        .reverse_orientation(false)
+        .build()
+        .unwrap()
+        .into();
     let sphere3_mat_tex = Arc::new(
         ConstantSpectrumTexture::new(
             RgbAlbedoSpectrum::new(&SRGB, RGB::new(0.8, 0.25, 0.3)).into(),
@@ -225,7 +219,7 @@ fn manual_scene_integrator(args: &CliArgs) -> impl Integrate {
         None,
         Some(floor_uv),
     )]);
-    let floor_patch = Arc::new(BilinearPatch::new(BilinearPatchMesh::get(0).unwrap(), 0, 0).into());
+    let floor_patch = BilinearPatch::new(BilinearPatchMesh::get(0).unwrap(), 0, 0).into();
     let floor_mat_tex = Arc::new(
         ConstantSpectrumTexture::new(RgbAlbedoSpectrum::new(&SRGB, RGB::new(0.8, 0.8, 0.8)).into())
             .into(),

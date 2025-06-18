@@ -11,7 +11,7 @@ use crate::{
 use super::Primitive;
 
 pub struct GeometricPrimitive {
-    shape: Arc<ShapeEnum>,
+    shape: ShapeEnum,
     material: Arc<MaterialEnum>,
     area_light: Option<Arc<LightEnum>>,
     medium_interface: MediumInterface,
@@ -20,7 +20,7 @@ pub struct GeometricPrimitive {
 
 impl GeometricPrimitive {
     pub fn new(
-        shape: Arc<ShapeEnum>,
+        shape: ShapeEnum,
         material: Arc<MaterialEnum>,
         area_light: Option<Arc<LightEnum>>,
         medium_interface: MediumInterface,
@@ -70,12 +70,12 @@ impl Primitive for GeometricPrimitive {
 
 #[derive(Clone)]
 pub struct SimplePrimitive {
-    shape: Arc<ShapeEnum>,
+    shape: ShapeEnum,
     material: Arc<MaterialEnum>,
 }
 
 impl SimplePrimitive {
-    pub fn new(shape: Arc<ShapeEnum>, material: Arc<MaterialEnum>) -> Self {
+    pub fn new(shape: ShapeEnum, material: Arc<MaterialEnum>) -> Self {
         Self { shape, material }
     }
 }

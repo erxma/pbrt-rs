@@ -22,7 +22,7 @@ use crate::{
         ConstantSpectrumTexture, DielectricMaterial, DiffuseMaterial, FloatTextureEnum,
         MaterialEnum, SpectrumTextureEnum,
     },
-    primitives::PrimitiveEnum,
+    primitives::{BVHAggregate, PrimitiveEnum, SimplePrimitive},
     sampling::{
         spectrum::{
             self, BlackbodySpectrum, ConstantSpectrum, RgbAlbedoSpectrum, RgbIlluminantSpectrum,
@@ -31,7 +31,7 @@ use crate::{
         IndependentSampler, SamplerEnum,
     },
     scene_parsing::{
-        directives::{FloatTextureDesc, MaterialDesc, ShapeDesc, SpectrumTextureDesc},
+        directives::{Accelerator, FloatTextureDesc, MaterialDesc, ShapeDesc, SpectrumTextureDesc},
         scene::parse_pbrt_file,
     },
     shapes::{BilinearPatch, BilinearPatchMesh, ShapeEnum, Sphere},
@@ -62,7 +62,10 @@ pub fn create_scene_integrator(
     let lights = create_lights(description.world.lights, &camera, color_space);
 
     let mut textures = Textures::default();
+    let mut meshes = Meshes::default();
     let materials = create_materials(description.world.materials, color_space, &mut textures)?;
+    let primitives =
+        create_primitives_for_shapes(description.world.shapes, &materials, &mut meshes, &camera)?;
 
     todo!()
 }
@@ -582,6 +585,36 @@ fn create_shape(
     };
 
     Ok(shapes)
+}
+
+fn create_primitives_for_shapes(
+    shape_descs: Vec<ShapeDesc>,
+    materials: &HashMap<String, Arc<MaterialEnum>>,
+    all_meshes: &mut Meshes,
+    camera: &impl Camera,
+) -> Result<Vec<Arc<PrimitiveEnum>>, ReadSceneError> {
+    let mut primitives = Vec::new();
+
+    for shape_desc in shape_descs {
+        let shapes = create_shape(shape_desc.clone(), all_meshes, camera)?;
+
+        let material =
+            materials
+                .get(shape_desc.material_name())
+                .ok_or(ReadSceneError::UndefinedMaterial(
+                    shape_desc.material_name().to_owned(),
+                ))?;
+
+        // TODO: Currently not supporting any options that would necessitate a GeometricPrimitive
+
+        primitives.extend(
+            shapes
+                .into_iter()
+                .map(|shape| Arc::new(SimplePrimitive::new(shape, material.clone()).into())),
+        );
+    }
+
+    Ok(primitives)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

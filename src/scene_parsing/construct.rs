@@ -31,7 +31,6 @@ use crate::{
         IndependentSampler, SamplerEnum,
     },
     scene_parsing::{
-        common::GraphicsState,
         directives::{FloatTextureDesc, MaterialDesc, ShapeDesc, SpectrumTextureDesc},
         scene::parse_pbrt_file,
     },
@@ -221,7 +220,7 @@ fn create_lights(
     descs: impl IntoIterator<Item = LightDesc>,
     camera: &impl Camera,
     color_space: &'static RGBColorSpace,
-) -> Vec<LightEnum> {
+) -> Vec<Arc<LightEnum>> {
     descs
         .into_iter()
         .map(|desc| create_light(desc, camera, color_space))
@@ -232,8 +231,8 @@ fn create_light(
     desc: LightDesc,
     camera: &impl Camera,
     color_space: &'static RGBColorSpace,
-) -> LightEnum {
-    match desc {
+) -> Arc<LightEnum> {
+    let light = match desc {
         LightDesc::Distant(desc) => {
             let w = (desc.from - desc.to).normalized();
             let (w, v1, v2) = w.coordinate_system();
@@ -294,7 +293,9 @@ fn create_light(
 
             UniformInfiniteLight::new(&*radiance, scale).into()
         }
-    }
+    };
+
+    Arc::new(light)
 }
 
 #[derive(Debug, Default)]
@@ -515,7 +516,6 @@ struct Meshes {
 
 fn create_shape(
     desc: ShapeDesc,
-    state: &GraphicsState,
     all_meshes: &mut Meshes,
     camera: &impl Camera,
 ) -> Result<Vec<ShapeEnum>, ReadSceneError> {
@@ -528,19 +528,19 @@ fn create_shape(
                 .z_min(desc.z_min)
                 .z_max(desc.z_max)
                 .phi_max(desc.phi_max)
-                .reverse_orientation(state.reverse_orientation)
+                .reverse_orientation(desc.reverse_orientation)
                 .render_from_object(
                     camera
                         .camera_transform()
-                        .render_from_world(state.current_transform.clone()),
+                        .render_from_world(desc.world_from_object),
                 )
                 .build()?;
             shapes.push(sphere.into());
         }
         ShapeDesc::BilinearMesh(desc) => {
             let mesh = BilinearPatchMesh::new(
-                &state.current_transform,
-                state.reverse_orientation,
+                &desc.world_from_object,
+                desc.reverse_orientation,
                 desc.indices,
                 desc.positions,
                 desc.normals,

@@ -1,5 +1,5 @@
 use crate::{
-    core::{Float, Normal3f, Point2f, Point3f, Vec3f},
+    core::{Float, Normal3f, Point2f, Point3f, Transform, Vec3f},
     scene_parsing::common::{
         params_map_to_fields, Alpha, EntityDirective, FromEntity, GraphicsState, PbrtParseError,
         Value,
@@ -30,6 +30,8 @@ impl FromEntity for ShapeDesc {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Sphere {
     pub alpha: Alpha,
+    pub world_from_object: Transform,
+    pub reverse_orientation: bool,
     pub radius: Float,
     pub z_min: Float,
     pub z_max: Float,
@@ -40,6 +42,8 @@ impl Default for Sphere {
     fn default() -> Self {
         Self {
             alpha: Alpha::Constant(1.0),
+            world_from_object: Transform::IDENTITY,
+            reverse_orientation: false,
             radius: 1.0,
             z_min: 1.0,
             z_max: 1.0,
@@ -51,7 +55,7 @@ impl Default for Sphere {
 impl FromEntity for Sphere {
     fn from_entity(
         mut entity: EntityDirective,
-        _state: &GraphicsState,
+        state: &GraphicsState,
     ) -> Result<Self, PbrtParseError> {
         let mut result = Self::default();
 
@@ -76,6 +80,11 @@ impl FromEntity for Sphere {
             .unwrap_or(Value::Float(result.radius))
             .try_into()?;
 
+        result.world_from_object = state.current_transform.clone();
+        result.reverse_orientation = state.reverse_orientation;
+
+        entity.param_map.check_no_remaining_params()?;
+
         Ok(result)
     }
 }
@@ -83,6 +92,8 @@ impl FromEntity for Sphere {
 #[derive(Clone, Debug, PartialEq)]
 pub struct BilinearMesh {
     pub alpha: Alpha,
+    pub world_from_object: Transform,
+    pub reverse_orientation: bool,
     pub indices: Vec<usize>,
     pub positions: Vec<Point3f>,
     pub normals: Option<Vec<Normal3f>>,
@@ -94,6 +105,8 @@ impl Default for BilinearMesh {
     fn default() -> Self {
         Self {
             alpha: Alpha::Constant(1.0),
+            world_from_object: Transform::default(),
+            reverse_orientation: false,
             indices: vec![0, 1, 2],
             positions: vec![],
             normals: None,
@@ -106,7 +119,7 @@ impl Default for BilinearMesh {
 impl FromEntity for BilinearMesh {
     fn from_entity(
         mut entity: EntityDirective,
-        _state: &GraphicsState,
+        state: &GraphicsState,
     ) -> Result<Self, PbrtParseError> {
         let mut result = Self::default();
 
@@ -131,6 +144,9 @@ impl FromEntity for BilinearMesh {
                 ))
             }
         }
+
+        result.world_from_object = state.current_transform.clone();
+        result.reverse_orientation = state.reverse_orientation;
 
         entity.param_map.check_no_remaining_params()?;
 

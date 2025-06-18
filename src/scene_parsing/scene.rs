@@ -84,8 +84,9 @@ pub(super) fn parse_pbrt_file(
     buf = strip_comments(buf);
 
     let mut input: &str = buf.as_str();
+
     let options = parse_options_section(&mut input, ignore_unrecognized_directives)?;
-    let world = parse_world_section(&mut input, ignore_unrecognized_directives)?;
+    let world = parse_world_section(&mut input, &options, ignore_unrecognized_directives)?;
 
     Ok(SceneDescription { options, world })
 }
@@ -207,6 +208,7 @@ fn parse_options_section(
 
 fn parse_world_section(
     input: &mut &str,
+    options: &Options,
     ignore_unrecognized_directives: bool,
 ) -> Result<World, PbrtParseError> {
     let mut world = World::default();

@@ -1,5 +1,7 @@
 use std::{cell::OnceCell, collections::HashMap, io::Read};
 
+use uuid::Uuid;
+
 use crate::{core::Transform, scene_parsing::directives::MaterialDesc};
 
 use super::{
@@ -73,6 +75,7 @@ pub struct World {
     pub shapes: Vec<ShapeDesc>,
     pub lights: Vec<Light>,
     pub textures: HashMap<String, TextureDesc>,
+    pub materials: HashMap<String, MaterialDesc>,
 }
 
 pub(super) fn parse_pbrt_file(
@@ -86,7 +89,7 @@ pub(super) fn parse_pbrt_file(
     let mut input: &str = buf.as_str();
 
     let options = parse_options_section(&mut input, ignore_unrecognized_directives)?;
-    let world = parse_world_section(&mut input, &options, ignore_unrecognized_directives)?;
+    let world = parse_world_section(&mut input, ignore_unrecognized_directives)?;
 
     Ok(SceneDescription { options, world })
 }
@@ -208,7 +211,6 @@ fn parse_options_section(
 
 fn parse_world_section(
     input: &mut &str,
-    options: &Options,
     ignore_unrecognized_directives: bool,
 ) -> Result<World, PbrtParseError> {
     let mut world = World::default();
@@ -225,7 +227,16 @@ fn parse_world_section(
                     world.lights.push(Light::from_entity(entity, &state)?);
                 }
                 "Material" => {
-                    state.current_material = Some(MaterialDesc::from_entity(entity, &state)?);
+                    // Convert to material description
+                    let material_desc = MaterialDesc::from_entity(entity, &state)?;
+                    // Use random UUID as identifier for unnamed material
+                    let random_name = Uuid::new_v4();
+                    // Insert into map of all materials
+                    world
+                        .materials
+                        .insert(random_name.to_string(), material_desc);
+                    // Set as current name in graphics state
+                    state.current_material_name = Some(random_name.to_string());
                 }
                 invalid_name => {
                     if !ignore_unrecognized_directives {

@@ -61,6 +61,9 @@ pub fn create_scene_integrator(
 
     let lights = create_lights(description.world.lights, &camera, color_space);
 
+    let mut textures = Textures::default();
+    let materials = create_materials(description.world.materials, color_space, &mut textures)?;
+
     todo!()
 }
 
@@ -74,6 +77,8 @@ pub enum ReadSceneError {
     TextureMismatch { name: String, expected: String },
     #[error("texture `{0}` is not defined")]
     UndefinedTexture(String),
+    #[error("material `{0}` is not defined")]
+    UndefinedMaterial(String),
 }
 
 fn create_filter(desc: Filter) -> FilterEnum {
@@ -451,11 +456,26 @@ fn create_spectrum_texture(
     Ok(texture)
 }
 
+/// Create all materials from their descriptions,
+/// replacing them in the name-to-material map.
+///
+/// Returns `Ok` if all creations succeeded, `Err` upon any failure with the error for that material.
+fn create_materials(
+    descs: HashMap<String, MaterialDesc>,
+    color_space: &'static RGBColorSpace,
+    textures: &mut Textures,
+) -> Result<HashMap<String, Arc<MaterialEnum>>, ReadSceneError> {
+    descs
+        .into_iter()
+        .map(|(name, desc)| create_material(desc, color_space, textures).map(|mat| (name, mat)))
+        .collect()
+}
+
 fn create_material(
     desc: MaterialDesc,
     color_space: &'static RGBColorSpace,
     textures: &mut Textures,
-) -> Result<MaterialEnum, ReadSceneError> {
+) -> Result<Arc<MaterialEnum>, ReadSceneError> {
     let material = match desc {
         MaterialDesc::Diffuse(desc) => {
             let reflectance = get_spectrum_texture(
@@ -479,7 +499,7 @@ fn create_material(
         }
     };
 
-    Ok(material)
+    Ok(Arc::new(material))
 }
 
 // Helpers for getting constructed textures based on description -

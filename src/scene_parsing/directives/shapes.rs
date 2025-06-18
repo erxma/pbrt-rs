@@ -12,6 +12,15 @@ pub enum ShapeDesc {
     BilinearMesh(BilinearMesh),
 }
 
+impl ShapeDesc {
+    pub fn material_name(&self) -> &str {
+        match self {
+            ShapeDesc::Sphere(desc) => &desc.material_name,
+            ShapeDesc::BilinearMesh(desc) => &desc.material_name,
+        }
+    }
+}
+
 impl FromEntity for ShapeDesc {
     fn from_entity(entity: EntityDirective, state: &GraphicsState) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Shape");
@@ -32,6 +41,8 @@ pub struct Sphere {
     pub alpha: Alpha,
     pub world_from_object: Transform,
     pub reverse_orientation: bool,
+    pub material_name: String,
+
     pub radius: Float,
     pub z_min: Float,
     pub z_max: Float,
@@ -44,6 +55,8 @@ impl Default for Sphere {
             alpha: Alpha::Constant(1.0),
             world_from_object: Transform::IDENTITY,
             reverse_orientation: false,
+            material_name: Default::default(),
+
             radius: 1.0,
             z_min: 1.0,
             z_max: 1.0,
@@ -82,6 +95,13 @@ impl FromEntity for Sphere {
 
         result.world_from_object = state.current_transform.clone();
         result.reverse_orientation = state.reverse_orientation;
+        result.material_name =
+            state
+                .current_material_name
+                .clone()
+                .ok_or(PbrtParseError::MissingRequiredParameter(
+                    "Material".to_string(),
+                ))?;
 
         entity.param_map.check_no_remaining_params()?;
 
@@ -94,6 +114,8 @@ pub struct BilinearMesh {
     pub alpha: Alpha,
     pub world_from_object: Transform,
     pub reverse_orientation: bool,
+    pub material_name: String,
+
     pub indices: Vec<usize>,
     pub positions: Vec<Point3f>,
     pub normals: Option<Vec<Normal3f>>,
@@ -107,6 +129,8 @@ impl Default for BilinearMesh {
             alpha: Alpha::Constant(1.0),
             world_from_object: Transform::default(),
             reverse_orientation: false,
+            material_name: Default::default(),
+
             indices: vec![0, 1, 2],
             positions: vec![],
             normals: None,
@@ -147,6 +171,13 @@ impl FromEntity for BilinearMesh {
 
         result.world_from_object = state.current_transform.clone();
         result.reverse_orientation = state.reverse_orientation;
+        result.material_name =
+            state
+                .current_material_name
+                .clone()
+                .ok_or(PbrtParseError::MissingRequiredParameter(
+                    "Material".to_string(),
+                ))?;
 
         entity.param_map.check_no_remaining_params()?;
 

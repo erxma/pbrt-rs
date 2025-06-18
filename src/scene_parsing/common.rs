@@ -613,7 +613,7 @@ fn param(input: &mut &str) -> PResult<(String, Value)> {
 #[derive(Clone, Debug)]
 pub struct GraphicsState {
     pub current_transform: Transform,
-    pub current_material: Option<MaterialDesc>,
+    pub current_material_name: Option<String>,
     pub reverse_orientation: bool,
 }
 
@@ -621,7 +621,7 @@ impl Default for GraphicsState {
     fn default() -> Self {
         Self {
             current_transform: Transform::IDENTITY,
-            current_material: None,
+            current_material_name: None,
             reverse_orientation: false,
         }
     }

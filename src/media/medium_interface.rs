@@ -4,8 +4,8 @@ use super::medium::MediumEnum;
 
 #[derive(Clone, Debug)]
 pub struct MediumInterface {
-    pub inside: Arc<MediumEnum>,
-    pub outside: Arc<MediumEnum>,
+    pub inside: Option<Arc<MediumEnum>>,
+    pub outside: Option<Arc<MediumEnum>>,
 }
 
 impl MediumInterface {

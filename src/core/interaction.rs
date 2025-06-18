@@ -323,23 +323,23 @@ impl<'a> SurfaceInteraction<'a> {
     }
 
     pub fn medium_at_side(&self, w: Vec3f) -> Option<Arc<MediumEnum>> {
-        self.medium_interface
-            .as_ref()
-            .map(|mi| {
+        match &self.medium_interface {
+            Some(mi) => {
                 if w.dot(self.n.into()) > 0.0 {
                     mi.outside.clone()
                 } else {
                     mi.inside.clone()
                 }
-            })
-            .or(self.medium.clone())
+            }
+            None => self.medium.clone(),
+        }
     }
 
     pub fn medium(&self) -> Option<&MediumEnum> {
-        self.medium_interface
-            .as_ref()
-            .map(|mi| &*mi.inside)
-            .or(self.medium.as_deref())
+        match &self.medium_interface {
+            Some(mi) => mi.inside.as_deref(),
+            None => self.medium.as_deref(),
+        }
     }
 
     pub fn skip_intersection(&self, ray_diff: &RayDifferential, t: Float) -> RayDifferential {

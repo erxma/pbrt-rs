@@ -11,19 +11,19 @@ use num_traits::NumCast;
 use strum::{EnumDiscriminants, EnumString};
 use thiserror::Error;
 use winnow::{
-    ascii::{alpha1, alphanumeric0, alphanumeric1, float, multispace1, space1},
+    ascii::{alpha1, alphanumeric1, float, multispace1, space1},
     combinator::{
         alt, cut_err, delimited, eof, fail, separated, separated_pair, seq, terminated, trace,
     },
     error::{AddContext, ErrMode, ErrorKind, ParserError, StrContext, StrContextValue},
     prelude::*,
     stream::Stream,
+    token::take_until,
 };
 
 use crate::{
     color::RGB,
     core::{Float, Normal3f, Point2f, Point3f, Transform, Vec2f, Vec3f},
-    scene_parsing::directives::MaterialDesc,
 };
 
 use super::directives::{
@@ -174,6 +174,7 @@ macro_rules! impl_num_try_from_value {
 }
 
 impl_num_try_from_value!(usize, Int, IntArray);
+impl_num_try_from_value!(u8, Int, IntArray);
 impl_num_try_from_value!(u64, Int, IntArray);
 impl_num_try_from_value!(Float, Float, FloatArray);
 
@@ -346,7 +347,7 @@ pub(super) enum AtomicLiteral {
 
 pub(super) fn atomic_literal(input: &mut &str) -> PResult<AtomicLiteral> {
     let boolean = alt(("true".value(true), "false".value(false)));
-    let string = delimited('"', alphanumeric0, '"');
+    let string = delimited('"', take_until(0.., '"'), '"');
     let val = alt((
         float.map(AtomicLiteral::Num),
         boolean.map(AtomicLiteral::Bool),
@@ -897,8 +898,13 @@ mod test {
             Ok(AtomicLiteral::Str("parse".to_owned()))
         );
         assert_eq!(
-            Ok(AtomicLiteral::Str("".to_owned())),
-            atomic_literal.parse(&mut "\"\"")
+            atomic_literal.parse(&mut "\"\""),
+            Ok(AtomicLiteral::Str("".to_owned()))
+        );
+        assert_parses_to(
+            atomic_literal,
+            &mut "\"file.png\"",
+            AtomicLiteral::Str("file.png".to_owned()),
         );
     }
 
@@ -1042,5 +1048,35 @@ mod test {
         );
 
         assert!(<Vec<Vec2f>>::try_from(Value::FloatArray(vec![0.5, 0.6, 0.0])).is_err());
+    }
+
+    #[test]
+    fn test_entity_directive() {
+        assert_parses_to(
+            entity_directive,
+            &mut r#"Sampler "independent" "integer pixelsamples" 128"#,
+            EntityDirective {
+                identifier: "Sampler",
+                subtype: "independent",
+                param_map: ParameterMap(convert_args!(hashmap!(
+                    "pixelsamples" => Value::Int(128)
+                ))),
+            },
+        );
+
+        assert_parses_to(
+            entity_directive,
+            &mut r#"Film "rgb" "string filename" "simple.png"
+                    "integer xresolution" [400] "integer yresolution" [400]"#,
+            EntityDirective {
+                identifier: "Film",
+                subtype: "rgb",
+                param_map: ParameterMap(convert_args!(hashmap!(
+                    "filename" => Value::Str("simple.png".to_string()),
+                    "xresolution" => Value::IntArray(vec![400]),
+                    "yresolution" => Value::IntArray(vec![400]),
+                ))),
+            },
+        );
     }
 }

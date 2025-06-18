@@ -13,7 +13,8 @@ use thiserror::Error;
 use winnow::{
     ascii::{alpha1, alphanumeric1, float, multispace1, space1},
     combinator::{
-        alt, cut_err, delimited, eof, fail, separated, separated_pair, seq, terminated, trace,
+        alt, cut_err, delimited, eof, fail, opt, preceded, separated, separated_pair, terminated,
+        trace,
     },
     error::{AddContext, ErrMode, ErrorKind, ParserError, StrContext, StrContextValue},
     prelude::*,
@@ -121,6 +122,8 @@ macro_rules! impl_num_try_from_value {
                     let converted: Result<Vec<_>, _> =
                         vec.into_iter().map(|int| int.try_into()).collect();
 
+                    // Irrefutable when target type is same as source representation
+                    #[allow(irrefutable_let_patterns)]
                     if let Ok(vec) = converted {
                         vec.try_into().map_err(|_| PbrtParseError::IncorrectLength {
                             expected: N,
@@ -402,7 +405,7 @@ impl TryFrom<Value> for Option<Spectrum> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub(super) struct ParameterMap(HashMap<String, Value>);
 
 impl ParameterMap {
@@ -484,7 +487,8 @@ pub(super) fn param_map(input: &mut &str) -> PResult<ParameterMap> {
 
     // Parse an entire parameter list (i.e. up until something that doesn't match the param format)
     // And convert it to a map.
-    let param_map = cut_err(separated(0.., possible_param, multispace1))
+    // Must get at least one param to parse Ok
+    let param_map = separated(1.., possible_param, multispace1)
         .map(|list: Vec<_>| ParameterMap::from_iter(list));
 
     let mut traced = trace("param_map", param_map);
@@ -754,7 +758,7 @@ pub(super) enum Directive<'a> {
 }
 
 pub(super) fn directive<'a>(input: &mut &'a str) -> PResult<Directive<'a>> {
-    terminated(
+    let parser = terminated(
         alt((
             entity_directive.map(Directive::Entity),
             transform_directive.map(Directive::Transform),
@@ -765,8 +769,9 @@ pub(super) fn directive<'a>(input: &mut &'a str) -> PResult<Directive<'a>> {
             "ReverseOrientation".map(|_| Directive::ReverseOrientation),
         )),
         alt((multispace1, eof)),
-    )
-    .parse_next(input)
+    );
+
+    trace("directive", parser).parse_next(input)
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -777,23 +782,28 @@ pub(super) struct EntityDirective<'a> {
 }
 
 pub(super) fn entity_directive<'a>(input: &mut &'a str) -> PResult<EntityDirective<'a>> {
-    trace(
-        "entity_directive",
-        seq! { EntityDirective {
-            identifier: alpha1,
-            _: multispace1,
-            subtype: delimited('"', alpha1, '"'),
-            _: multispace1,
-            param_map: param_map
-        }},
-    )
-    .parse_next(input)
+    let parser = |input: &mut &'a str| {
+        let (identifier, subtype) =
+            separated_pair(alpha1, multispace1, delimited('"', alphanumeric1, '"'))
+                .parse_next(input)?;
+        let param_map = opt(preceded(multispace1, param_map)).parse_next(input)?;
+
+        Ok(EntityDirective {
+            identifier,
+            subtype,
+            param_map: param_map.unwrap_or_default(),
+        })
+    };
+
+    trace("entity_directive", parser).parse_next(input)
 }
 
 #[derive(Debug, Error)]
 pub enum PbrtParseError {
     #[error("failed to read scene file")]
     IoError(#[from] std::io::Error),
+    #[error("format error in scene file: {message}")]
+    FormatError { message: String },
 
     #[error("directive is illegal in the current section: `{0}`")]
     IllegalForSection(String),
@@ -827,6 +837,14 @@ pub enum PbrtParseError {
         entity: String,
         variant_name: String,
     },
+}
+
+impl From<winnow::error::ContextError> for PbrtParseError {
+    fn from(value: winnow::error::ContextError) -> Self {
+        Self::FormatError {
+            message: value.to_string(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1076,6 +1094,21 @@ mod test {
                     "xresolution" => Value::IntArray(vec![400]),
                     "yresolution" => Value::IntArray(vec![400]),
                 ))),
+            },
+        );
+    }
+
+    #[test]
+    fn test_entity_directive_empty_param_map() {
+        assert!(param_map.parse("").is_err());
+
+        assert_parses_to(
+            entity_directive,
+            r#"Integrator "volpath""#,
+            EntityDirective {
+                identifier: "Integrator",
+                subtype: "volpath",
+                param_map: ParameterMap(HashMap::new()),
             },
         );
     }

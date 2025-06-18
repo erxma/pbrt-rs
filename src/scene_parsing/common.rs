@@ -323,8 +323,12 @@ pub(super) enum Literal {
 
 pub(super) fn literal(input: &mut &str) -> PResult<Literal> {
     // FUTURE: cut_err verify is not available in winnow yet
-    let array = delimited('[', separated(1.., atomic_literal, space1), ']')
-        .verify(|arr: &Vec<_>| arr.iter().map(AtomicLiteralType::from).all_equal());
+    let array = delimited(
+        ('[', opt(multispace1)),
+        separated(1.., atomic_literal, multispace1),
+        (opt(multispace1), ']'),
+    )
+    .verify(|arr: &Vec<_>| arr.iter().map(AtomicLiteralType::from).all_equal());
     let val = alt((
         atomic_literal.map(Literal::Atomic),
         array.map(Literal::Array),
@@ -760,13 +764,17 @@ pub(super) enum Directive<'a> {
 pub(super) fn directive<'a>(input: &mut &'a str) -> PResult<Directive<'a>> {
     let parser = terminated(
         alt((
-            entity_directive.map(Directive::Entity),
-            transform_directive.map(Directive::Transform),
-            texture_directive.map(Directive::Texture),
             "WorldBegin".map(|_| Directive::WorldBegin),
             "AttributeBegin".map(|_| Directive::AttributeBegin),
             "AttributeEnd".map(|_| Directive::AttributeEnd),
             "ReverseOrientation".map(|_| Directive::ReverseOrientation),
+            // Order here matters to prevent entity_directive from
+            // eating part of a texture_directive, thinking the third "string"
+            // is part of the next directive.
+            // One alterative is to use dispatch
+            texture_directive.map(Directive::Texture),
+            transform_directive.map(Directive::Transform),
+            entity_directive.map(Directive::Entity),
         )),
         alt((multispace1, eof)),
     );
@@ -946,6 +954,14 @@ mod test {
                 AtomicLiteral::Num(9.9)
             ]))
         );
+        assert_eq!(
+            literal.parse(&mut "[ .4 .45 .5 ]"),
+            Ok(Literal::Array(vec![
+                AtomicLiteral::Num(0.4),
+                AtomicLiteral::Num(0.45),
+                AtomicLiteral::Num(0.5),
+            ]))
+        );
     }
 
     #[test]
@@ -1093,6 +1109,18 @@ mod test {
                     "filename" => Value::Str("simple.png".to_string()),
                     "xresolution" => Value::IntArray(vec![400]),
                     "yresolution" => Value::IntArray(vec![400]),
+                ))),
+            },
+        );
+
+        assert_parses_to(
+            entity_directive,
+            &mut r#"LightSource "infinite" "rgb L" [ .4 .45 .5 ]"#,
+            EntityDirective {
+                identifier: "LightSource",
+                subtype: "infinite",
+                param_map: ParameterMap(convert_args!(hashmap!(
+                    "L" => Value::Rgb(RGB::new(0.4, 0.45, 0.5))
                 ))),
             },
         );

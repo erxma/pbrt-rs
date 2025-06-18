@@ -121,7 +121,8 @@ fn parse_options_section(
     let options_builder = OptionsBuilder::empty();
     let mut state = GraphicsState::default();
 
-    while let Ok(directive) = directive(input) {
+    loop {
+        let directive = directive(input).map_err(|e| e.into_inner().unwrap())?;
         match directive {
             Directive::Entity(entity) => match entity.identifier {
                 "Camera" => {
@@ -217,13 +218,17 @@ fn parse_world_section(
     let mut state = GraphicsState::default();
     let mut stored_states_stack = Vec::new();
 
-    while let Ok(directive) = directive(input) {
+    loop {
+        if input.is_empty() {
+            break;
+        }
+        let directive = directive(input).map_err(|e| e.into_inner().unwrap())?;
         match directive {
             Directive::Entity(entity) => match entity.identifier {
                 "Shape" => {
                     world.shapes.push(ShapeDesc::from_entity(entity, &state)?);
                 }
-                "Light" => {
+                "LightSource" => {
                     world.lights.push(Light::from_entity(entity, &state)?);
                 }
                 "Material" => {
@@ -310,7 +315,8 @@ mod test {
         assert!(
             parse_options_section(
                 &mut r#"Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4
-                        ThisIsNotARealDirective "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4"#,
+                        ThisIsNotARealDirective "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4
+                        WorldBegin"#,
                 false
             ).is_err()
         );
@@ -321,7 +327,8 @@ mod test {
         assert!(
             parse_options_section(
                 &mut r#"Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4
-                        ThisIsNotARealDirective "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4"#,
+                        ThisIsNotARealDirective "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4
+                        WorldBegin"#,
                 true
             ).is_ok()
         );
@@ -330,7 +337,8 @@ mod test {
     #[test]
     fn test_global_options_ok() {
         assert!(parse_options_section(
-            &mut r#"Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4"#,
+            &mut r#"Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4
+                    WorldBegin"#,
             false
         )
         .is_ok());
@@ -353,6 +361,7 @@ mod test {
             &mut Cursor::new(
                 r#"Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4
                 WorldBegin
+                Material "dielectric"
                 Shape "sphere" "float radius" 0.25"#,
             ),
             true,

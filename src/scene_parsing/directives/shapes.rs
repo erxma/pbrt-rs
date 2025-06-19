@@ -131,7 +131,7 @@ impl Default for BilinearMesh {
             reverse_orientation: false,
             material_name: Default::default(),
 
-            indices: vec![0, 1, 2],
+            indices: vec![0, 1, 2, 3],
             positions: vec![],
             normals: None,
             tangents: None,
@@ -161,7 +161,7 @@ impl FromEntity for BilinearMesh {
 
         match entity.param_map.remove("indices") {
             Some(indices) => result.indices = indices.try_into()?,
-            None if result.positions.len() == 3 => {}
+            None if result.positions.len() == 4 => {}
             None => {
                 return Err(PbrtParseError::MissingRequiredParameter(
                     "indices".to_string(),

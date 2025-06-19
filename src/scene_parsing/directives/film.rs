@@ -111,7 +111,7 @@ impl TryFrom<Value> for SensorName {
             found: value.clone(),
         };
 
-        if let Value::Str(string) = value {
+        if let Value::String(string) = value {
             if let Ok(sensor) = string.parse() {
                 return Ok(sensor);
             }

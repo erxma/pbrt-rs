@@ -98,7 +98,7 @@ mod test {
         assert_eq!(
             Light::from_entity(
                 entity_directive(
-                    &mut r#"LightSource "distant" "rgb L" [0.2 .6   0] "point from" [10 12 5.9]"#
+                    &mut r#"LightSource "distant" "rgb L" [0.2 .6   0] "point3 from" [10 12 5.9]"#
                 )
                 .unwrap(),
                 &Default::default(),

@@ -109,7 +109,7 @@ impl TryFrom<Value> for FloatTextureDesc {
         let texture = match value {
             // A float value is interpreted as a constant texture with that value
             Value::Float(value) => ConstantFloatTexture { value }.into(),
-            Value::TextureName(name) => Self::Named(name),
+            Value::Texture(name) => Self::Named(name),
             _ => {
                 return Err(PbrtParseError::IncorrectType {
                     expected: "float".to_string(),
@@ -161,7 +161,7 @@ impl FromTextureDirective for SpectrumTextureDesc {
                         .map(Self::Checkerboard3D),
                     _ => Err(PbrtParseError::InvalidValue {
                         expected: "2 or 3".to_string(),
-                        found: Value::Int(dimension as i64),
+                        found: Value::Integer(dimension as i64),
                     }),
                 }
             }
@@ -181,7 +181,7 @@ impl TryFrom<Value> for SpectrumTextureDesc {
         let texture = match value {
             // An RGB value is interpreted as a constant texture with that color
             Value::Rgb(rgb) => ConstantSpectrumTexture::with_rgb(rgb).into(),
-            Value::TextureName(name) => Self::Named(name),
+            Value::Texture(name) => Self::Named(name),
             _ => {
                 return Err(PbrtParseError::IncorrectType {
                     expected: "RGB".to_string(),
@@ -287,7 +287,7 @@ fn get_checkerboard_dimension(directive: &mut TextureDirective) -> Result<usize,
     directive
         .param_map
         .remove("dimension")
-        .unwrap_or(Value::Int(2))
+        .unwrap_or(Value::Integer(2))
         .try_into()
 }
 
@@ -469,7 +469,7 @@ impl TextureMapping2DEnum {
         let mapping_param = directive
             .param_map
             .remove("mapping")
-            .unwrap_or(Value::Str("uv".to_string()));
+            .unwrap_or(Value::String("uv".to_string()));
         let mapping_name: String = mapping_param.clone().try_into()?;
 
         match mapping_name.as_str() {

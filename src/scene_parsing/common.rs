@@ -1,5 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
+    fmt::Debug,
     path::PathBuf,
     str::FromStr,
 };
@@ -8,7 +9,7 @@ use delegate::delegate;
 use enum_as_inner::EnumAsInner;
 use itertools::Itertools;
 use num_traits::NumCast;
-use strum::{EnumDiscriminants, EnumString};
+use strum::EnumDiscriminants;
 use thiserror::Error;
 use winnow::{
     ascii::{alpha1, alphanumeric1, float, multispace1, space1},
@@ -31,56 +32,46 @@ use super::directives::{
     texture_directive, transform_directive, TextureDirective, TransformDirective,
 };
 
-#[derive(Clone, Debug, PartialEq, EnumAsInner, strum::Display)]
+#[derive(Clone, Debug, PartialEq, strum::Display, strum::EnumDiscriminants)]
+#[strum_discriminants(
+    name(ValueType),
+    derive(strum::Display, strum::EnumString),
+    strum(serialize_all = "lowercase")
+)]
 pub enum Value {
-    Int(Int),
-    IntArray(Vec<Int>),
+    Integer(Int),
     Float(Float),
-    FloatArray(Vec<Float>),
     Bool(bool),
-    Str(String),
+    String(String),
     Point2(Point2f),
-    Vec2(Vec2f),
+    Vector2(Vec2f),
     Point3(Point3f),
-    Vec3(Vec3f),
+    Vector3(Vec3f),
     Normal(Normal3f),
     Rgb(RGB),
-    BlackbodyTemp(Float),
-    TextureName(String),
+    Blackbody(Float),
+    Texture(String),
+    Array(Vec<Value>),
+}
+
+impl ValueType {
+    fn is_tuple_type(&self) -> bool {
+        match self {
+            ValueType::Point2
+            | ValueType::Vector2
+            | ValueType::Point3
+            | ValueType::Vector3
+            | ValueType::Normal
+            | ValueType::Rgb => true,
+            _ => false,
+        }
+    }
 }
 
 pub(super) type Int = i64;
 
-#[derive(Clone, Debug, PartialEq, EnumString, strum::Display)]
-pub(super) enum ValueType {
-    #[strum(serialize = "integer")]
-    Int,
-    #[strum(serialize = "float")]
-    Float,
-    #[strum(serialize = "bool")]
-    Bool,
-    #[strum(serialize = "string")]
-    Str,
-    #[strum(serialize = "point2")]
-    Point2,
-    #[strum(serialize = "vector2")]
-    Vec2,
-    #[strum(serialize = "point3")]
-    Point3,
-    #[strum(serialize = "vector3")]
-    Vec3,
-    #[strum(serialize = "normal")]
-    Normal,
-    #[strum(serialize = "rgb")]
-    Rgb,
-    #[strum(serialize = "blackbody")]
-    Blackbody,
-    #[strum(serialize = "texture")]
-    TextureName,
-}
-
 macro_rules! impl_num_try_from_value {
-    ($ty:ty, $from:ident, $from_arr:ident) => {
+    ($ty:ty, $from:ident) => {
         impl TryFrom<Value> for $ty {
             type Error = PbrtParseError;
 
@@ -88,8 +79,8 @@ macro_rules! impl_num_try_from_value {
                 match value {
                     Value::$from(val) => val.try_into().map_err(|_| value),
                     // Also allow implicit conversion from single elem array to single
-                    Value::$from_arr(ref arr) if arr.len() == 1 => {
-                        NumCast::from(arr[0]).ok_or(value)
+                    Value::Array(ref arr) if arr.len() == 1 => {
+                        arr[0].clone().try_into().or(Err(value))
                     }
                     _ => Err(value),
                 }
@@ -117,7 +108,7 @@ macro_rules! impl_num_try_from_value {
                     found: value.clone(),
                 };
 
-                if let Value::$from_arr(vec) = value {
+                if let Value::Array(vec) = value {
                     let len = vec.len();
                     let converted: Result<Vec<_>, _> =
                         vec.into_iter().map(|int| int.try_into()).collect();
@@ -155,7 +146,7 @@ macro_rules! impl_num_try_from_value {
                     found: value.clone(),
                 };
 
-                if let Value::$from_arr(vec) = value {
+                if let Value::Array(vec) = value {
                     let converted: Result<Vec<_>, _> =
                         vec.into_iter().map(|num| num.try_into()).collect();
 
@@ -176,55 +167,13 @@ macro_rules! impl_num_try_from_value {
     };
 }
 
-impl_num_try_from_value!(usize, Int, IntArray);
-impl_num_try_from_value!(u8, Int, IntArray);
-impl_num_try_from_value!(u64, Int, IntArray);
-impl_num_try_from_value!(Float, Float, FloatArray);
+impl_num_try_from_value!(usize, Integer);
+impl_num_try_from_value!(u8, Integer);
+impl_num_try_from_value!(u64, Integer);
+impl_num_try_from_value!(Float, Float);
 
-impl TryFrom<Value> for bool {
-    type Error = PbrtParseError;
-
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        value
-            .into_bool()
-            .map_err(|found_val| PbrtParseError::IncorrectType {
-                expected: "bool".to_string(),
-                found: found_val,
-            })
-    }
-}
-
-impl TryFrom<Value> for Option<bool> {
-    type Error = PbrtParseError;
-
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        bool::try_from(value).map(Some)
-    }
-}
-
-impl TryFrom<Value> for String {
-    type Error = PbrtParseError;
-
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        value
-            .into_str()
-            .map_err(|found_val| PbrtParseError::IncorrectType {
-                expected: ValueType::Str.to_string(),
-                found: found_val,
-            })
-    }
-}
-
-impl TryFrom<Value> for Option<String> {
-    type Error = PbrtParseError;
-
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        String::try_from(value).map(Some)
-    }
-}
-
-macro_rules! impl_tuple_try_from_value {
-    ($ty:ty, $from:ident, $from_arr:ident, $n:expr) => {
+macro_rules! impl_try_from_value {
+    ($ty:ty, $from:ident) => {
         impl TryFrom<Value> for $ty {
             type Error = PbrtParseError;
 
@@ -233,7 +182,7 @@ macro_rules! impl_tuple_try_from_value {
                     Ok(value)
                 } else {
                     Err(PbrtParseError::IncorrectType {
-                        expected: ValueType::$from.to_string(),
+                        expected: stringify!($ty).to_string(),
                         found: value,
                     })
                 }
@@ -257,19 +206,10 @@ macro_rules! impl_tuple_try_from_value {
                     found: value.clone(),
                 };
 
-                if let Value::$from_arr(vec) = value {
-                    if vec.len() % $n != 0 {
-                        return Err(PbrtParseError::InvalidValue {
-                            expected: format!(
-                                "array length that is a multiple of {}",
-                                stringify!($n)
-                            ),
-                            found: Value::Int(vec.len() as i64),
-                        });
-                    }
-
-                    let result: Result<Vec<_>, _> = vec.chunks($n).map(<$ty>::try_from).collect();
-                    result.map_err(|_| incorrect_type_err)
+                if let Value::Array(arr) = value {
+                    let converted: Result<Vec<_>, _> =
+                        arr.into_iter().map(<$ty>::try_from).collect();
+                    converted.map_err(|_| incorrect_type_err)
                 } else {
                     Err(incorrect_type_err)
                 }
@@ -286,24 +226,20 @@ macro_rules! impl_tuple_try_from_value {
     };
 }
 
-impl_tuple_try_from_value!(Point2f, Point2, FloatArray, 2);
-impl_tuple_try_from_value!(Vec2f, Vec2, FloatArray, 2);
-impl_tuple_try_from_value!(Point3f, Point3, FloatArray, 3);
-impl_tuple_try_from_value!(Vec3f, Vec3, FloatArray, 3);
-impl_tuple_try_from_value!(Normal3f, Normal, FloatArray, 3);
-impl_tuple_try_from_value!(RGB, Rgb, FloatArray, 3);
+impl_try_from_value!(bool, Bool);
+impl_try_from_value!(Point2f, Point2);
+impl_try_from_value!(Vec2f, Vector2);
+impl_try_from_value!(Point3f, Point3);
+impl_try_from_value!(Vec3f, Vector3);
+impl_try_from_value!(Normal3f, Normal);
+impl_try_from_value!(RGB, Rgb);
+impl_try_from_value!(String, String);
 
 impl TryFrom<Value> for PathBuf {
     type Error = PbrtParseError;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
-        value
-            .into_str()
-            .map(PathBuf::from)
-            .map_err(|found_val| PbrtParseError::IncorrectType {
-                expected: "PathBuf".to_string(),
-                found: found_val,
-            })
+        String::try_from(value).map(PathBuf::from)
     }
 }
 
@@ -392,7 +328,7 @@ impl TryFrom<Value> for Spectrum {
         match value {
             Value::Float(val) => Ok(Self::Constant(val)),
             Value::Rgb(rgb) => Ok(Self::Rgb(rgb)),
-            Value::BlackbodyTemp(temp) => Ok(Self::BlackbodyTemp(temp)),
+            Value::Blackbody(temp) => Ok(Self::BlackbodyTemp(temp)),
             _ => Err(PbrtParseError::IncorrectType {
                 expected: "spectrum".to_string(),
                 found: value,
@@ -513,110 +449,105 @@ fn param(input: &mut &str) -> PResult<(String, Value)> {
         space1,
         literal,
     )
-    .verify_map(|((ty, name), val)| {
-        let val = match ty {
-            ValueType::Int => match val {
-                // FIXME: Can't assume `as`` is valid; array could have floats
-                Literal::Atomic(val) => Value::Int(val.into_num().ok()? as Int),
-                Literal::Array(arr) => {
-                    let int_arr = arr
-                        .into_iter()
-                        .map(|v| v.into_num().map(|v| v as Int))
-                        .collect::<Result<_, _>>()
-                        .ok()?;
-                    Value::IntArray(int_arr)
-                }
-            },
-            // FIXME: Currently allows f64 saturating to f32 infinity
-            ValueType::Float => match val {
-                Literal::Atomic(val) => Value::Float(val.into_num().ok()? as Float),
-                Literal::Array(arr) => {
-                    let f_arr = arr
-                        .into_iter()
-                        .map(|v| v.into_num().map(|v| v as Float))
-                        .collect::<Result<_, _>>()
-                        .ok()?;
-                    Value::FloatArray(f_arr)
-                }
-            },
-            // FIXME: After refactor, no longer automatically supports same type name
-            // for either single or array. Should be easy as only the atomic ones will
-            // have this case
-            ValueType::Bool => Value::Bool(*val.as_atomic()?.as_bool()?),
-            ValueType::Str => Value::Str(val.into_atomic().ok()?.into_str().ok()?),
-            ValueType::Point2 => {
-                let arr = val.as_array()?;
-                if arr.len() != 2 {
-                    return None;
-                }
-                Value::Point2(Point2f::new(
-                    *arr[0].as_num()? as Float,
-                    *arr[1].as_num()? as Float,
-                ))
-            }
-            ValueType::Vec2 => {
-                let arr = val.as_array()?;
-                if arr.len() != 2 {
-                    return None;
-                }
-                Value::Vec2(Vec2f::new(
-                    *arr[0].as_num()? as Float,
-                    *arr[1].as_num()? as Float,
-                ))
-            }
-            ValueType::Point3 => {
-                let arr = val.as_array()?;
-                if arr.len() != 3 {
-                    return None;
-                }
-                Value::Point3(Point3f::new(
-                    *arr[0].as_num()? as Float,
-                    *arr[1].as_num()? as Float,
-                    *arr[2].as_num()? as Float,
-                ))
-            }
-            ValueType::Vec3 => {
-                let arr = val.as_array()?;
-                if arr.len() != 3 {
-                    return None;
-                }
-                Value::Vec3(Vec3f::new(
-                    *arr[0].as_num()? as Float,
-                    *arr[1].as_num()? as Float,
-                    *arr[2].as_num()? as Float,
-                ))
-            }
-            ValueType::Normal => {
-                let arr = val.as_array()?;
-                if arr.len() != 3 {
-                    return None;
-                }
-                Value::Normal(Normal3f::new(
-                    *arr[0].as_num()? as Float,
-                    *arr[1].as_num()? as Float,
-                    *arr[2].as_num()? as Float,
-                ))
-            }
-            ValueType::Rgb => {
-                let arr = val.as_array()?;
-                if arr.len() != 3 {
-                    return None;
-                }
-                Value::Rgb(RGB::new(
-                    *arr[0].as_num()? as Float,
-                    *arr[1].as_num()? as Float,
-                    *arr[2].as_num()? as Float,
-                ))
-            }
-            ValueType::Blackbody => Value::BlackbodyTemp(*val.as_atomic()?.as_num()? as Float),
-            ValueType::TextureName => Value::TextureName(val.into_atomic().ok()?.into_str().ok()?),
-        };
-
+    .verify_map(|((ty, name), literal)| {
+        let val = literal_to_value(literal, ty)?;
         Some((name.to_owned(), val))
     })
     .context(StrContext::Label("parameter expression"));
 
     trace("param", full_param).parse_next(input)
+}
+
+fn literal_to_value(value: Literal, value_type: ValueType) -> Option<Value> {
+    match value {
+        Literal::Atomic(atomic) => atomic_literal_to_value(atomic, value_type),
+        Literal::Array(atomics) => {
+            if value_type.is_tuple_type() {
+                array_literal_to_tuple_values(atomics, value_type)
+            } else if value_type == ValueType::Array {
+                None
+            } else {
+                let vec = atomics
+                    .into_iter()
+                    .map(|a| atomic_literal_to_value(a, value_type))
+                    .collect::<Option<_>>()?;
+                Some(Value::Array(vec))
+            }
+        }
+    }
+}
+
+fn array_literal_to_tuple_values(
+    atomics: Vec<AtomicLiteral>,
+    value_type: ValueType,
+) -> Option<Value> {
+    let n = match value_type {
+        ValueType::Point2 | ValueType::Vector2 => 2,
+        ValueType::Point3 | ValueType::Vector3 | ValueType::Normal | ValueType::Rgb => 3,
+        _ => panic!("called array_literal_to_tuple_values for non-tuple value type"),
+    };
+
+    if atomics.len() % n != 0 {
+        return None;
+    }
+
+    let mut vec = Vec::new();
+    for chunk in atomics.chunks(n) {
+        let val = match value_type {
+            ValueType::Point2 => Value::Point2(Point2f::new(
+                *chunk[0].as_num()? as Float,
+                *chunk[1].as_num()? as Float,
+            )),
+            ValueType::Vector2 => Value::Vector2(Vec2f::new(
+                *chunk[0].as_num()? as Float,
+                *chunk[1].as_num()? as Float,
+            )),
+            ValueType::Point3 => Value::Point3(Point3f::new(
+                *chunk[0].as_num()? as Float,
+                *chunk[1].as_num()? as Float,
+                *chunk[2].as_num()? as Float,
+            )),
+            ValueType::Vector3 => Value::Vector3(Vec3f::new(
+                *chunk[0].as_num()? as Float,
+                *chunk[1].as_num()? as Float,
+                *chunk[2].as_num()? as Float,
+            )),
+            ValueType::Normal => Value::Normal(Normal3f::new(
+                *chunk[0].as_num()? as Float,
+                *chunk[1].as_num()? as Float,
+                *chunk[2].as_num()? as Float,
+            )),
+            ValueType::Rgb => Value::Rgb(RGB::new(
+                *chunk[0].as_num()? as Float,
+                *chunk[1].as_num()? as Float,
+                *chunk[2].as_num()? as Float,
+            )),
+            _ => unreachable!(),
+        };
+
+        vec.push(val);
+    }
+
+    if vec.len() == 1 {
+        Some(vec.remove(0))
+    } else {
+        Some(Value::Array(vec))
+    }
+}
+
+fn atomic_literal_to_value(atomic: AtomicLiteral, value_type: ValueType) -> Option<Value> {
+    let val = match value_type {
+        ValueType::Integer => Value::Integer(atomic.into_num().ok().and_then(NumCast::from)?),
+        // FIXME: Currently allows f64 saturating to f32 infinity
+        ValueType::Float => Value::Float(atomic.into_num().ok().and_then(NumCast::from)?),
+        ValueType::Bool => Value::Bool(atomic.into_bool().ok()?),
+        ValueType::String => Value::String(atomic.into_str().ok()?),
+        ValueType::Blackbody => Value::Blackbody(atomic.into_num().ok().and_then(NumCast::from)?),
+        ValueType::Texture => Value::Texture(atomic.into_str().ok()?),
+        _ => panic!("tried to convert atomic literal to value that requires array"),
+    };
+
+    Some(val)
 }
 
 #[derive(Clone, Debug)]
@@ -898,6 +829,18 @@ mod test {
         output
     }
 
+    macro_rules! array_value {
+        () => (
+            Value::Array(Vec::new())
+        );
+        ($type:ident; $elem:expr; $n:expr) => (
+            Value::Array(vec![Value::$type($elem); n])
+        );
+        ($type:ident; $($x:expr),+ $(,)?) => (
+            Value::Array(vec![$(Value::$type($x)),+])
+        );
+    }
+
     #[test]
     fn test_atomic_literal() {
         assert_eq!(
@@ -996,7 +939,7 @@ mod test {
         assert_parses_to(
             param,
             &mut r#""vector2 foo" [.6   0]"#,
-            ("foo".to_string(), Value::Vec2(Vec2f::new(0.6, 0.0))),
+            ("foo".to_string(), Value::Vector2(Vec2f::new(0.6, 0.0))),
         );
 
         assert_parses_to(
@@ -1011,7 +954,7 @@ mod test {
         assert_parses_to(
             param,
             &mut r#""vector3 foo" [0.5 .6   0]"#,
-            ("foo".to_string(), Value::Vec3(Vec3f::new(0.5, 0.6, 0.0))),
+            ("foo".to_string(), Value::Vector3(Vec3f::new(0.5, 0.6, 0.0))),
         );
 
         assert_parses_to(
@@ -1040,7 +983,7 @@ mod test {
             &mut r#""float foo" 1.0 "integer bar" 2"#,
             convert_args!(hashmap! (
                 "foo" => Value::Float(1.0),
-                "bar" => Value::Int(2)
+                "bar" => Value::Integer(2)
             ))
             .into(),
         );
@@ -1048,40 +991,40 @@ mod test {
 
     #[test]
     fn tuple_vec_from_array_param() {
-        let result =
-            <Vec<RGB>>::try_from(Value::FloatArray(vec![0.5, 0.6, 0.0, 1.0, 0.3, 0.2])).unwrap();
-        assert_eq!(
-            result,
-            vec![RGB::new(0.5, 0.6, 0.0), RGB::new(1.0, 0.3, 0.2)]
+        assert_parses_to(
+            param,
+            &mut r#""rgb foo" [0.5 .6   0 1.0 0.3 0.2 ]"#,
+            (
+                "foo".to_string(),
+                array_value![Rgb; RGB::new(0.5, 0.6, 0.0), RGB::new(1.0, 0.3, 0.2)],
+            ),
         );
 
-        let result =
-            <Vec<Point3f>>::try_from(Value::FloatArray(vec![0.5, 0.6, 0.0, 1.0, 0.3, 0.2]))
-                .unwrap();
-        assert_eq!(
-            result,
-            vec![Point3f::new(0.5, 0.6, 0.0), Point3f::new(1.0, 0.3, 0.2)]
+        assert_parses_to(
+            param,
+            &mut r#""point3 foo" [ 0.5 .6   0 1.0 0.3 0.2]"#,
+            (
+                "foo".to_string(),
+                array_value![Point3; Point3f::new(0.5, 0.6, 0.0), Point3f::new(1.0, 0.3, 0.2)],
+            ),
         );
 
-        let result =
-            <Vec<Vec2f>>::try_from(Value::FloatArray(vec![0.5, 0.6, 0.0, 1.0, 0.3, 0.2])).unwrap();
-        assert_eq!(
-            result,
-            vec![
-                Vec2f::new(0.5, 0.6),
-                Vec2f::new(0.0, 1.0),
-                Vec2f::new(0.3, 0.2)
-            ]
+        assert_parses_to(
+            param,
+            &mut r#""vector2 foo" [ 0.5 .6   0 1.0 0.3 0.2 ]"#,
+            (
+                "foo".to_string(),
+                array_value![Vector2; Vec2f::new(0.5, 0.6), Vec2f::new(0.0, 1.0), Vec2f::new(0.3, 0.2)],
+            ),
         );
     }
 
     #[test]
     fn tuple_vec_from_array_param_wrong_length() {
-        assert!(
-            <Vec<Point3f>>::try_from(Value::FloatArray(vec![0.5, 0.6, 0.0, 1.0, 0.3])).is_err()
-        );
-
-        assert!(<Vec<Vec2f>>::try_from(Value::FloatArray(vec![0.5, 0.6, 0.0])).is_err());
+        assert!(param
+            .parse(&mut r#""point3 foo" [0.5 .6 0 1.0 0.3]"#)
+            .is_err());
+        assert!(param.parse(&mut r#""vector2 foo" [0.5 .6 0]"#).is_err());
     }
 
     #[test]
@@ -1093,7 +1036,7 @@ mod test {
                 identifier: "Sampler",
                 subtype: "independent",
                 param_map: ParameterMap(convert_args!(hashmap!(
-                    "pixelsamples" => Value::Int(128)
+                    "pixelsamples" => Value::Integer(128)
                 ))),
             },
         );
@@ -1106,9 +1049,9 @@ mod test {
                 identifier: "Film",
                 subtype: "rgb",
                 param_map: ParameterMap(convert_args!(hashmap!(
-                    "filename" => Value::Str("simple.png".to_string()),
-                    "xresolution" => Value::IntArray(vec![400]),
-                    "yresolution" => Value::IntArray(vec![400]),
+                    "filename" => Value::String("simple.png".to_string()),
+                    "xresolution" => array_value![Integer; 400],
+                    "yresolution" => array_value![Integer; 400],
                 ))),
             },
         );

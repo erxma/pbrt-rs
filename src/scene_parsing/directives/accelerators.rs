@@ -1,7 +1,8 @@
 use crate::{
     core::Float,
+    primitives::BVHSplitMethod,
     scene_parsing::common::{
-        impl_from_entity, EntityDirective, FromEntity, GraphicsState, PbrtParseError,
+        impl_from_entity, EntityDirective, FromEntity, GraphicsState, PbrtParseError, Value,
     },
 };
 
@@ -34,15 +35,15 @@ impl FromEntity for Accelerator {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct BvhAggregate {
-    max_node_prims: usize,
-    split_method: String,
+    pub max_node_prims: u8,
+    pub split_method: BVHSplitMethod,
 }
 
 impl Default for BvhAggregate {
     fn default() -> Self {
         Self {
             max_node_prims: 4,
-            split_method: "sah".to_string(),
+            split_method: BVHSplitMethod::SAH,
         }
     }
 }
@@ -57,11 +58,11 @@ impl_from_entity! {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct KdTreeAggregate {
-    intersection_cost: usize,
-    traversal_cost: usize,
-    empty_bonus: Float,
-    max_prims: usize,
-    max_depth: Option<usize>,
+    pub intersection_cost: usize,
+    pub traversal_cost: usize,
+    pub empty_bonus: Float,
+    pub max_prims: usize,
+    pub max_depth: Option<usize>,
 }
 
 impl Default for KdTreeAggregate {
@@ -84,5 +85,28 @@ impl_from_entity! {
         "emptybonus" => empty_bonus,
         "maxprims" => max_prims,
         "maxdepth" => max_depth,
+    }
+}
+
+impl TryFrom<Value> for BVHSplitMethod {
+    type Error = PbrtParseError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        let value = String::try_from(value)?;
+
+        let method = match value.as_str() {
+            "sah" => Self::SAH,
+            "middle" => Self::Middle,
+            "equal" => Self::EqualCounts,
+            "hlbvh" => Self::HLBVH,
+            _ => {
+                return Err(PbrtParseError::InvalidValue {
+                    expected: "sah, middle, equal, or hlbvh".to_string(),
+                    found: Value::String(value),
+                })
+            }
+        };
+
+        Ok(method)
     }
 }

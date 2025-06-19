@@ -315,7 +315,7 @@ impl TryFrom<Value> for Alpha {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub(super) enum Spectrum {
+pub enum Spectrum {
     Constant(Float),
     Rgb(RGB),
     BlackbodyTemp(Float),

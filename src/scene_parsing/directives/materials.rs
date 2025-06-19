@@ -23,6 +23,7 @@ impl FromEntity for MaterialDesc {
         // Use specific function for the subtype
         match entity.subtype {
             "diffuse" => DiffuseMaterial::from_entity(entity, state).map(Self::Diffuse),
+            "dielectric" => DielectricMaterial::from_entity(entity, state).map(Self::Dielectric),
             // Unrecognized
             invalid_type => Err(PbrtParseError::UnrecognizedVariant {
                 entity: "Material".to_string(),

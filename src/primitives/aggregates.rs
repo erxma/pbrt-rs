@@ -27,6 +27,8 @@ impl BVHAggregate {
         max_prims_in_node: u8,
         split_method: BVHSplitMethod,
     ) -> Self {
+        assert!(!prims.is_empty());
+
         // OPTIMIZATION: Consider if it'd be worth it to precompute vec of centroids
 
         // Build BVH using given method
@@ -52,6 +54,8 @@ impl BVHAggregate {
         max_prims_in_node: u8,
         first_prim_offset: usize,
     ) -> BVHBuildResult {
+        debug_assert!(!prims_slice.is_empty());
+
         // If number of prims to split up is greater than this number,
         // run the two subtasks in paralell. Otherwise just run in sequence.
         const MIN_PRIMS_TO_SPLIT_PARALLEL: usize = 128 * 1024;

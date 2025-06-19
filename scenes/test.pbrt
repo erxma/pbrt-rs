@@ -4,7 +4,7 @@ LookAt 3 4 1.5  # eye
 Camera "perspective" "float fov" 45
 
 Sampler "independent" "integer pixelsamples" 128
-Integrator "volpath"
+Integrator "simplepath"
 Film "rgb" "string filename" "simple.png"
      "integer xresolution" [400] "integer yresolution" [400]
 

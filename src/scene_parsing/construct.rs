@@ -66,13 +66,22 @@ pub fn create_scene_integrator(
     let materials = create_materials(description.world.materials, color_space, &mut textures)?;
     let primitives =
         create_primitives_for_shapes(description.world.shapes, &materials, &mut meshes, &camera)?;
+    let aggregate = create_aggregate(description.options.accelerator, primitives);
 
-    todo!()
+    let integrator = create_integrator(
+        description.options.integrator,
+        camera,
+        sampler,
+        aggregate,
+        lights,
+    );
+
+    Ok(integrator)
 }
 
 #[derive(Error, Debug)]
 pub enum ReadSceneError {
-    #[error("failed to parse pbrt scene file")]
+    #[error("failed to parse pbrt scene file: {0}")]
     ParseError(#[from] PbrtParseError),
     #[error("error during construct: {0}")]
     BuilderError(#[from] BuilderError),
@@ -615,6 +624,15 @@ fn create_primitives_for_shapes(
     }
 
     Ok(primitives)
+}
+
+fn create_aggregate(desc: Accelerator, primitives: Vec<Arc<PrimitiveEnum>>) -> PrimitiveEnum {
+    match desc {
+        Accelerator::Bvh(desc) => {
+            BVHAggregate::new(primitives, desc.max_node_prims, desc.split_method).into()
+        }
+        Accelerator::KdTree(_) => unimplemented!(),
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

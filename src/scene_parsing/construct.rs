@@ -61,7 +61,10 @@ pub fn create_scene_integrator(
 
     let lights = create_lights(description.world.lights, &camera, color_space);
 
-    let mut textures = Textures::default();
+    let mut textures = Textures {
+        uncreated_descs: description.world.textures,
+        ..Default::default()
+    };
     let mut meshes = Meshes::default();
     let materials = create_materials(description.world.materials, color_space, &mut textures)?;
     let primitives =

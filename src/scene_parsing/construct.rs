@@ -2,6 +2,7 @@ use std::{
     borrow::Cow,
     collections::{hash_map, HashMap},
     io::Read,
+    path::PathBuf,
     sync::Arc,
 };
 
@@ -47,15 +48,22 @@ use super::{
 };
 
 pub fn create_scene_integrator(
-    file: impl Read,
+    scene_file: impl Read,
+    out_file: Option<PathBuf>,
     ignore_unrecognized_directives: bool,
 ) -> Result<IntegratorEnum, ReadSceneError> {
-    let description = parse_pbrt_file(file, ignore_unrecognized_directives)?;
+    let description = parse_pbrt_file(scene_file, ignore_unrecognized_directives)?;
 
     let filter = create_filter(description.options.filter);
     let color_space = get_color_space(description.options.color_space);
     let exposure_time = get_exposure_time(&description.options.camera);
-    let film = create_film(description.options.film, filter, color_space, exposure_time)?;
+    let film = create_film(
+        description.options.film,
+        filter,
+        color_space,
+        exposure_time,
+        out_file,
+    )?;
     let camera = create_camera(description.options.camera, film);
     let sampler = create_sampler(description.options.sampler);
 
@@ -69,8 +77,9 @@ pub fn create_scene_integrator(
     let materials = create_materials(description.world.materials, color_space, &mut textures)?;
     let primitives =
         create_primitives_for_shapes(description.world.shapes, &materials, &mut meshes, &camera)?;
-    let aggregate = create_aggregate(description.options.accelerator, primitives);
+    BilinearPatchMesh::init_mesh_data(meshes.bilinear_patches);
 
+    let aggregate = create_aggregate(description.options.accelerator, primitives);
     let integrator = create_integrator(
         description.options.integrator,
         camera,
@@ -119,6 +128,7 @@ fn create_film(
     filter: FilterEnum,
     color_space: &'static RGBColorSpace,
     exposure_time: Float,
+    override_filename: Option<PathBuf>,
 ) -> Result<Film, ReadSceneError> {
     let film = match desc {
         FilmDesc::Rgb(desc) => RGBFilm::new(RGBFilmParams {
@@ -133,7 +143,7 @@ fn create_film(
                 desc.iso,
                 desc.white_balance_temp,
             )?),
-            filename: desc.filename,
+            filename: override_filename.unwrap_or(desc.filename),
             color_space,
             max_component_value: desc.max_component_value,
         })

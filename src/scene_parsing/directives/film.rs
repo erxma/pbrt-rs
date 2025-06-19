@@ -1,11 +1,12 @@
 use std::path::PathBuf;
 
 use strum::EnumString;
+use time::{macros::format_description, OffsetDateTime};
 
 use crate::{
     core::Float,
     scene_parsing::common::{
-        impl_from_entity, EntityDirective, FromEntity, GraphicsState, PbrtParseError, Value,
+        params_map_to_fields, EntityDirective, FromEntity, GraphicsState, PbrtParseError, Value,
     },
 };
 
@@ -65,9 +66,9 @@ impl Default for RgbFilm {
             x_resolution,
             y_resolution,
             crop_window: [0.0, 1.0, 0.0, 1.0],
-            pixel_bounds: [0, x_resolution, 0, y_resolution],
+            pixel_bounds: [0, 0, x_resolution, y_resolution],
             diagonal: 35.0,
-            filename: "pbrt.exr".into(),
+            filename: default_filename(),
             save_fp16: true,
             iso: 100.0,
             white_balance_temp: None,
@@ -77,20 +78,38 @@ impl Default for RgbFilm {
     }
 }
 
-impl_from_entity! {
-    RgbFilm,
-    has_defaults {
-        "xresolution" => x_resolution,
-        "yresolution" => y_resolution,
-        "cropwindow" => crop_window,
-        "pixelbounds" => pixel_bounds,
-        "diagonal" => diagonal,
-        "filename" => filename,
-        "savefp16" => save_fp16,
-        "iso" => iso,
-        "whitebalance" => white_balance_temp,
-        "sensor" => sensor,
-        "maxcomponentvalue" => max_component_value
+impl FromEntity for RgbFilm {
+    fn from_entity(
+        mut entity: EntityDirective,
+        _state: &GraphicsState,
+    ) -> Result<Self, PbrtParseError> {
+        let mut result = RgbFilm::default();
+
+        params_map_to_fields! {
+            entity.param_map => result,
+            has_defaults {
+                x_resolution = "xresolution",
+                y_resolution = "yresolution",
+                crop_window = "cropwindow",
+                diagonal = "diagonal",
+                filename = "filename",
+                save_fp16 = "savefp16",
+                iso = "iso",
+                white_balance_temp = "whitebalance",
+                sensor = "sensor",
+                max_component_value = "maxcomponentvalue"
+            }
+        }
+
+        if let Some(pixel_bounds) = entity.param_map.remove("pixelbounds") {
+            result.pixel_bounds = pixel_bounds.try_into()?;
+        } else {
+            result.pixel_bounds = [0, 0, result.x_resolution, result.y_resolution];
+        }
+
+        entity.param_map.check_no_remaining_params()?;
+
+        Ok(result)
     }
 }
 
@@ -119,4 +138,15 @@ impl TryFrom<Value> for SensorName {
 
         Err(incorrect_type_err)
     }
+}
+
+fn default_filename() -> PathBuf {
+    // If unspecified, default out file to "render_{timestamp}.exr"
+    let timestamp = OffsetDateTime::now_local()
+        .unwrap()
+        .format(&format_description!(
+            "[year]-[month]-[day]T[hour]:[minute]:[second]"
+        ))
+        .unwrap();
+    PathBuf::from(format!("render_{timestamp}.exr"))
 }

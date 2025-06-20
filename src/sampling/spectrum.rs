@@ -212,6 +212,7 @@ impl DenselySampledSpectrum {
     }
 
     pub fn scaled(mut self, factor: Float) -> Self {
+        let factor = NotNan::new(factor).expect("scale factor should not be NaN");
         for v in self.values.iter_mut() {
             *v *= factor;
         }

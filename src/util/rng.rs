@@ -1,7 +1,7 @@
 use std::io::Cursor;
 
 use bytemuck::NoUninit;
-use rand::{distributions::Uniform, Rng as _, SeedableRng};
+use rand::{distr::Uniform, Rng as _, SeedableRng};
 use rand_pcg::Pcg32;
 
 use crate::core::{constants::ONE_MINUS_EPSILON, Float};
@@ -16,14 +16,14 @@ impl Rng {
     pub fn new(state: u64, inc: u64) -> Self {
         Self {
             pcg: Pcg32::new(state, inc),
-            uniform: Uniform::new_inclusive(0.0, ONE_MINUS_EPSILON),
+            uniform: Uniform::new_inclusive(0.0, ONE_MINUS_EPSILON).unwrap(),
         }
     }
 
     pub fn from_seed(seed: u64) -> Self {
         Self {
             pcg: Pcg32::seed_from_u64(seed),
-            uniform: Uniform::from(0.0..1.0),
+            uniform: Uniform::try_from(0.0..1.0).unwrap(),
         }
     }
 

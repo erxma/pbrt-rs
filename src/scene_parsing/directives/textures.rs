@@ -2,7 +2,7 @@ use enum_as_inner::EnumAsInner;
 use winnow::{
     ascii::{alpha1, alphanumeric1, multispace1},
     combinator::{delimited, seq, trace},
-    PResult, Parser as _,
+    ModalResult, Parser as _,
 };
 
 use crate::{
@@ -29,7 +29,7 @@ pub struct TextureDirective<'a> {
     pub param_map: ParameterMap,
 }
 
-pub fn texture_directive<'a>(input: &mut &'a str) -> PResult<TextureDirective<'a>> {
+pub fn texture_directive<'a>(input: &mut &'a str) -> ModalResult<TextureDirective<'a>> {
     trace(
         "texture_directive",
         seq! { TextureDirective {

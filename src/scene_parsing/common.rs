@@ -1,13 +1,12 @@
 use std::{
     collections::{HashMap, HashSet},
-    fmt::Debug,
     path::PathBuf,
-    str::FromStr,
+    str::FromStr as _,
 };
 
 use delegate::delegate;
 use enum_as_inner::EnumAsInner;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use num_traits::NumCast;
 use strum::EnumDiscriminants;
 use thiserror::Error;
@@ -17,7 +16,7 @@ use winnow::{
         alt, cut_err, delimited, eof, fail, opt, preceded, separated, separated_pair, terminated,
         trace,
     },
-    error::{AddContext, ErrMode, ErrorKind, ParserError, StrContext, StrContextValue},
+    error::{AddContext, ErrMode, ParserError, StrContext, StrContextValue},
     prelude::*,
     stream::Stream,
     token::take_until,
@@ -243,7 +242,7 @@ impl TryFrom<Value> for PathBuf {
     }
 }
 
-pub(super) fn value_type(input: &mut &str) -> PResult<ValueType> {
+pub(super) fn value_type(input: &mut &str) -> ModalResult<ValueType> {
     cut_err(alphanumeric1.verify_map(|ty| ValueType::from_str(ty).ok()))
         .context(StrContext::Expected(StrContextValue::Description(
             "variable type",
@@ -257,7 +256,7 @@ pub(super) enum Literal {
     Array(Vec<AtomicLiteral>),
 }
 
-pub(super) fn literal(input: &mut &str) -> PResult<Literal> {
+pub(super) fn literal(input: &mut &str) -> ModalResult<Literal> {
     // FUTURE: cut_err verify is not available in winnow yet
     let array = delimited(
         ('[', opt(multispace1)),
@@ -288,7 +287,7 @@ pub(super) enum AtomicLiteral {
     Str(String),
 }
 
-pub(super) fn atomic_literal(input: &mut &str) -> PResult<AtomicLiteral> {
+pub(super) fn atomic_literal(input: &mut &str) -> ModalResult<AtomicLiteral> {
     let boolean = alt(("true".value(true), "false".value(false)));
     let string = delimited('"', take_until(0.., '"'), '"');
     let val = alt((
@@ -399,7 +398,7 @@ impl From<HashMap<String, Value>> for ParameterMap {
     }
 }
 
-pub(super) fn param_map(input: &mut &str) -> PResult<ParameterMap> {
+pub(super) fn param_map(input: &mut &str) -> ModalResult<ParameterMap> {
     // Already seen param names, to check for uniqueness.
     let mut seen = HashSet::new();
     // Parses one parameter:
@@ -411,15 +410,13 @@ pub(super) fn param_map(input: &mut &str) -> PResult<ParameterMap> {
         // If it already was, fail
         if !seen.insert(name.clone()) {
             input.reset(&start);
-            return Err(
-                ErrMode::from_error_kind(input, ErrorKind::Verify).add_context(
-                    input,
-                    &start,
-                    StrContext::Expected(StrContextValue::Description(
-                        "parameter to appear at most once",
-                    )),
-                ),
-            );
+            return Err(ErrMode::from_input(input).add_context(
+                input,
+                &start,
+                StrContext::Expected(StrContextValue::Description(
+                    "parameter to appear at most once",
+                )),
+            ));
         }
 
         Ok((name, value))
@@ -435,7 +432,7 @@ pub(super) fn param_map(input: &mut &str) -> PResult<ParameterMap> {
     traced.parse_next(input)
 }
 
-fn param_name<'a>(input: &mut &'a str) -> PResult<&'a str> {
+fn param_name<'a>(input: &mut &'a str) -> ModalResult<&'a str> {
     alphanumeric1
         .context(StrContext::Expected(StrContextValue::Description(
             "parameter name",
@@ -443,7 +440,7 @@ fn param_name<'a>(input: &mut &'a str) -> PResult<&'a str> {
         .parse_next(input)
 }
 
-fn param(input: &mut &str) -> PResult<(String, Value)> {
+fn param(input: &mut &str) -> ModalResult<(String, Value)> {
     let full_param = separated_pair(
         delimited('"', separated_pair(value_type, space1, param_name), '"'),
         space1,
@@ -692,7 +689,7 @@ pub(super) enum Directive<'a> {
     ReverseOrientation,
 }
 
-pub(super) fn directive<'a>(input: &mut &'a str) -> PResult<Directive<'a>> {
+pub(super) fn directive<'a>(input: &mut &'a str) -> ModalResult<Directive<'a>> {
     let parser = terminated(
         alt((
             "WorldBegin".map(|_| Directive::WorldBegin),
@@ -720,7 +717,7 @@ pub(super) struct EntityDirective<'a> {
     pub param_map: ParameterMap,
 }
 
-pub(super) fn entity_directive<'a>(input: &mut &'a str) -> PResult<EntityDirective<'a>> {
+pub(super) fn entity_directive<'a>(input: &mut &'a str) -> ModalResult<EntityDirective<'a>> {
     let parser = |input: &mut &'a str| {
         let (identifier, subtype) =
             separated_pair(alpha1, multispace1, delimited('"', alphanumeric1, '"'))
@@ -799,7 +796,8 @@ mod test {
     where
         I: Stream + StreamIsPartial + AsBStr,
         O: PartialEq + fmt::Debug,
-        E: ParserError<I> + fmt::Debug + fmt::Display,
+        E: ParserError<I>,
+        <E as ParserError<I>>::Inner: ParserError<I> + fmt::Debug + fmt::Display,
     {
         let output = must_parse_ok(parser, input, false);
         assert_eq!(output, expected_output, "Parsed result does not match");
@@ -813,7 +811,8 @@ mod test {
     where
         I: Stream + StreamIsPartial + AsBStr,
         O: fmt::Debug,
-        E: ParserError<I> + fmt::Debug + fmt::Display,
+        E: ParserError<I>,
+        <E as ParserError<I>>::Inner: ParserError<I> + fmt::Debug + fmt::Display,
     {
         let result = parser.parse(input);
         assert!(

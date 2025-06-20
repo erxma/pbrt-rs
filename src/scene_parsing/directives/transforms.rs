@@ -1,7 +1,7 @@
 use winnow::{
     ascii::{float, multispace1},
     combinator::{alt, preceded, separated, seq, trace},
-    PResult, Parser,
+    ModalResult, Parser as _,
 };
 
 use crate::core::{Float, Point3f, Transform, Vec3f};
@@ -42,7 +42,7 @@ pub struct LookAt {
     up_dir: Vec3f,
 }
 
-pub fn transform_directive(input: &mut &str) -> PResult<TransformDirective> {
+pub fn transform_directive(input: &mut &str) -> ModalResult<TransformDirective> {
     let transform = alt((
         // Identity
         "Identity".map(|_| TransformDirective::Identity),

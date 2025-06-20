@@ -56,15 +56,15 @@ pub enum Value {
 
 impl ValueType {
     fn is_tuple_type(&self) -> bool {
-        match self {
+        matches!(
+            self,
             ValueType::Point2
-            | ValueType::Vector2
-            | ValueType::Point3
-            | ValueType::Vector3
-            | ValueType::Normal
-            | ValueType::Rgb => true,
-            _ => false,
-        }
+                | ValueType::Vector2
+                | ValueType::Point3
+                | ValueType::Vector3
+                | ValueType::Normal
+                | ValueType::Rgb
+        )
     }
 }
 

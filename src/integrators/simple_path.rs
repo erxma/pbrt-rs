@@ -47,9 +47,10 @@ impl SimplePathIntegrator {
         lights: Vec<Arc<LightEnum>>,
     ) -> Self {
         info!("Scene bounds: {}", aggregate.bounds());
-        let light_sampler = UniformLightSampler::new(&lights);
+        let scene_data = SceneData::new(aggregate, lights);
+        let light_sampler = UniformLightSampler::new(&scene_data.lights);
         Self {
-            scene_data: SceneData::new(aggregate, lights),
+            scene_data,
             camera,
             sampler_prototype: sampler,
             max_depth,

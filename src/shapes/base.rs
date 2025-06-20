@@ -3,12 +3,13 @@ use crate::core::{
     Bounds3f, DirectionCone, Float, Normal3f, Point2f, Point3f, Point3fi, Ray, SampleInteraction,
     SurfaceInteraction, Vec3f,
 };
+use delegate::delegate;
 use enum_dispatch::enum_dispatch;
 
 #[enum_dispatch]
 #[derive(Clone, Debug)]
 pub enum ShapeEnum {
-    Sphere,
+    Sphere(Box<Sphere>),
     BilinearPatch,
 }
 
@@ -54,6 +55,23 @@ pub trait Shape {
     ///
     /// The provided point is assumed to actually be on the surface.
     fn pdf_with_context(&self, ctx: &ShapeSampleContext, wi: Vec3f) -> Float;
+}
+
+// Manually delegate for Boxed version of Sphere, since enum_dispatch doesn't do it right now
+// https://gitlab.com/antonok/enum_dispatch/-/issues/41
+impl Shape for Box<Sphere> {
+    delegate! {
+        to self.as_ref() {
+            fn bounds(&self) -> Bounds3f;
+            fn normal_bounds(&self) -> DirectionCone;
+            fn intersect(&self, ray: &Ray, t_max: Option<Float>) -> Option<ShapeIntersection>;
+            fn area(&self) -> Float;
+            fn sample(&self, u: Point2f) -> Option<ShapeSample>;
+            fn sample_with_context(&self, ctx: &ShapeSampleContext, u: Point2f) -> Option<ShapeSample>;
+            fn pdf(&self, interaction: &SampleInteraction) -> Float;
+            fn pdf_with_context(&self, ctx: &ShapeSampleContext, wi: Vec3f) -> Float;
+        }
+    }
 }
 
 #[derive(Debug)]

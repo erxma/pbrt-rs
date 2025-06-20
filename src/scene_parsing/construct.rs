@@ -297,18 +297,15 @@ fn create_light(
 
         LightDesc::Infinite(desc) => {
             // TODO: Support other infinite lights once implemented
-            let radiance;
-            match desc.radiance {
-                Some(spec) => {
-                    radiance = Cow::Owned(
-                        create_spectrum(spec, SpectrumType::Illuminant, color_space).unwrap(),
-                    );
-                }
+            let radiance = match desc.radiance {
+                Some(spec) => Cow::Owned(
+                    create_spectrum(spec, SpectrumType::Illuminant, color_space).unwrap(),
+                ),
                 None => {
                     // Default: color space's std illuminant
-                    radiance = Cow::Borrowed(&color_space.illuminant);
+                    Cow::Borrowed(&color_space.illuminant)
                 }
-            }
+            };
 
             let mut scale = desc.scale;
             // Scale the light spectrum to be equivalent to 1 nit
@@ -356,7 +353,7 @@ impl Textures {
                         name: name.to_owned(),
                         expected: "float texture".to_string(),
                     })?;
-                let texture = Arc::new(create_float_texture(name, desc)?);
+                let texture = Arc::new(create_float_texture(desc)?);
                 vacant.insert(texture.clone());
                 texture
             }
@@ -405,14 +402,11 @@ impl Textures {
     }
 }
 
-fn create_float_texture(
-    name: &str,
-    desc: FloatTextureDesc,
-) -> Result<FloatTextureEnum, ReadSceneError> {
+fn create_float_texture(desc: FloatTextureDesc) -> Result<FloatTextureEnum, ReadSceneError> {
     let create_subtextures = |descs: Vec<FloatTextureDesc>| {
         descs
             .into_iter()
-            .map(|desc| create_float_texture("", desc.into()))
+            .map(create_float_texture)
             .collect::<Result<Vec<_>, _>>()
     };
 
@@ -452,7 +446,7 @@ fn create_spectrum_texture(
     let create_subtextures = |descs: Vec<SpectrumTextureDesc>| {
         descs
             .into_iter()
-            .map(|desc| create_spectrum_texture("", desc.into(), spectrum_type, color_space))
+            .map(|desc| create_spectrum_texture("", desc, spectrum_type, color_space))
             .collect::<Result<Vec<_>, _>>()
     };
 
@@ -536,7 +530,7 @@ fn get_float_texture(
 ) -> Result<Arc<FloatTextureEnum>, ReadSceneError> {
     match desc {
         FloatTextureDesc::Named(name) => textures.get_named_float_texture(name),
-        _ => create_float_texture("", desc).map(Arc::new),
+        _ => create_float_texture(desc).map(Arc::new),
     }
 }
 
@@ -580,7 +574,7 @@ fn create_shape(
                         .render_from_world(desc.world_from_object),
                 )
                 .build()?;
-            shapes.push(sphere.into());
+            shapes.push(Box::new(sphere).into());
         }
         ShapeDesc::BilinearMesh(desc) => {
             let render_from_object = camera

@@ -218,7 +218,7 @@ impl BVHAggregate {
             let get_bucket_idx = |prim: &PrimitiveEnum| {
                 let bucket_offset =
                     NUM_BUCKETS as Float * centroid_bounds.offset(prim.bounds().centroid())[dim];
-                (bucket_offset as usize).min(NUM_BUCKETS)
+                (bucket_offset as usize).min(NUM_BUCKETS - 1)
             };
             // Contribute each prim to its bucket, as determined by above
             for prim in prims_slice.iter() {

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use strum::EnumString;
-use time::{macros::format_description, OffsetDateTime};
+use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
 use crate::{
     core::Float,
@@ -140,14 +140,10 @@ impl TryFrom<Value> for SensorName {
     }
 }
 
-// FIXME: Will panic during tests due to lack of local offset
 fn default_filename() -> PathBuf {
     // If unspecified, default out file to "render_{timestamp}.exr"
-    let timestamp = OffsetDateTime::now_local()
-        .unwrap()
-        .format(&format_description!(
-            "[year]-[month]-[day]T[hour]:[minute]:[second]"
-        ))
-        .unwrap();
+    // Use local time, or UTC if local time is unavailable (which is the case during tests)
+    let time = OffsetDateTime::now_local().unwrap_or(OffsetDateTime::now_utc());
+    let timestamp = time.format(&Rfc3339).unwrap();
     PathBuf::from(format!("render_{timestamp}.exr"))
 }

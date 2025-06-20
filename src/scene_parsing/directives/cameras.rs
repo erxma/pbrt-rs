@@ -74,7 +74,7 @@ impl FromEntity for Camera {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct OrthographicCamera {
-    pub transform: Transform,
+    pub camera_from_world: Transform,
     pub shutter_open: Float,
     pub shutter_close: Float,
     pub frame_aspect_ratio: Option<Float>,
@@ -86,7 +86,7 @@ pub struct OrthographicCamera {
 impl Default for OrthographicCamera {
     fn default() -> Self {
         Self {
-            transform: Transform::IDENTITY,
+            camera_from_world: Transform::IDENTITY,
             shutter_open: 0.0,
             shutter_close: 1.0,
             frame_aspect_ratio: None,
@@ -99,7 +99,7 @@ impl Default for OrthographicCamera {
 
 impl_from_entity! {
     OrthographicCamera,
-    CTM => transform,
+    CTM => camera_from_world,
     has_defaults {
         "shutteropen" => shutter_open,
         "shutterclose" => shutter_close,
@@ -112,7 +112,7 @@ impl_from_entity! {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PerspectiveCamera {
-    pub transform: Transform,
+    pub camera_from_world: Transform,
     pub shutter_open: Float,
     pub shutter_close: Float,
     pub frame_aspect_ratio: Option<Float>,
@@ -125,7 +125,7 @@ pub struct PerspectiveCamera {
 impl Default for PerspectiveCamera {
     fn default() -> Self {
         Self {
-            transform: Transform::IDENTITY,
+            camera_from_world: Transform::IDENTITY,
             shutter_open: 0.0,
             shutter_close: 1.0,
             frame_aspect_ratio: None,
@@ -139,7 +139,7 @@ impl Default for PerspectiveCamera {
 
 impl_from_entity! {
     PerspectiveCamera,
-    CTM => transform,
+    CTM => camera_from_world,
     has_defaults {
         "shutteropen" => shutter_open,
         "shutterclose" => shutter_close,

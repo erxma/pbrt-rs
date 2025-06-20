@@ -140,6 +140,7 @@ impl TryFrom<Value> for SensorName {
     }
 }
 
+// FIXME: Will panic during tests due to lack of local offset
 fn default_filename() -> PathBuf {
     // If unspecified, default out file to "render_{timestamp}.exr"
     let timestamp = OffsetDateTime::now_local()

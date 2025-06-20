@@ -197,7 +197,7 @@ fn create_camera(desc: CameraDesc, film: Film) -> CameraEnum {
             .lens_radius(desc.lens_radius)
             .screen_window(desc.screen_window.unwrap().into())
             .shutter_period(desc.shutter_open..desc.shutter_close)
-            .world_from_camera(desc.transform)
+            .world_from_camera(desc.camera_from_world.inverse())
             .build()
             .into(),
 
@@ -208,7 +208,7 @@ fn create_camera(desc: CameraDesc, film: Film) -> CameraEnum {
             .lens_radius(desc.lens_radius)
             .screen_window(desc.screen_window.unwrap().into())
             .shutter_period(desc.shutter_open..desc.shutter_close)
-            .world_from_camera(desc.transform)
+            .world_from_camera(desc.camera_from_world.inverse())
             .build()
             .into(),
     }
@@ -274,7 +274,7 @@ fn create_light(
             ]);
             let final_render_from_light = camera
                 .camera_transform()
-                .render_from_world(desc.render_from_light * transform);
+                .render_from_world(desc.world_from_light * transform);
 
             let radiance = match desc.radiance {
                 Some(spec) => Cow::Owned(
@@ -583,8 +583,12 @@ fn create_shape(
             shapes.push(sphere.into());
         }
         ShapeDesc::BilinearMesh(desc) => {
+            let render_from_object = camera
+                .camera_transform()
+                .render_from_world(desc.world_from_object);
+
             let mesh = BilinearPatchMesh::new(
-                &desc.world_from_object,
+                &render_from_object,
                 desc.reverse_orientation,
                 desc.indices,
                 desc.positions,

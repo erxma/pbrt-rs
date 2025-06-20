@@ -113,7 +113,7 @@ impl FloatTexture for CheckerboardFloatTexture {
         };
 
         let t0 = if w != 1.0 { self.tex[0].eval(ctx) } else { 0.0 };
-        let t1 = if w != 1.0 { self.tex[1].eval(ctx) } else { 0.0 };
+        let t1 = if w != 0.0 { self.tex[1].eval(ctx) } else { 0.0 };
 
         (1.0 - w) * t0 + w * t1
     }
@@ -151,7 +151,7 @@ impl SpectrumTexture for CheckerboardSpectrumTexture {
         } else if let Some(mapping_3d) = &self.mapping_3d {
             checkerboard_3d(ctx, mapping_3d)
         } else {
-            unreachable!()
+            panic!("neither 2D nor 3D mapping is set")
         };
 
         let t0 = if w != 1.0 {
@@ -159,7 +159,7 @@ impl SpectrumTexture for CheckerboardSpectrumTexture {
         } else {
             SampledSpectrum::with_single_value(0.0)
         };
-        let t1 = if w != 1.0 {
+        let t1 = if w != 0.0 {
             self.tex[1].eval(ctx, lambda)
         } else {
             SampledSpectrum::with_single_value(0.0)

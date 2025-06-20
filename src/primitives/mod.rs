@@ -12,6 +12,7 @@ pub use aggregates::{BVHAggregate, BVHSplitMethod};
 pub use single::{GeometricPrimitive, SimplePrimitive};
 
 #[enum_dispatch]
+#[derive(Debug)]
 pub enum PrimitiveEnum {
     Geometric(GeometricPrimitive),
     Simple(SimplePrimitive),

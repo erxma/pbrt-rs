@@ -58,7 +58,7 @@ impl Default for Sphere {
             material_name: Default::default(),
 
             radius: 1.0,
-            z_min: 1.0,
+            z_min: -1.0,
             z_max: 1.0,
             phi_max: 360.0,
         }
@@ -87,7 +87,7 @@ impl FromEntity for Sphere {
             .remove("zmin")
             .unwrap_or(Value::Float(-result.radius))
             .try_into()?;
-        result.z_min = entity
+        result.z_max = entity
             .param_map
             .remove("zmax")
             .unwrap_or(Value::Float(result.radius))

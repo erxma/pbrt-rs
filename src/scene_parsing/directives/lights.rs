@@ -28,7 +28,7 @@ impl FromEntity for Light {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct DirectionalLight {
-    pub render_from_light: Transform,
+    pub world_from_light: Transform,
     pub illuminance: Option<Float>,
     pub scale: Float,
     pub radiance: Option<Spectrum>,
@@ -39,7 +39,7 @@ pub struct DirectionalLight {
 impl Default for DirectionalLight {
     fn default() -> Self {
         Self {
-            render_from_light: Transform::IDENTITY,
+            world_from_light: Transform::IDENTITY,
             illuminance: None,
             scale: 1.0,
             radiance: None,
@@ -51,6 +51,7 @@ impl Default for DirectionalLight {
 
 impl_from_entity! {
     DirectionalLight,
+    CTM => world_from_light,
     has_defaults {
         "illuminance" => illuminance,
         "scale" => scale,

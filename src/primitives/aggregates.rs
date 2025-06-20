@@ -16,6 +16,7 @@ use crate::{
 use super::PrimitiveEnum;
 
 /// Aggregate primitives based on a bounding volume hierarchy (BVH).
+#[derive(Debug)]
 pub struct BVHAggregate {
     prims: Vec<Arc<PrimitiveEnum>>,
     nodes: Vec<LinearBVHNode>,

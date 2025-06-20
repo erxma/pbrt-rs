@@ -480,6 +480,8 @@ impl TextureMapping2DEnum {
                     has_defaults {
                         su = "uscale",
                         sv = "vscale",
+                        du = "udelta",
+                        dv = "vdelta"
                     }
                 }
 

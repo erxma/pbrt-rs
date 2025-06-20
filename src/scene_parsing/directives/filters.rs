@@ -14,7 +14,7 @@ pub enum Filter {
 
 impl Default for Filter {
     fn default() -> Self {
-        Self::Box(BoxFilter::default())
+        Self::Gaussian(GaussianFilter::default())
     }
 }
 

@@ -10,6 +10,7 @@ use crate::{
 
 use super::Primitive;
 
+#[derive(Debug)]
 pub struct GeometricPrimitive {
     shape: ShapeEnum,
     material: Arc<MaterialEnum>,
@@ -68,7 +69,7 @@ impl Primitive for GeometricPrimitive {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SimplePrimitive {
     shape: ShapeEnum,
     material: Arc<MaterialEnum>,

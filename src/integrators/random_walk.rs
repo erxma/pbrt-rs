@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use delegate::delegate;
-use log::info;
 
 use crate::{
     camera::{CameraEnum, VisibleSurface},
@@ -94,7 +93,6 @@ impl RandomWalkIntegrator {
         aggregate: PrimitiveEnum,
         lights: Vec<Arc<LightEnum>>,
     ) -> Self {
-        info!("Scene bounds: {}", aggregate.bounds());
         Self {
             scene_data: SceneData::new(aggregate, lights),
             camera,

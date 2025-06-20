@@ -6,6 +6,7 @@ use std::{
 
 use delegate::delegate;
 use enum_dispatch::enum_dispatch;
+use log::info;
 use num_traits::AsPrimitive;
 
 use crate::{
@@ -127,6 +128,8 @@ impl RGBFilm {
         // Compute output_rgb_from_sensor_rgb
         let output_rgb_from_sensor_rgb =
             &params.color_space.rgb_from_xyz * &params.sensor.xyz_from_sensor_rgb;
+
+        info!("Output file: {}", params.filename.display());
 
         Self {
             full_resolution: params.full_resolution,

@@ -31,3 +31,19 @@ AttributeBegin
       "point3 P" [ -20 -20 0   20 -20 0   -20 20 0   20 20 0 ]
       "point2 uv" [ 0 0   1 0    1 1   0 1 ]
 AttributeEnd
+
+AttributeBegin
+  Texture "yellow" "spectrum" "constant"
+          "rgb value" [.8 .45 .15]
+  Material "diffuse" "texture reflectance" "yellow"
+  Translate -3.5 -2 0.5
+  Shape "sphere" "float radius" 1.5
+AttributeEnd
+
+AttributeBegin
+  Texture "pink" "spectrum" "constant"
+          "rgb value" [.8 .25 .3]
+  Material "diffuse" "texture reflectance" "pink"
+  Translate -0.3 -3 -0.25
+  Shape "sphere" "float radius" .75
+AttributeEnd

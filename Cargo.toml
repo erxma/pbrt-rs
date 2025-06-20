@@ -28,6 +28,7 @@ internment = { version = "0.8.4", optional = true, features = ["arc"] }
 itertools = "0.14.0"
 libm = "0.2.8"
 log = "0.4.22"
+memory-stats = "1.2.0"
 murmur3 = "0.5.2"
 num-traits = "0.2.19"
 ordered-float = "5.0.0"

@@ -6,6 +6,7 @@ use std::{
     sync::Arc,
 };
 
+use log::info;
 use thiserror::Error;
 
 use crate::{
@@ -23,7 +24,7 @@ use crate::{
         ConstantSpectrumTexture, DielectricMaterial, DiffuseMaterial, FloatTextureEnum,
         MaterialEnum, SpectrumTextureEnum,
     },
-    primitives::{BVHAggregate, PrimitiveEnum, SimplePrimitive},
+    primitives::{BVHAggregate, Primitive as _, PrimitiveEnum, SimplePrimitive},
     sampling::{
         spectrum::{
             self, BlackbodySpectrum, ConstantSpectrum, RgbAlbedoSpectrum, RgbIlluminantSpectrum,
@@ -52,8 +53,11 @@ pub fn create_scene_integrator(
     out_file: Option<PathBuf>,
     ignore_unrecognized_directives: bool,
 ) -> Result<IntegratorEnum, ReadSceneError> {
+    info!("Scene file parsing begin");
     let description = parse_pbrt_file(scene_file, ignore_unrecognized_directives)?;
+    info!("Scene file parsing complete");
 
+    info!("Scene construction begin");
     let filter = create_filter(description.options.filter);
     let color_space = get_color_space(description.options.color_space);
     let exposure_time = get_exposure_time(&description.options.camera);
@@ -80,6 +84,8 @@ pub fn create_scene_integrator(
     BilinearPatchMesh::init_mesh_data(meshes.bilinear_patches);
 
     let aggregate = create_aggregate(description.options.accelerator, primitives);
+    info!("Scene bounds: {}", aggregate.bounds());
+
     let integrator = create_integrator(
         description.options.integrator,
         camera,
@@ -87,6 +93,7 @@ pub fn create_scene_integrator(
         aggregate,
         lights,
     );
+    info!("Scene construction complete");
 
     Ok(integrator)
 }

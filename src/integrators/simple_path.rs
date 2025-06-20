@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use delegate::delegate;
-use log::info;
 
 use crate::{
     camera::{CameraEnum, VisibleSurface},
@@ -46,7 +45,6 @@ impl SimplePathIntegrator {
         aggregate: PrimitiveEnum,
         lights: Vec<Arc<LightEnum>>,
     ) -> Self {
-        info!("Scene bounds: {}", aggregate.bounds());
         let scene_data = SceneData::new(aggregate, lights);
         let light_sampler = UniformLightSampler::new(&scene_data.lights);
         Self {

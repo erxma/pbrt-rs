@@ -3,8 +3,9 @@ use std::sync::{Arc, OnceLock};
 use crate::{
     core::{
         spherical_triangle_area, Bounds3f, DirectionCone, Float, Normal3f, Point2f, Point3f, Ray,
-        SampleInteraction, Transform, Vec3f,
+        SampleInteraction, SurfaceInteraction, Transform, Tuple, Vec3f,
     },
+    math::difference_of_products,
     memory::{
         NORMAL3F_BUFFER_CACHE, POINT2F_BUFFER_CACHE, POINT3F_BUFFER_CACHE, USIZE_BUFFER_CACHE,
     },
@@ -52,6 +53,16 @@ impl Triangle {
             (p2 - p).normalized(),
         )
     }
+
+    pub fn interaction_from_intersection(
+        mesh: &TriangleMesh,
+        tri_idx: usize,
+        tri_isect: TriangleIntersection,
+        time: Float,
+        outgoing: Vec3f,
+    ) -> SurfaceInteraction {
+        todo!()
+    }
 }
 
 impl Shape for Triangle {
@@ -81,11 +92,30 @@ impl Shape for Triangle {
     }
 
     fn intersect(&self, ray: &Ray, t_max: Option<Float>) -> Option<ShapeIntersection> {
-        todo!()
+        let t_max = t_max.unwrap_or(Float::INFINITY);
+
+        // Get positions
+        let (p0, p1, p2) = self.mesh_positions();
+
+        let tri_isect = intersect_triangle(ray, t_max, p0, p1, p2)?;
+        let t_hit = tri_isect.t;
+
+        let intr = Self::interaction_from_intersection(
+            self.mesh(),
+            self.tri_idx,
+            tri_isect,
+            ray.time,
+            -ray.dir,
+        );
+
+        Some(ShapeIntersection { intr, t_hit })
     }
 
     fn intersect_p(&self, ray: &Ray, t_max: Option<Float>) -> bool {
-        todo!()
+        let t_max = t_max.unwrap_or(Float::INFINITY);
+
+        let (p0, p1, p2) = self.mesh_positions();
+        intersect_triangle(ray, t_max, p0, p1, p2).is_some()
     }
 
     fn area(&self) -> Float {
@@ -110,6 +140,83 @@ impl Shape for Triangle {
     fn pdf_with_context(&self, ctx: &ShapeSampleContext, wi: Vec3f) -> Float {
         todo!()
     }
+}
+
+pub fn intersect_triangle(
+    ray: &Ray,
+    t_max: Float,
+    p0: Point3f,
+    p1: Point3f,
+    p2: Point3f,
+) -> Option<TriangleIntersection> {
+    // Return no intersection if triangle is degenerate
+    if (p2 - p0).cross(p1 - p0).length_squared() == 0.0 {
+        return None;
+    }
+
+    // Transform triangle verts to ray coordinate space:
+
+    // Translate verts based on ray origin
+    let mut p0t = p0 - ray.o;
+    let mut p1t = p1 - ray.o;
+    let mut p2t = p2 - ray.o;
+
+    // Permute components of triangle verts and ray direction
+    let kz = ray.dir.abs().max_dimension();
+    let kx = (kz + 1) % 3;
+    let ky = (kx + 1) % 3;
+    let dir = ray.dir.permute([kx, ky, kz]);
+    p0t = p0t.permute([kx, ky, kz]);
+    p1t = p1t.permute([kx, ky, kz]);
+    p2t = p2t.permute([kx, ky, kz]);
+
+    // Apply shear transformation to translated vert pos
+    let sx = -dir.x() / dir.z();
+    let sy = -dir.y() / dir.z();
+    let sz = 1.0 / dir.z();
+    *p0t.x_mut() += sx * p0t.z();
+    *p0t.y_mut() += sy * p0t.z();
+    *p1t.x_mut() += sx * p1t.z();
+    *p1t.y_mut() += sy * p1t.z();
+    *p2t.x_mut() += sx * p2t.z();
+    *p2t.y_mut() += sy * p2t.z();
+
+    // Compute edge function coefficients
+    let e0 = difference_of_products(p1t.x(), p2t.y(), p1t.y(), p2t.x());
+    let e1 = difference_of_products(p2t.x(), p0t.y(), p2t.y(), p0t.x());
+    let e2 = difference_of_products(p0t.x(), p1t.y(), p0t.y(), p1t.x());
+
+    // Perform triangle and determinant tests
+    if (e0 < 0.0 || e1 < 0.0 || e2 < 0.0) && (e0 > 0.0 || e1 > 0.0 || e2 > 0.0) {
+        return None;
+    }
+    let det = e0 + e1 + e2;
+    if det == 0.0 {
+        return None;
+    }
+
+    // Compute scaled hit distance to triangle and test against ray t range
+    *p0t.z_mut() *= sz;
+    *p1t.z_mut() *= sz;
+    *p2t.z_mut() *= sz;
+    let t_scaled = e0 * p0t.z() + e1 * p1t.z() + e2 * p2t.z();
+    if det < 0.0 && (t_scaled >= 0.0 || t_scaled < t_max * det) {
+        return None;
+    } else if det > 0.0 && (t_scaled <= 0.0 || t_scaled > t_max * det) {
+        return None;
+    }
+
+    // Compute barycentric coordinates and t value for intersection
+    let inv_det = 1.0 / det;
+    let b0 = e0 * inv_det;
+    let b1 = e1 * inv_det;
+    let b2 = e2 * inv_det;
+    let t = t_scaled * inv_det;
+
+    // TODO: Ensure that computed triangle t is conservatively greater than zero
+
+    // Return intersection
+    Some(TriangleIntersection { b0, b1, b2, t })
 }
 
 #[derive(Debug)]
@@ -231,4 +338,13 @@ impl TriangleMesh {
     pub fn num_triangles(&self) -> usize {
         self.indices.len() / 3
     }
+}
+
+/// The barycentric coordiantes and the t value along the ray
+/// where the intersection occurred.
+pub struct TriangleIntersection {
+    pub b0: Float,
+    pub b1: Float,
+    pub b2: Float,
+    pub t: Float,
 }

@@ -3,11 +3,13 @@ use std::sync::{Arc, OnceLock};
 use crate::{
     core::{
         gamma, spherical_triangle_area, Bounds3f, DirectionCone, Float, Normal3f, Point2f, Point3f,
-        Point3fi, Ray, SampleInteraction, SurfaceInteraction, Transform, Tuple, Vec3f,
+        Point3fi, Ray, SampleInteraction, SurfaceInteraction, SurfaceInteractionParams, Transform,
+        Tuple, Vec3f,
     },
     math::difference_of_products,
     memory::{
         NORMAL3F_BUFFER_CACHE, POINT2F_BUFFER_CACHE, POINT3F_BUFFER_CACHE, USIZE_BUFFER_CACHE,
+        VEC3F_BUFFER_CACHE,
     },
     sampling::routines::{
         bilinear_pdf, invert_spherical_triangle_sample, sample_bilinear, sample_spherical_triangle,
@@ -39,6 +41,10 @@ impl Triangle {
         self.mesh().positions(self.tri_idx)
     }
 
+    pub fn mesh_vertex_tangents(&self) -> Option<(Vec3f, Vec3f, Vec3f)> {
+        self.mesh().vertex_tangents(self.tri_idx)
+    }
+
     pub fn mesh_vertex_normals(&self) -> Option<(Normal3f, Normal3f, Normal3f)> {
         self.mesh().vertex_normals(self.tri_idx)
     }
@@ -65,7 +71,152 @@ impl Triangle {
         time: Float,
         outgoing: Vec3f,
     ) -> SurfaceInteraction {
-        todo!()
+        // Get triangle vertices and uvs
+        let (p0, p1, p2) = mesh.positions(tri_idx);
+        let (uv0, uv1, uv2) = mesh.uvs(tri_idx).unwrap_or((
+            Point2f::ZERO,
+            Point2f::new(1.0, 0.0),
+            Point2f::new(1.0, 1.0),
+        ));
+
+        // Compute triangle partial derivatives:
+        // Compute deltas and matrix determinant for partial derivatives
+        let duv02 = uv0 - uv2;
+        let duv12 = uv1 - uv2;
+        let dp02 = p0 - p2;
+        let dp12 = p1 - p2;
+        let determinant = difference_of_products(duv02[0], duv12[1], duv02[1], duv12[0]);
+
+        let mut dpdu = Vec3f::ZERO;
+        let mut dpdv = Vec3f::ZERO;
+        let degenerate_uv = determinant.abs() <= 1e-9;
+
+        // Usual case (not degenerate)
+        if !degenerate_uv {
+            // Compute triangle dp/du and dp/dv via matrix inversion
+            let inv_det = 1.0 / determinant;
+            dpdu = difference_of_products(dp02, duv12[1], dp12, duv02[1]) * inv_det;
+            dpdv = difference_of_products(dp12, duv02[0], dp02, duv12[0]) * inv_det;
+        }
+
+        // In case of degenerate uv parameterization or partial derivatives...
+        if degenerate_uv || dpdu.cross(dpdv).length_squared() == 0.0 {
+            let ng = (p2 - p0).cross(p1 - p0);
+            // FIXME: If ng length squared is 0.0, should redo cross with Vec3<f64>
+
+            (_, dpdu, dpdv) = ng.normalized().coordinate_system();
+        }
+
+        // Interpolate (u,v) parameteric coords and hit point
+        let p_hit = tri_isect.b0 * p0 + tri_isect.b1 * p1 + tri_isect.b2 * p2;
+        let uv_hit = tri_isect.b0 * uv0 + tri_isect.b1 * uv1 + tri_isect.b2 * uv2;
+
+        // Determine whether normals should be flipped
+        let flip_normal = mesh.reverse_orientation ^ mesh.transform_swaps_handedness;
+
+        // Compute error bounds for intersection
+        let p_abs_sum =
+            (tri_isect.b0 * p0).abs() + (tri_isect.b1 * p1).abs() + (tri_isect.b2 * p2).abs();
+        let p_err = Vec3f::from(gamma(7) * p_abs_sum);
+
+        let mut isect = SurfaceInteraction::new(SurfaceInteractionParams {
+            pi: Point3fi::new_fi(p_hit, p_err),
+            wo: outgoing,
+            uv: uv_hit,
+            dpdu,
+            dpdv,
+            dndu: Normal3f::new(0.0, 0.0, 0.0),
+            dndv: Normal3f::new(0.0, 0.0, 0.0),
+            time,
+            flip_normal,
+        });
+
+        // Set final surface normal and shading geometry for triangle:
+        // Override surface normal in isect
+        isect.n = dp02.cross(dp12).normalized().into();
+        if flip_normal {
+            isect.n *= -1.0;
+        }
+        isect.shading.n = isect.n;
+
+        let vert_n = mesh.vertex_normals(tri_idx);
+        let vert_s = mesh.vertex_tangents(tri_idx);
+        if vert_n.is_some() || vert_s.is_some() {
+            // Initialize shading geometry:
+
+            // Compute shading normal for triangle
+            // If vertex normals present, interpolate among them,
+            // otherwise use same as normal
+            let shading_n = if let Some((n0, n1, n2)) = vert_n {
+                let val = tri_isect.b0 * n0 + tri_isect.b1 * n1 + tri_isect.b2 * n2;
+                if val.length_squared() > 0.0 {
+                    val.normalized()
+                } else {
+                    isect.n
+                }
+            } else {
+                isect.n
+            };
+
+            // Compute shading tangent for triangle
+            // If vertex tangents present, interpolate among them,
+            // otherwise use same as dpdu
+            let mut shading_s = if let Some((s0, s1, s2)) = vert_s {
+                let val = tri_isect.b0 * s0 + tri_isect.b1 * s1 + tri_isect.b2 * s2;
+                if val.length_squared() > 0.0 {
+                    val.normalized()
+                } else {
+                    isect.dpdu
+                }
+            } else {
+                isect.dpdu
+            };
+
+            // Compute shading bitangent for triangle, and adjust shading tangent
+            // Bitangent is cross of shading normal and tangent
+            let mut shading_ts = Vec3f::cross(shading_n.into(), shading_s.into());
+            // Overwrite shading tangent with cross of bitangent and normal,
+            // so if the interpolated normal and tangent are not perfectly orthogonal,
+            // tangent is changed so that they are
+            if shading_ts.length_squared() > 0.0 {
+                shading_s = Vec3f::cross(shading_ts, shading_n.into());
+            } else {
+                (_, shading_s, shading_ts) = Vec3f::from(shading_n).coordinate_system();
+            }
+
+            // Compute dn/du and dn/dv for shading geometry
+            // This is almost the same as for partial derivatives, reuses some values from there
+            let mut dndu = Normal3f::new(0.0, 0.0, 0.0);
+            let mut dndv = Normal3f::new(0.0, 0.0, 0.0);
+            if let Some((n0, n1, n2)) = vert_n {
+                let dn1 = n0 - n2;
+                let dn2 = n1 - n2;
+
+                if !degenerate_uv {
+                    // Usual case (not degenerate)
+                    let inv_det = 1.0 / determinant;
+                    dndu = difference_of_products(dn1, duv12[1], dn2, duv02[1]) * inv_det;
+                    dndv = difference_of_products(dn2, duv02[0], dn1, duv12[0]) * inv_det;
+                } else {
+                    // In case of degenerate uv parameterization...
+                    // Compute dndu and dndv with respect to the
+                    // same arbitrary coordinate system as for dpdu, dpdv
+                    // when this happens.
+                    // This is done (rather than giving up) so that
+                    // ray differentials for rays reflected from triangles
+                    // with degenerate parameterizations are still reasonable.
+                    let dn = Vec3f::from(n2 - n0).cross(Vec3f::from(n1 - n0));
+                    if dn.length_squared() > 0.0 {
+                        let (_, dnu, dnv) = dn.coordinate_system();
+                        dndu = dnu.into();
+                        dndv = dnv.into();
+                    }
+                }
+            }
+            isect.set_shading_geometry(shading_n, shading_s, shading_ts, dndu, dndv, true);
+        }
+
+        isect
     }
 }
 
@@ -389,6 +540,7 @@ pub fn intersect_triangle(
     *p1t.z_mut() *= sz;
     *p2t.z_mut() *= sz;
     let t_scaled = e0 * p0t.z() + e1 * p1t.z() + e2 * p2t.z();
+    #[allow(clippy::if_same_then_else)]
     if det < 0.0 && (t_scaled >= 0.0 || t_scaled < t_max * det) {
         return None;
     } else if det > 0.0 && (t_scaled <= 0.0 || t_scaled > t_max * det) {
@@ -413,6 +565,8 @@ pub struct TriangleMesh {
     pub indices: Arc<Vec<usize>>,
     /// Vertex positions in render space.
     pub positions: Arc<Vec<Point3f>>,
+    /// Per-vertex tangent vectors in render space, if any.
+    pub tangents: Option<Arc<Vec<Vec3f>>>,
     /// Per-vertex normals in render space, if any.
     pub normals: Option<Arc<Vec<Normal3f>>>,
     /// Vertex UVs, if any.
@@ -429,6 +583,7 @@ impl TriangleMesh {
         reverse_orientation: bool,
         indices: Vec<usize>,
         mut positions: Vec<Point3f>,
+        tangents: Option<Vec<Vec3f>>,
         normals: Option<Vec<Normal3f>>,
         uv: Option<Vec<Point2f>>,
     ) -> Self {
@@ -449,6 +604,16 @@ impl TriangleMesh {
             }
             POINT3F_BUFFER_CACHE.lookup_or_add(positions)
         };
+
+        let tangents = tangents.map(|mut vec| {
+            // Num must match num of indices
+            assert_eq!(vec.len(), indices.len());
+            // Transform tangents to render space
+            for s in vec.iter_mut() {
+                *s = render_from_obj * *s;
+            }
+            VEC3F_BUFFER_CACHE.lookup_or_add(vec)
+        });
 
         let normals = normals.map(|mut vec| {
             // Num must match num of indices
@@ -472,6 +637,7 @@ impl TriangleMesh {
         Self {
             indices,
             positions,
+            tangents,
             normals,
             uv,
             reverse_orientation,
@@ -498,6 +664,18 @@ impl TriangleMesh {
         let p1 = self.positions[verts[1]];
         let p2 = self.positions[verts[2]];
         (p0, p1, p2)
+    }
+
+    pub fn vertex_tangents(&self, tri_idx: usize) -> Option<(Vec3f, Vec3f, Vec3f)> {
+        if let Some(vert_s) = &self.tangents {
+            let verts = &self.indices[3 * tri_idx..3 * tri_idx + 3];
+            let s0 = vert_s[verts[0]];
+            let s1 = vert_s[verts[1]];
+            let s2 = vert_s[verts[2]];
+            Some((s0, s1, s2))
+        } else {
+            None
+        }
     }
 
     pub fn vertex_normals(&self, tri_idx: usize) -> Option<(Normal3f, Normal3f, Normal3f)> {

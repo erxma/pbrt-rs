@@ -255,6 +255,21 @@ pub fn invert_bilinear(_p: Point2f, _verts: &[Point2f]) -> Point2f {
     todo!()
 }
 
+#[inline]
+pub fn sample_uniform_triangle(u: Point2f) -> [Float; 3] {
+    let b0;
+    let b1;
+    if u[0] < u[1] {
+        b0 = u[0] / 2.0;
+        b1 = u[1] - b0;
+    } else {
+        b1 = u[1] / 2.0;
+        b0 = u[0] - b1;
+    }
+
+    [b0, b1, 1.0 - b0 - b1]
+}
+
 pub const UNIFORM_SPHERE_PDF: Float = INV_4_PI;
 
 #[inline]
@@ -322,6 +337,24 @@ pub fn invert_spherical_rectangle_sample(
     _ex: Vec3f,
     _ey: Vec3f,
     _p_rect: Point3f,
+) -> Point2f {
+    todo!()
+}
+
+#[inline]
+pub fn sample_spherical_triangle(
+    _p_ref: Point3f,
+    _verts: [Point3f; 3],
+    _u: Point2f,
+) -> ([Float; 3], Float) {
+    todo!()
+}
+
+#[inline]
+pub fn invert_spherical_triangle_sample(
+    _p_ref: Point3f,
+    _verts: [Point3f; 3],
+    _incident_dir: Vec3f,
 ) -> Point2f {
     todo!()
 }

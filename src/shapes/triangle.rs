@@ -2,12 +2,16 @@ use std::sync::{Arc, OnceLock};
 
 use crate::{
     core::{
-        spherical_triangle_area, Bounds3f, DirectionCone, Float, Normal3f, Point2f, Point3f, Ray,
-        SampleInteraction, SurfaceInteraction, Transform, Tuple, Vec3f,
+        gamma, spherical_triangle_area, Bounds3f, DirectionCone, Float, Normal3f, Point2f, Point3f,
+        Point3fi, Ray, SampleInteraction, SurfaceInteraction, Transform, Tuple, Vec3f,
     },
     math::difference_of_products,
     memory::{
         NORMAL3F_BUFFER_CACHE, POINT2F_BUFFER_CACHE, POINT3F_BUFFER_CACHE, USIZE_BUFFER_CACHE,
+    },
+    sampling::routines::{
+        bilinear_pdf, invert_spherical_triangle_sample, sample_bilinear, sample_spherical_triangle,
+        sample_uniform_triangle,
     },
 };
 
@@ -126,19 +130,204 @@ impl Shape for Triangle {
     }
 
     fn sample(&self, u: Point2f) -> Option<ShapeSample> {
-        todo!()
+        // Get triangle vertices
+        let (p0, p1, p2) = self.mesh_positions();
+
+        // Sample point on triangle uniformly by area
+        let b = sample_uniform_triangle(u);
+        let p = b[0] * p0 + b[1] * p1 + b[2] * p2;
+
+        // Compute surface normal for sampled point on triangle
+        let mut n = Normal3f::from((p1 - p0).cross(p2 - p0).normalized());
+        if let Some((n0, n1, n2)) = self.mesh_vertex_normals() {
+            let ns = b[0] * n0 + b[1] * n1 + (1.0 - b[0] - b[1]) * n2;
+            n = n.face_forward(ns.into());
+        } else if self.mesh().reverse_orientation ^ self.mesh().transform_swaps_handedness {
+            n *= -1.0;
+        }
+
+        // Get triangle uvs
+        let (uv0, uv1, uv2) = self.mesh_uvs().unwrap_or((
+            Point2f::ZERO,
+            Point2f::new(1.0, 0.0),
+            Point2f::new(1.0, 1.0),
+        ));
+        // Compute (u,v) for sampled point on triangle
+        let uv_sample = b[0] * uv0 + b[1] * uv1 + b[2] * uv2;
+
+        // Compute error bounds for sample point on triangle
+        let p_abs_sum = (b[0] * p0).abs() + (b[1] * p1).abs() + ((1.0 - b[0] - b[1]) * p2).abs();
+        let p_err = Vec3f::from(gamma(6) * p_abs_sum);
+
+        // Return sample
+        Some(ShapeSample {
+            intr: SampleInteraction::new(Point3fi::new_fi(p, p_err), None, n, uv_sample),
+            pdf: 1.0 / self.area(),
+        })
     }
 
     fn sample_with_context(&self, ctx: &ShapeSampleContext, mut u: Point2f) -> Option<ShapeSample> {
-        todo!()
+        // Get triangle vertices
+        let (p0, p1, p2) = self.mesh_positions();
+
+        // Use uniform area sampling for numerically unstable cases
+        let solid_angle = self.solid_angle(ctx.pi.midpoints());
+        if (Self::MIN_SPHERICAL_SAMPLE_AREA..Self::MAX_SPHERICAL_SAMPLE_AREA).contains(&solid_angle)
+        {
+            // Regular case
+
+            // Sample spherical triangle from reference point:
+            // Apply warp product sampling for consine factor at ref point
+            let mut pdf;
+            if let Some(ns) = ctx.ns {
+                // Compute cos(theta)-based weights at sample domain corners
+                let rp = ctx.pi.midpoints();
+                let wi = [
+                    (p0 - rp).normalized(),
+                    (p1 - rp).normalized(),
+                    (p2 - rp).normalized(),
+                ];
+                let w = [
+                    ns.absdot_v(wi[1]).max(0.01),
+                    ns.absdot_v(wi[1]).max(0.01),
+                    ns.absdot_v(wi[0]).max(0.01),
+                    ns.absdot_v(wi[2]).max(0.01),
+                ];
+                u = sample_bilinear(u, &w);
+                pdf = bilinear_pdf(u, &w);
+            } else {
+                pdf = 1.0;
+            }
+
+            let (b, tri_pdf) = sample_spherical_triangle(ctx.pi.midpoints(), [p0, p1, p2], u);
+            if tri_pdf == 0.0 {
+                return None;
+            }
+            pdf *= tri_pdf;
+
+            let p = b[0] * p0 + b[1] * p1 + b[2] * p2;
+
+            // Compute surface normal for sampled point on triangle
+            let mut n = Normal3f::from((p1 - p0).cross(p2 - p0).normalized());
+            if let Some((n0, n1, n2)) = self.mesh_vertex_normals() {
+                let ns = b[0] * n0 + b[1] * n1 + (1.0 - b[0] - b[1]) * n2;
+                n = n.face_forward(ns.into());
+            } else if self.mesh().reverse_orientation ^ self.mesh().transform_swaps_handedness {
+                n *= -1.0;
+            }
+
+            // Get triangle uvs
+            let (uv0, uv1, uv2) = self.mesh_uvs().unwrap_or((
+                Point2f::ZERO,
+                Point2f::new(1.0, 0.0),
+                Point2f::new(1.0, 1.0),
+            ));
+            // Compute (u,v) for sampled point on triangle
+            let uv_sample = b[0] * uv0 + b[1] * uv1 + b[2] * uv2;
+
+            // Compute error bounds for sampled point on triangle
+            let p_abs_sum =
+                (b[0] * p0).abs() + (b[1] * p1).abs() + ((1.0 - b[0] - b[1]) * p2).abs();
+            let p_err = Vec3f::from(gamma(6) * p_abs_sum);
+
+            // Return sample
+            Some(ShapeSample {
+                intr: SampleInteraction::new(
+                    Point3fi::new_fi(p, p_err),
+                    Some(ctx.time),
+                    n,
+                    uv_sample,
+                ),
+                pdf,
+            })
+        } else {
+            // Numerically unstable case
+            // Sample shape by area and compute incident direction
+            let mut sample = self.sample(u)?;
+            sample.intr.time = ctx.time;
+            let mut wi = sample.intr.pi.midpoints() - ctx.pi.midpoints();
+            if wi.length_squared() == 0.0 {
+                return None;
+            }
+            wi = wi.normalized();
+
+            // Convert area sampling PDF in sample to solid angle measure
+            sample.pdf /= sample.intr.n.absdot_v(-wi)
+                / ctx
+                    .pi
+                    .midpoints()
+                    .distance_squared(sample.intr.pi.midpoints());
+            if sample.pdf.is_infinite() {
+                return None;
+            }
+
+            Some(sample)
+        }
     }
 
-    fn pdf(&self, interaction: &SampleInteraction) -> Float {
-        todo!()
+    fn pdf(&self, _interaction: &SampleInteraction) -> Float {
+        1.0 / self.area()
     }
 
     fn pdf_with_context(&self, ctx: &ShapeSampleContext, wi: Vec3f) -> Float {
-        todo!()
+        // Base on uniform area sampling for numerically unstable cases
+        let solid_angle = self.solid_angle(ctx.pi.midpoints());
+
+        if (Self::MIN_SPHERICAL_SAMPLE_AREA..Self::MAX_SPHERICAL_SAMPLE_AREA).contains(&solid_angle)
+        {
+            // Regular case
+
+            let mut pdf = 1.0 / solid_angle;
+
+            // Adjust PDF for warp product sampling of triangle cos(theta) factor
+            if let Some(ns) = ctx.ns {
+                // Get triangle vertices
+                let (p0, p1, p2) = self.mesh_positions();
+
+                let u = invert_spherical_triangle_sample(ctx.pi.midpoints(), [p0, p1, p2], wi);
+
+                // Compute cos(theta)-based weights at sample domain corners
+                let rp = ctx.pi.midpoints();
+                let wi = [
+                    (p0 - rp).normalized(),
+                    (p1 - rp).normalized(),
+                    (p2 - rp).normalized(),
+                ];
+                let w = [
+                    ns.absdot_v(wi[1]).max(0.01),
+                    ns.absdot_v(wi[1]).max(0.01),
+                    ns.absdot_v(wi[0]).max(0.01),
+                    ns.absdot_v(wi[2]).max(0.01),
+                ];
+
+                pdf *= bilinear_pdf(u, &w);
+            }
+
+            pdf
+        } else {
+            // Numerically unstable case
+
+            // Intersect sample ray with shape geometry
+            let ray = ctx.spawn_ray_with_dir(wi);
+            let isect = self.intersect(&ray, None);
+
+            if let Some(isect) = isect {
+                // Compute PDF in solid angle measure from shape intersection point
+                let pdf = (1.0 / self.area())
+                    / isect.intr.n.absdot_v(-wi)
+                    / ctx
+                        .pi
+                        .midpoints()
+                        .distance_squared(isect.intr.pi.midpoints());
+                if pdf.is_finite() {
+                    pdf
+                } else {
+                    0.0
+                }
+            } else {
+                0.0
+            }
+        }
     }
 }
 

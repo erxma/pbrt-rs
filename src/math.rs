@@ -1,4 +1,6 @@
-use num_traits::{AsPrimitive, Pow};
+use std::ops::{Add, Mul, Neg};
+
+use num_traits::{AsPrimitive, MulAdd, Pow};
 
 use crate::core::{
     constants::{PI, SQRT_2},
@@ -76,9 +78,10 @@ pub fn solve_quadratic(a: Float, b: Float, c: Float) -> Option<(Float, Float)> {
 }
 
 #[inline]
-pub fn difference_of_products<T>(a: T, b: T, c: T, d: T) -> T
+pub fn difference_of_products<T, U>(a: T, b: U, c: T, d: U) -> T
 where
-    T: num_traits::Float,
+    T: MulAdd<U, Output = T> + Mul<U, Output = T> + Add<Output = T> + Neg<Output = T> + Copy,
+    U: Copy,
 {
     let cd = c * d;
     let diff_of_prods = a.mul_add(b, -cd);

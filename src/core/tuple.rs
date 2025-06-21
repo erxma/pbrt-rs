@@ -172,6 +172,21 @@ macro_rules! impl_tuple_math_ops {
             }
         }
 
+        impl num_traits::MulAdd<$t> for $name
+        where
+            $t: num_traits::MulAdd<Output = $t> + Copy,
+        {
+            type Output = $name;
+
+            #[inline]
+            fn mul_add(mut self, a: $t, b: Self) -> Self::Output {
+                for i in 0..$n {
+                    self[i] = num_traits::MulAdd::mul_add(self[0], a, b[0]);
+                }
+                self
+            }
+        }
+
         impl std::ops::Div<$t> for $name {
             type Output = Self;
 
@@ -294,6 +309,22 @@ macro_rules! impl_tuple_math_ops_generic {
             #[inline]
             fn mul(self, rhs: $name<$crate::core::Interval>) -> $name<$crate::core::Interval> {
                 rhs * self
+            }
+        }
+
+        impl<T, U> num_traits::MulAdd<U> for $name<T>
+        where
+            T: num_traits::MulAdd<U, Output = T> + Copy,
+            U: Copy,
+        {
+            type Output = Self;
+
+            #[inline]
+            fn mul_add(mut self, a: U, b: Self) -> Self::Output {
+                for i in 0..$n {
+                    self[i] = num_traits::MulAdd::mul_add(self[i], a, b[i]);
+                }
+                self
             }
         }
 

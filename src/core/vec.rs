@@ -1291,3 +1291,18 @@ pub type Vec3Isize = custom_impl::Vec3<isize>;
 pub type Vec2B = custom_impl::Vec2<bool>;
 pub type Vec2Usize = custom_impl::Vec2<usize>;
 pub type Vec2Isize = custom_impl::Vec2<isize>;
+
+#[cfg(test)]
+mod test {
+    use num_traits::MulAdd;
+
+    use super::*;
+
+    #[test]
+    fn mul_add() {
+        let a = Vec3f::new(1.0, 2.0, 3.0);
+        let b: Float = 0.5;
+        let c = Vec3f::new(3.0, 2.0, 1.0);
+        assert_eq!(a.mul_add(b, c), a * b + c);
+    }
+}

@@ -36,7 +36,7 @@ use crate::{
         directives::{Accelerator, FloatTextureDesc, MaterialDesc, ShapeDesc, SpectrumTextureDesc},
         scene::parse_pbrt_file,
     },
-    shapes::{BilinearPatch, BilinearPatchMesh, ShapeEnum, Sphere},
+    shapes::{BilinearPatch, BilinearPatchMesh, ShapeEnum, Sphere, Triangle, TriangleMesh},
     util::error::BuilderError,
 };
 
@@ -558,6 +558,7 @@ fn get_spectrum_texture(
 #[derive(Debug, Default)]
 struct Meshes {
     bilinear_patches: Vec<BilinearPatchMesh>,
+    triangles: Vec<TriangleMesh>,
 }
 
 fn create_shape(
@@ -569,17 +570,17 @@ fn create_shape(
 
     match desc {
         ShapeDesc::Sphere(desc) => {
+            let render_from_object = camera
+                .camera_transform()
+                .render_from_world(desc.world_from_object);
+
             let sphere = Sphere::builder()
                 .radius(desc.radius)
                 .z_min(desc.z_min)
                 .z_max(desc.z_max)
                 .phi_max(desc.phi_max)
                 .reverse_orientation(desc.reverse_orientation)
-                .render_from_object(
-                    camera
-                        .camera_transform()
-                        .render_from_world(desc.world_from_object),
-                )
+                .render_from_object(render_from_object)
                 .build()?;
             shapes.push(Box::new(sphere).into());
         }
@@ -597,7 +598,7 @@ fn create_shape(
                 desc.uvs,
             );
 
-            // This will be the index to this mesh once it's move into vec
+            // This will be the index to this mesh once it's moved into vec
             let mesh_idx = all_meshes.bilinear_patches.len();
 
             // For each patch in mesh, create a shape and push to shapes vec
@@ -608,6 +609,33 @@ fn create_shape(
 
             // Finally, move mesh into vec of all
             all_meshes.bilinear_patches.push(mesh);
+        }
+        ShapeDesc::TriangleMesh(desc) => {
+            let render_from_object = camera
+                .camera_transform()
+                .render_from_world(desc.world_from_object);
+
+            let mesh = TriangleMesh::new(
+                &render_from_object,
+                desc.reverse_orientation,
+                desc.indices,
+                desc.positions,
+                desc.tangents,
+                desc.normals,
+                desc.uvs,
+            );
+
+            // This will be the index to this mesh once it's moved into vec
+            let mesh_idx = all_meshes.triangles.len();
+
+            // For each triangle in mesh, create a shape and push to shapes vec
+            for tri_idx in 0..mesh.num_triangles() {
+                let triangle = Triangle::new(mesh_idx, tri_idx);
+                shapes.push(triangle.into())
+            }
+
+            // Finally, move mesh into vec of all
+            all_meshes.triangles.push(mesh);
         }
     };
 

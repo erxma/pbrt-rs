@@ -1,7 +1,10 @@
 use super::{BilinearPatch, Sphere};
-use crate::core::{
-    Bounds3f, DirectionCone, Float, Normal3f, Point2f, Point3f, Point3fi, Ray, SampleInteraction,
-    SurfaceInteraction, Vec3f,
+use crate::{
+    core::{
+        Bounds3f, DirectionCone, Float, Normal3f, Point2f, Point3f, Point3fi, Ray,
+        SampleInteraction, SurfaceInteraction, Vec3f,
+    },
+    shapes::Triangle,
 };
 use delegate::delegate;
 use enum_dispatch::enum_dispatch;
@@ -11,6 +14,7 @@ use enum_dispatch::enum_dispatch;
 pub enum ShapeEnum {
     Sphere(Box<Sphere>),
     BilinearPatch,
+    Triangle,
 }
 
 #[enum_dispatch(ShapeEnum)]

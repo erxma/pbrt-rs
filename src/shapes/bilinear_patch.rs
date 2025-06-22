@@ -97,19 +97,53 @@ impl BilinearPatch {
 
         // Compute patch point p, dp/du, dp/dv for (u, v)
         let p = lerp(lerp(p00, p01, uv[1]), lerp(p10, p11, uv[1]), uv[0]);
-        let dpdu: Vec3f = lerp(p10, p11, uv[1]) - lerp(p00, p01, uv[1]);
-        let dpdv: Vec3f = lerp(p01, p11, uv[0]) - lerp(p00, p10, uv[0]);
+        let mut dpdu: Vec3f = lerp(p10, p11, uv[1]) - lerp(p00, p01, uv[1]);
+        let mut dpdv: Vec3f = lerp(p01, p11, uv[0]) - lerp(p00, p10, uv[0]);
 
-        // TODO: Skipping this part for now
-        // Compute (s, t) texcoords at patch (u, v)
-        /*
-        let st = uv;
-        let duds = 1.0;
-        let dudt = 0.0;
-        let dvds = 0.0;
-        let dvdt = 1.0;
-        // if Some mesh.uv...
-        */
+        // Compute (s,t) texcoords at patch (u,v)
+        let st;
+        let duds;
+        let dudt;
+        let dvds;
+        let dvdt;
+        if let Some((uv00, uv10, uv01, uv11)) = mesh.uvs(blp_idx) {
+            // Compute texcoords for bilinear patch intersection point
+            st = lerp(lerp(uv00, uv01, uv[1]), lerp(uv10, uv11, uv[1]), uv[0]);
+
+            // Update bilinear patch dp/du and dp/dv account for (s,t):
+
+            // Compute partial derivatives of (u,v) with respect to (s,t)
+            let dstdu = lerp(uv10, uv11, uv[1]) - lerp(uv00, uv01, uv[1]);
+            let dstdv = lerp(uv01, uv11, uv[0]) - lerp(uv00, uv10, uv[0]);
+            let reciprocal = |x: Float| if x.abs() >= 1e-8 { 1.0 / x } else { 0.0 };
+            duds = reciprocal(dstdu[0]);
+            dvds = reciprocal(dstdv[0]);
+            dudt = reciprocal(dstdu[1]);
+            dvdt = reciprocal(dstdv[1]);
+
+            // Compute partial derivatives of p with respect to (s,t)
+            let dpds = dpdu * duds + dpdv * dvds;
+            let mut dpdt = dpdu * dudt + dpdv * dvdt;
+
+            // Set dpdu and dpdv to updated partial derivatives.
+            // If provided texcoords specify a degenerate mapping, dpds or dpdt
+            // may be 0; in that case, dpdu and dpdv are left unchanged.
+            if dpds.cross(dpdt) != Vec3f::ZERO {
+                // Flip dpdt if normals given by dpds x dpdt is not in the same
+                // hemisphere as by the original partial derivatives of p
+                if Vec3f::dot(dpdu.cross(dpdv), dpds.cross(dpdt)) < 0.0 {
+                    dpdt = -dpdt;
+                }
+                dpdu = dpds;
+                dpdv = dpdt;
+            }
+        } else {
+            st = uv;
+            duds = 1.0;
+            dudt = 0.0;
+            dvds = 0.0;
+            dvdt = 1.0;
+        }
 
         // Find partial derivatives dndu and dndv for patch
         let d2p_duu = Vec3f::ZERO;
@@ -126,11 +160,15 @@ impl BilinearPatch {
         // Compute dn/du and dn/dv from coeffs
         let EGF2 = math::difference_of_products(E, G, F, F);
         let inv_EGF2 = if EGF2 != 0.0 { 1.0 / EGF2 } else { 0.0 };
-        let dndu: Normal3f =
+        let mut dndu: Normal3f =
             ((f * F - e * G) * inv_EGF2 * dpdu + (e * F - f * E) * inv_EGF2 * dpdv).into();
-        let dndv: Normal3f =
+        let mut dndv: Normal3f =
             ((g * F - f * G) * inv_EGF2 * dpdu + (f * F - g * E) * inv_EGF2 * dpdv).into();
-        // TODO: Update dn/du and dn/dv to account for (s, t) parameterization
+        // Update dn/du and dn/dv to account for (s, t) parameterization
+        let dnds = dndu * duds + dndv * dvds;
+        let dndt = dndu * dudt + dndv * dvdt;
+        dndu = dnds;
+        dndv = dndt;
 
         // Initialize intersection point error
         let p_abs_sum = p00.abs() + p10.abs() + p01.abs() + p11.abs();
@@ -140,7 +178,7 @@ impl BilinearPatch {
         let mut isect = SurfaceInteraction::new(SurfaceInteractionParams {
             pi: Point3fi::new_fi(p, p_err),
             wo: outgoing,
-            uv,
+            uv: st,
             dpdu,
             dpdv,
             dndu,
@@ -154,10 +192,17 @@ impl BilinearPatch {
             let mut ns = lerp(lerp(n00, n01, uv[1]), lerp(n10, n11, uv[1]), uv[0]);
             if ns.length_squared() > 0.0 {
                 ns = ns.normalized();
+
                 // Set shading geometry for patch intersection
-                let dndu = lerp(n10, n11, uv[1]) - lerp(n00, n01, uv[1]);
-                let dndv = lerp(n01, n11, uv[0]) - lerp(n00, n10, uv[0]);
-                // TODO: Update dn/du and dn/dv to account for (s, t) parameterization
+                let mut dndu = lerp(n10, n11, uv[1]) - lerp(n00, n01, uv[1]);
+                let mut dndv = lerp(n01, n11, uv[0]) - lerp(n00, n10, uv[0]);
+
+                // Update dn/du and dn/dv to account for (s,t) parameterization
+                let dnds = dndu * duds + dndv * dvds;
+                let dndt = dndu * dudt + dndv * dvdt;
+                dndu = dnds;
+                dndv = dndt;
+
                 let rotation = Transform::rotate_from_to(isect.n.normalized().into(), ns.into());
                 isect.set_shading_geometry(ns, &rotation * dpdu, rotation * dpdv, dndu, dndv, true);
             }
@@ -261,8 +306,9 @@ impl Shape for BilinearPatch {
         // Get positions
         let (p00, p10, p01, p11) = self.mesh_positions();
 
-        let (uv, mut pdf) = if let Some(distrib) = &self.mesh().image_distribution {
-            todo!()
+        let (uv_sample, mut pdf) = if let Some(distrib) = &self.mesh().image_distribution {
+            let sample = distrib.sample(u);
+            (sample.value, sample.pdf)
         } else if !self.is_rectangle() {
             // Sample patch (u, v) with approx uniform area sampling
 
@@ -284,25 +330,34 @@ impl Shape for BilinearPatch {
         // Compute patch geometric quantities at sampled (u, v)
 
         // Compute p, dp/du, dp/dv
-        let pu0 = lerp(p00, p01, uv[1]);
-        let pu1 = lerp(p10, p11, uv[1]);
-        let p = lerp(pu0, pu1, uv[0]);
+        let pu0 = lerp(p00, p01, uv_sample[1]);
+        let pu1 = lerp(p10, p11, uv_sample[1]);
+        let p = lerp(pu0, pu1, uv_sample[0]);
         let dpdu = pu1 - pu0;
-        let dpdv = lerp(p01, p11, uv[0]) - lerp(p00, p10, uv[0]);
+        let dpdv = lerp(p01, p11, uv_sample[0]) - lerp(p00, p10, uv_sample[0]);
         if dpdu.length_squared() == 0.0 || dpdv.length_squared() == 0.0 {
             return None;
         }
 
-        let st = uv;
-        if let Some(uv) = self.mesh_uvs() {
-            todo!()
-        }
+        let st = if let Some((uv00, uv10, uv01, uv11)) = self.mesh_uvs() {
+            lerp(
+                lerp(uv00, uv01, uv_sample[1]),
+                lerp(uv10, uv11, uv_sample[1]),
+                uv_sample[0],
+            )
+        } else {
+            uv_sample
+        };
 
         // Compute surface normal for sampled (u, v)
         let mut n: Normal3f = dpdu.cross(dpdv).normalized().into();
         // Flip normal if necessary
         if let Some((n00, n10, n01, n11)) = self.mesh_vertex_normals() {
-            let ns = lerp(lerp(n00, n01, uv[1]), lerp(n10, n11, uv[1]), uv[0]);
+            let ns = lerp(
+                lerp(n00, n01, uv_sample[1]),
+                lerp(n10, n11, uv_sample[1]),
+                uv_sample[0],
+            );
             n = n.face_forward(ns.into());
         } else if self.mesh().reverse_orientation ^ self.mesh().transform_swaps_handedness {
             n = -n;
@@ -373,24 +428,34 @@ impl Shape for BilinearPatch {
             pdf *= quad_pdf;
 
             // Compute (u, v) and surface normal for sampled point
-            let uv = Point2f::new(
+            let uv_sample = Point2f::new(
                 (p - p00).dot(eu) / p10.distance_squared(p00),
                 (p - p00).dot(ev) / p01.distance_squared(p00),
             );
             let mut n: Normal3f = eu.cross(ev).normalized().into();
             // Flip normal if necessary
             if let Some((n00, n10, n01, n11)) = self.mesh_vertex_normals() {
-                let ns = lerp(lerp(n00, n01, uv[1]), lerp(n10, n11, uv[1]), uv[0]);
+                let ns = lerp(
+                    lerp(n00, n01, uv_sample[1]),
+                    lerp(n10, n11, uv_sample[1]),
+                    uv_sample[0],
+                );
                 n = n.face_forward(ns.into());
             } else if self.mesh().reverse_orientation ^ self.mesh().transform_swaps_handedness {
                 n = -n;
             }
 
             // Compute st texcoords for (u, v)
-            let st = uv;
-            if let Some(uv) = self.mesh_uvs() {
-                todo!();
-            }
+            let st = if let Some((uv00, uv10, uv01, uv11)) = self.mesh_uvs() {
+                // Compute texcoords for bilinear patch intersection point
+                lerp(
+                    lerp(uv00, uv01, uv_sample[1]),
+                    lerp(uv10, uv11, uv_sample[1]),
+                    uv_sample[0],
+                )
+            } else {
+                uv_sample
+            };
 
             let intr = SampleInteraction::new(p.into(), Some(ctx.time), n, st);
             Some(ShapeSample { intr, pdf })
@@ -409,7 +474,7 @@ impl Shape for BilinearPatch {
 
         // Compute PDF for sampling (u, v)
         let pdf = if let Some(distrib) = &self.mesh().image_distribution {
-            todo!()
+            distrib.pdf(uv)
         } else if !self.is_rectangle() {
             // Init w array with differential area at patch corners
             let w = [

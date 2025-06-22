@@ -8,9 +8,7 @@ use super::{
     Camera, CameraRay, CameraRayDifferential, CameraSample, CameraTransform,
 };
 use crate::{
-    core::{
-        Bounds2f, Differentials, Float, Point2f, Point3f, Ray, RayDifferential, Transform, Vec3f,
-    },
+    core::{Bounds2f, Differentials, Float, Point3f, Ray, RayDifferential, Transform, Vec3f},
     media::MediumEnum,
     sampling::routines::sample_uniform_disk_concentric,
     sampling::spectrum::SampledWavelengths,
@@ -21,7 +19,6 @@ pub struct PerspectiveCamera {
     projective: ProjectiveCamera,
     dx_camera: Vec3f,
     dy_camera: Vec3f,
-    cos_total_width: Float,
 }
 
 #[bon]
@@ -62,17 +59,18 @@ impl PerspectiveCamera {
         let dy_camera = &projective.camera_from_raster * Vec3f::new(0.0, 1.0, 0.0)
             - &projective.camera_from_raster * Vec3f::new(0.0, 0.0, 0.0);
 
+        /*
         // Compute cosine of maximum view angle
         let radius: Point2f = projective.film.filter().radius().into();
         let p_corner = Point3f::new(-radius.x(), -radius.y(), 0.0);
         let w_corner_camera = Vec3f::from(&projective.camera_from_raster * p_corner).normalized();
         let cos_total_width = w_corner_camera.z();
+        */
 
         let mut result = PerspectiveCamera {
             projective,
             dx_camera,
             dy_camera,
-            cos_total_width,
         };
 
         let (min_pos_diff_x, min_pos_diff_y, min_dir_diff_x, min_dir_diff_y) =

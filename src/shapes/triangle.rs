@@ -174,7 +174,7 @@ impl Triangle {
 
             // Compute shading bitangent for triangle, and adjust shading tangent
             // Bitangent is cross of shading normal and tangent
-            let mut shading_ts = Vec3f::cross(shading_n.into(), shading_s.into());
+            let mut shading_ts = Vec3f::cross(shading_n.into(), shading_s);
             // Overwrite shading tangent with cross of bitangent and normal,
             // so if the interpolated normal and tangent are not perfectly orthogonal,
             // tangent is changed so that they are

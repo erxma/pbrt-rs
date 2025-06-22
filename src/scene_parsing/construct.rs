@@ -183,7 +183,7 @@ fn create_sensor(
             let g = spectrum::get_named_spectrum(&format!("{name}_g")).unwrap();
             let b = spectrum::get_named_spectrum(&format!("{name}_b")).unwrap();
 
-            PixelSensor::with_rgb_matching(color_space, &r, &g, &b, &sensor_illum, imaging_ratio)
+            PixelSensor::with_rgb_matching(color_space, r, g, b, &sensor_illum, imaging_ratio)
         }
     };
     Ok(sensor)

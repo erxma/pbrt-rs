@@ -2,7 +2,10 @@ use crate::{
     color::{RGBColorSpace, RGBSigmoidPolynomial, RGB, XYZ},
     core::{lerp, Float},
     util::{
-        data::{CIE_ILLUM_D6500, CIE_LAMBDA, CIE_X, CIE_Y, CIE_Z, N_CIE_SPECTRUM_SAMPLES},
+        data::{
+            CIE_ILLUM_D6500, CIE_LAMBDA, CIE_S0, CIE_S1, CIE_S2, CIE_S_LAMBDA, CIE_X, CIE_Y, CIE_Z,
+            N_CIES, N_CIE_SPECTRUM_SAMPLES,
+        },
         routines::find_interval,
     },
 };
@@ -56,14 +59,51 @@ pub static Z: LazyLock<SpectrumEnum> = LazyLock::new(|| {
 
 /// The D illuminant at the given temperature.
 pub fn illum_d(temp: Float) -> SpectrumEnum {
-    todo!()
+    // Convert temp to CCT
+    let cct = temp * 1.4388 / 1.4380;
+
+    if cct >= 4000.0 {
+        // CIE D will-defined, regular case
+        let x = if cct <= 7000.0 {
+            -4.607 * 1e9 / cct.powi(3) + 2.9678 * 1e6 / cct.powi(2) + 0.09911 * 1e3 / cct + 0.244063
+        } else {
+            -2.0064 * 1e9 / cct.powi(3) + 1.9018 * 1e6 / cct.powi(2) + 0.24748 * 1e3 / cct + 0.23704
+        };
+        let y = -3.0 * x * x + 2.87 * x - 0.275;
+
+        // Interpolate D spectrum
+        let m = 0.0241 + 0.2562 * x - 0.7341 * y;
+        let m1 = (-1.3515 - 1.7703 * x + 5.9114 * y) / m;
+        let m2 = (0.0300 - 31.4424 * x + 30.0717 * y) / m;
+
+        let samples: Vec<_> = (0..N_CIES)
+            .map(|i| SpectrumSample {
+                lambda: CIE_S_LAMBDA[i],
+                value: (CIE_S0[i] + CIE_S1[i] * m1 + CIE_S2[i] * m2) * 0.01,
+            })
+            .collect();
+
+        let dpls = PiecewiseLinearSpectrum::new(&samples);
+        DenselySampledSpectrum::new(&dpls, None, None).into()
+    } else {
+        // If CIE D ill-defined, use blackbody
+        let blackbody = BlackbodySpectrum::new(cct);
+        let blackbody_sampled = DenselySampledSpectrum::new(&blackbody, None, None);
+        blackbody_sampled.into()
+    }
 }
 
 pub static ILLUMD65: LazyLock<SpectrumEnum> =
     LazyLock::new(|| PiecewiseLinearSpectrum::from_interleaved(&CIE_ILLUM_D6500, true).into());
 
-pub fn get_named_spectrum(name: &str) -> Option<SpectrumEnum> {
-    todo!()
+// TODO: Once more are added, maybe move this into a module and/or into the data file
+pub fn get_named_spectrum(name: &str) -> Option<&'static SpectrumEnum> {
+    let spectrum = match name {
+        "stdillum-D65" => &ILLUMD65,
+        _ => return None,
+    };
+
+    Some(spectrum)
 }
 
 pub const CIE_Y_INTEGRAL: Float = 106.856895;

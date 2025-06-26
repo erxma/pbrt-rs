@@ -1,8 +1,13 @@
+use std::path::PathBuf;
+
 use crate::{
     core::{Float, Normal3f, Point2f, Point3f, Transform, Vec3f},
-    scene_parsing::common::{
-        params_map_to_fields, Alpha, EntityDirective, FromEntity, GraphicsState, PbrtParseError,
-        Value,
+    scene_parsing::{
+        common::{
+            params_map_to_fields, Alpha, EntityDirective, FromEntity, GraphicsState,
+            PbrtParseError, Value,
+        },
+        directives::FloatTextureDesc,
     },
 };
 
@@ -11,6 +16,7 @@ pub enum ShapeDesc {
     Sphere(Sphere),
     BilinearMesh(BilinearMesh),
     TriangleMesh(TriangleMesh),
+    PlyMesh(PlyMesh),
 }
 
 impl ShapeDesc {
@@ -19,6 +25,7 @@ impl ShapeDesc {
             ShapeDesc::Sphere(desc) => &desc.material_name,
             ShapeDesc::BilinearMesh(desc) => &desc.material_name,
             ShapeDesc::TriangleMesh(desc) => &desc.material_name,
+            ShapeDesc::PlyMesh(desc) => &desc.material_name,
         }
     }
 }
@@ -31,6 +38,7 @@ impl FromEntity for ShapeDesc {
             "sphere" => Sphere::from_entity(entity, state).map(ShapeDesc::Sphere),
             "bilinearmesh" => BilinearMesh::from_entity(entity, state).map(ShapeDesc::BilinearMesh),
             "trianglemesh" => TriangleMesh::from_entity(entity, state).map(ShapeDesc::TriangleMesh),
+            "plymesh" => PlyMesh::from_entity(entity, state).map(ShapeDesc::PlyMesh),
             invalid_type => Err(PbrtParseError::UnrecognizedVariant {
                 entity: "Shape".to_string(),
                 variant_name: invalid_type.to_owned(),
@@ -248,6 +256,67 @@ impl FromEntity for TriangleMesh {
                 return Err(PbrtParseError::MissingRequiredParameter(
                     "indices".to_string(),
                 ))
+            }
+        }
+
+        result.world_from_object = state.current_transform.clone();
+        result.reverse_orientation = state.reverse_orientation;
+        result.material_name =
+            state
+                .current_material_name
+                .clone()
+                .ok_or(PbrtParseError::MissingRequiredParameter(
+                    "Material".to_string(),
+                ))?;
+
+        entity.param_map.check_no_remaining_params()?;
+
+        Ok(result)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct PlyMesh {
+    pub alpha: Alpha,
+    pub world_from_object: Transform,
+    pub reverse_orientation: bool,
+    pub material_name: String,
+
+    pub filename: PathBuf,
+    pub displacement: Option<FloatTextureDesc>,
+    pub edge_length: Float,
+}
+
+impl Default for PlyMesh {
+    fn default() -> Self {
+        Self {
+            alpha: Alpha::Constant(1.0),
+            world_from_object: Transform::default(),
+            reverse_orientation: false,
+            material_name: Default::default(),
+
+            filename: PathBuf::new(),
+            displacement: None,
+            edge_length: 1.0,
+        }
+    }
+}
+
+impl FromEntity for PlyMesh {
+    fn from_entity(
+        mut entity: EntityDirective,
+        state: &GraphicsState,
+    ) -> Result<Self, PbrtParseError> {
+        let mut result = Self::default();
+
+        params_map_to_fields! {
+            entity.param_map => result,
+            required {
+                filename = "filename"
+            }
+            has_defaults {
+                displacement = "displacement",
+                edge_length = "edgelength"
             }
         }
 

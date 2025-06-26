@@ -36,7 +36,10 @@ use crate::{
         directives::{Accelerator, FloatTextureDesc, MaterialDesc, ShapeDesc, SpectrumTextureDesc},
         scene::parse_pbrt_file,
     },
-    shapes::{BilinearPatch, BilinearPatchMesh, ShapeEnum, Sphere, Triangle, TriangleMesh},
+    shapes::{
+        BilinearPatch, BilinearPatchMesh, FromPlyError, ShapeEnum, Sphere, TriQuadMesh, Triangle,
+        TriangleMesh,
+    },
     util::error::BuilderError,
 };
 
@@ -110,6 +113,8 @@ pub enum ReadSceneError {
     UndefinedTexture(String),
     #[error("material `{0}` is not defined")]
     UndefinedMaterial(String),
+    #[error("failed to read PLY file: {0}")]
+    PlyError(#[from] FromPlyError),
 }
 
 fn create_filter(desc: Filter) -> FilterEnum {
@@ -636,6 +641,56 @@ fn create_shape(
 
             // Finally, move mesh into vec of all
             all_meshes.triangles.push(mesh);
+        }
+        ShapeDesc::PlyMesh(desc) => {
+            let render_from_object = camera
+                .camera_transform()
+                .render_from_world(desc.world_from_object);
+
+            let mesh = TriQuadMesh::load_file(desc.filename)?;
+
+            if !mesh.tri_indices.is_empty() {
+                let tri_mesh = TriangleMesh::new(
+                    &render_from_object,
+                    desc.reverse_orientation,
+                    mesh.tri_indices,
+                    mesh.positions.clone(),
+                    None,
+                    mesh.normals.clone(),
+                    mesh.uv.clone(),
+                );
+                // This will be the index to this triangle mesh once it's moved into vec
+                let mesh_idx = all_meshes.triangles.len();
+                // For each triangle in mesh, create a shape and push to shapes vec
+                for tri_idx in 0..tri_mesh.num_triangles() {
+                    let triangle = Triangle::new(mesh_idx, tri_idx);
+                    shapes.push(triangle.into())
+                }
+                // Finally, move mesh into vec of all
+                all_meshes.triangles.push(tri_mesh);
+            }
+
+            if !mesh.quad_indices.is_empty() {
+                let quad_mesh = BilinearPatchMesh::new(
+                    &render_from_object,
+                    desc.reverse_orientation,
+                    mesh.quad_indices,
+                    mesh.positions,
+                    mesh.normals,
+                    mesh.uv,
+                );
+                // This will be the index to this bilinear mesh once it's moved into vec
+                let mesh_idx = all_meshes.bilinear_patches.len();
+
+                // For each patch in mesh, create a shape and push to shapes vec
+                for blp_idx in 0..quad_mesh.num_patches() {
+                    let patch = BilinearPatch::new(&quad_mesh, mesh_idx, blp_idx);
+                    shapes.push(patch.into())
+                }
+
+                // Finally, move mesh into vec of all
+                all_meshes.bilinear_patches.push(quad_mesh);
+            }
         }
     };
 

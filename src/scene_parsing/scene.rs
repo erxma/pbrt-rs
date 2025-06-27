@@ -243,6 +243,23 @@ fn parse_world_section(
                     // Set as current name in graphics state
                     state.current_material_name = Some(random_name.to_string());
                 }
+                "MakeNamedMaterial" => {
+                    // Get name
+                    let name = entity.identifier.to_owned();
+                    // Convert to material description
+                    let material_desc = MaterialDesc::from_entity(entity, &state)?;
+                    // Insert into map of all materials
+                    let existing = world.materials.insert(name.clone(), material_desc);
+                    // If material name already existed, this is redefining, error
+                    if existing.is_some() {
+                        return Err(PbrtParseError::RedefinedName(name));
+                    }
+                }
+                "NamedMaterial" => {
+                    // Just set the current material name in the state
+                    state.current_material_name = Some(entity.identifier.to_owned());
+                    // Not checking if it exists now allows for defining the material afterwards
+                }
                 invalid_name => {
                     if !ignore_unrecognized_directives {
                         return Err(PbrtParseError::UnrecognizedDirective(

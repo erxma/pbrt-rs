@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::{fs::File, path::Path};
 
 use itertools::Itertools;
@@ -8,6 +9,7 @@ use ply_rs_bw::ply::{DefaultElement, KeyMap, Ply, Property};
 use thiserror::Error;
 
 use crate::core::{Float, Normal3f, Point2f, Point3f};
+use crate::parallel::parallel_map;
 
 #[derive(Debug)]
 pub struct TriQuadMesh {
@@ -31,6 +33,191 @@ impl TriQuadMesh {
         let ply = parser.read_ply(&mut file)?;
 
         Self::try_from(ply)
+    }
+
+    /// Convert all quads in this mesh (if any) into triangles,
+    /// adding to the triangle index list.
+    pub fn convert_to_only_triangles(&mut self) {
+        // Reserve the needed space
+        self.tri_indices.reserve(3 * self.quad_indices.len() / 2);
+
+        // For each quad, split into two new triangles and add
+        for q in self.quad_indices.chunks(4) {
+            self.tri_indices
+                .extend_from_slice(&[q[0], q[1], q[3], q[0], q[3], q[2]]);
+        }
+
+        // Empty all the quad indices
+        self.quad_indices = Vec::new();
+    }
+
+    /// Derive normals for all vertices in this mesh by averaging the normals of
+    /// neighboring faces, i.e. the cross products of each pair of edges the vertex
+    /// is in.
+    ///
+    /// This mesh must contain only triangles. Any existing normals will be overwritten.
+    pub fn compute_normals(&mut self) {
+        assert!(self.quad_indices.is_empty());
+
+        let mut normals = vec![Normal3f::new(0.0, 0.0, 0.0); self.positions.len()];
+        for tri in self.tri_indices.chunks(3) {
+            let v10 = self.positions[tri[1]] - self.positions[tri[0]];
+            let v21 = self.positions[tri[2]] - self.positions[tri[1]];
+
+            let mut vn = v10.cross(v21);
+            if vn.length_squared() > 0.0 {
+                vn = vn.normalized();
+            }
+
+            normals[tri[0]] += vn.into();
+            normals[tri[1]] += vn.into();
+            normals[tri[2]] += vn.into();
+        }
+
+        for n_tri in normals.iter_mut() {
+            if n_tri.length_squared() > 0.0 {
+                *n_tri = n_tri.normalized();
+            }
+        }
+
+        self.normals = Some(normals);
+    }
+
+    /// Displace the vertices of this mesh according the given `displace_fn`.
+    ///
+    /// Edges longer than `max_dist` according to `distance_fn`
+    /// will be recursively split until shorter before the displacement is performed.
+    pub fn displace(
+        &mut self,
+        distance_fn: &impl Fn(Point3f, Point3f) -> Float,
+        max_dist: Float,
+        displace_fn: impl Fn(Point3f, Normal3f, Point2f) -> Point3f + Sync,
+    ) {
+        assert!(self.uv.is_some());
+
+        // Convert faces to only triangles
+        self.convert_to_only_triangles();
+        // If no normals, derive them
+        if self.normals.is_none() {
+            self.compute_normals();
+        }
+
+        // First, refine the edges to have dists within max_dist
+
+        // Take the tri index list, emptying it
+        // (avoids borrow issues in loop below)
+        let old_tri_indices = std::mem::take(&mut self.tri_indices);
+
+        // Map of already split edges to the split point index
+        let mut edge_splits = HashMap::new();
+        // For every previous triangle...
+        for old_tri in old_tri_indices.chunks(3) {
+            self.refine_triangle_and_add(
+                distance_fn,
+                max_dist,
+                old_tri[0],
+                old_tri[1],
+                old_tri[2],
+                &mut edge_splits,
+            );
+        }
+
+        // Then, perform the displace
+        let normals = self.normals.as_ref().unwrap();
+        let uv = self.uv.as_ref().unwrap();
+        let new_positions: Vec<_> = parallel_map(0..self.positions.len(), |i| {
+            displace_fn(self.positions[i], normals[i], uv[i])
+        });
+
+        self.positions = new_positions;
+
+        // Derive the new normals
+        self.compute_normals();
+    }
+
+    /// Refine the given triangle `(v0, v1, v2)` (recursively split the edges)
+    /// so that all resulting edges are shorter than `max_dist` according to `distance_fn`,
+    /// add any new vertices' positions, normals, and UVs, and add the resulting triangles
+    /// to `tri_indices`.
+    ///
+    /// Assumes that the given triangle is not already in `tri_indices`,
+    /// and will add it even if unchanged.
+    ///
+    /// `edge_splits` is used to record and find already added split points.
+    ///
+    fn refine_triangle_and_add(
+        &mut self,
+        distance_fn: &impl Fn(Point3f, Point3f) -> Float,
+        max_dist: Float,
+        v0: usize,
+        v1: usize,
+        v2: usize,
+        edge_splits: &mut HashMap<(usize, usize), usize>,
+    ) {
+        // Get the vertex positions and their distances according to distance_fn
+        let p0 = self.positions[v0];
+        let p1 = self.positions[v1];
+        let p2 = self.positions[v2];
+        let d01 = distance_fn(p0, p1);
+        let d12 = distance_fn(p1, p2);
+        let d20 = distance_fn(p2, p0);
+
+        // If all edges are already within max_dist, just push this triangle, done
+        if d01 < max_dist && d12 < max_dist && d20 < max_dist {
+            self.tri_indices.push(v0);
+            self.tri_indices.push(v1);
+            self.tri_indices.push(v2);
+            return;
+        }
+
+        // Order the three verts so that the first two have the longest edge
+        let (va, vb, vc) = if d01 >= d12 && d01 >= d20 {
+            (v0, v1, v2)
+        } else if d12 >= d01 && d12 >= d20 {
+            (v1, v2, v0)
+        } else {
+            (v2, v0, v1)
+        };
+
+        // Pair of vertices forming the edge to be split.
+        // For use in edge_splits map, always order by (lesser, greater) index.
+        let edge = if va < vb { (va, vb) } else { (vb, va) };
+
+        let v_mid;
+        if let Some(prev_v_mid) = edge_splits.get(&edge) {
+            // If this has already been split, use the existing mid vertex's index.
+            v_mid = *prev_v_mid;
+        } else {
+            // Otherwise, push a new vert pos,
+            // which is the midpoint of the edge
+            let (pa, pb) = (self.positions[va], self.positions[vb]);
+            v_mid = self.positions.len();
+            self.positions.push((pa + pb) / 2.0);
+
+            // Record the split in the map
+            edge_splits.insert(edge, v_mid);
+
+            // If there are normals...
+            if let Some(normals) = &mut self.normals {
+                // The new vert's normal is also the average
+                // (summed and normalized)
+                let mut n_mid = normals[va] + normals[vb];
+                if n_mid.length_squared() > 0.0 {
+                    n_mid = n_mid.normalized();
+                }
+                normals.push(n_mid);
+            }
+
+            // If there are UVs...
+            if let Some(uv) = &mut self.uv {
+                // The new vert's uv is also the midpoint
+                uv.push((uv[va] + uv[vb]) / 2.0);
+            }
+        }
+
+        // Recursively refine the new two triangles
+        self.refine_triangle_and_add(distance_fn, max_dist, va, v_mid, vc, edge_splits);
+        self.refine_triangle_and_add(distance_fn, max_dist, v_mid, vb, vc, edge_splits);
     }
 }
 

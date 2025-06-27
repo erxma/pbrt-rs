@@ -29,7 +29,7 @@ pub struct TexCoord3D {
     pub dpdy: Vec3f,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct TextureEvalContext {
     pub p: Point3f,
     pub dpdx: Vec3f,

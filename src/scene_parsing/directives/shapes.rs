@@ -2,12 +2,9 @@ use std::path::PathBuf;
 
 use crate::{
     core::{Float, Normal3f, Point2f, Point3f, Transform, Vec3f},
-    scene_parsing::{
-        common::{
-            params_map_to_fields, Alpha, EntityDirective, FromEntity, GraphicsState,
-            PbrtParseError, Value,
-        },
-        directives::FloatTextureDesc,
+    scene_parsing::common::{
+        params_map_to_fields, Alpha, EntityDirective, FromEntity, GraphicsState, PbrtParseError,
+        Value,
     },
 };
 
@@ -283,7 +280,7 @@ pub struct PlyMesh {
     pub material_name: String,
 
     pub filename: PathBuf,
-    pub displacement: Option<FloatTextureDesc>,
+    pub displacement_name: Option<String>,
     pub edge_length: Float,
 }
 
@@ -296,7 +293,7 @@ impl Default for PlyMesh {
             material_name: Default::default(),
 
             filename: PathBuf::new(),
-            displacement: None,
+            displacement_name: None,
             edge_length: 1.0,
         }
     }
@@ -315,7 +312,7 @@ impl FromEntity for PlyMesh {
                 filename = "filename"
             }
             has_defaults {
-                displacement = "displacement",
+                displacement_name = "displacement",
                 edge_length = "edgelength"
             }
         }

@@ -15,14 +15,15 @@ use crate::{
         RGBFilmParams,
     },
     color::{RGBColorSpace, SRGB},
-    core::{constants::PI, Bounds2i, Float, Point2i, Transform, Vec2f},
+    core::{constants::PI, Bounds2i, Float, Point2i, Point3f, Transform, Vec2f, Vec3f},
     imaging::{BoxFilter, FilterEnum, GaussianFilter, TriangleFilter},
     integrators::{IntegratorEnum, RandomWalkIntegrator, SimplePathIntegrator},
     lights::{DirectionalLight, LightEnum, UniformInfiniteLight},
     materials::{
         CheckerboardFloatTexture, CheckerboardSpectrumTexture, ConstantFloatTexture,
         ConstantSpectrumTexture, DielectricMaterial, DiffuseMaterial, FloatTextureEnum,
-        MaterialEnum, SpectrumTextureEnum,
+        MaterialEnum, SpectrumTextureEnum, TextureEvalContext, TextureEvaluator,
+        UniversalTextureEvaluator,
     },
     primitives::{BVHAggregate, Primitive as _, PrimitiveEnum, SimplePrimitive},
     sampling::{
@@ -82,8 +83,13 @@ pub fn create_scene_integrator(
     };
     let mut meshes = Meshes::default();
     let materials = create_materials(description.world.materials, color_space, &mut textures)?;
-    let primitives =
-        create_primitives_for_shapes(description.world.shapes, &materials, &mut meshes, &camera)?;
+    let primitives = create_primitives_for_shapes(
+        description.world.shapes,
+        &mut textures,
+        &materials,
+        &mut meshes,
+        &camera,
+    )?;
     BilinearPatchMesh::init_mesh_data(meshes.bilinear_patches);
 
     let aggregate = create_aggregate(description.options.accelerator, primitives);
@@ -568,6 +574,7 @@ struct Meshes {
 
 fn create_shape(
     desc: ShapeDesc,
+    textures: &mut Textures,
     all_meshes: &mut Meshes,
     camera: &impl Camera,
 ) -> Result<Vec<ShapeEnum>, ReadSceneError> {
@@ -647,8 +654,37 @@ fn create_shape(
                 .camera_transform()
                 .render_from_world(desc.world_from_object);
 
-            let mesh = TriQuadMesh::load_file(desc.filename)?;
+            // Load the PLY file
+            info!("Reading PLY file {}", desc.filename.display());
+            let mut mesh = TriQuadMesh::load_file(desc.filename)?;
 
+            // If a displacement texture is specified,
+            // apply it to the mesh
+            if let Some(displacement_name) = desc.displacement_name {
+                let displacement = textures.get_named_float_texture(displacement_name)?;
+
+                // Point distance is determined in render space
+                let dist_fn = |mut v0: Point3f, mut v1: Point3f| {
+                    v0 = &render_from_object * v0;
+                    v1 = &render_from_object * v1;
+                    v0.distance(v1)
+                };
+                // Displace point by adding (texture value * normal) to position
+                let displace_fn = |pos, n, uv| {
+                    let ctx = TextureEvalContext {
+                        p: pos,
+                        uv,
+                        ..TextureEvalContext::default()
+                    };
+
+                    let d = UniversalTextureEvaluator::new().eval(&*displacement, &ctx);
+                    pos + Vec3f::from(d * n)
+                };
+
+                mesh.displace(&dist_fn, desc.edge_length, displace_fn);
+            }
+
+            // If mesh contains triangles, create triangle mesh and triangles
             if !mesh.tri_indices.is_empty() {
                 let tri_mesh = TriangleMesh::new(
                     &render_from_object,
@@ -670,6 +706,7 @@ fn create_shape(
                 all_meshes.triangles.push(tri_mesh);
             }
 
+            // If mesh contains quads, create bilinear patch mesh and bilinear patches
             if !mesh.quad_indices.is_empty() {
                 let quad_mesh = BilinearPatchMesh::new(
                     &render_from_object,
@@ -699,6 +736,7 @@ fn create_shape(
 
 fn create_primitives_for_shapes(
     shape_descs: Vec<ShapeDesc>,
+    textures: &mut Textures,
     materials: &HashMap<String, Arc<MaterialEnum>>,
     all_meshes: &mut Meshes,
     camera: &impl Camera,
@@ -706,7 +744,7 @@ fn create_primitives_for_shapes(
     let mut primitives = Vec::new();
 
     for shape_desc in shape_descs {
-        let shapes = create_shape(shape_desc.clone(), all_meshes, camera)?;
+        let shapes = create_shape(shape_desc.clone(), textures, all_meshes, camera)?;
 
         let material =
             materials

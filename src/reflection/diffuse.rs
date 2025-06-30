@@ -78,4 +78,9 @@ impl BxDF for DiffuseBxDF {
             0.0
         }
     }
+
+    fn regularize(&mut self) {
+        // Diffuse BxDF is already qutie broad,
+        // so just do nothing
+    }
 }

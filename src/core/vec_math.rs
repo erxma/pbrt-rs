@@ -75,8 +75,8 @@ impl Vec3f {
     }
 
     #[inline]
-    pub fn abs_cos_theta(w: Vec3f) -> Float {
-        w.z().abs()
+    pub fn abs_cos_theta(self) -> Float {
+        self.z().abs()
     }
 
     #[inline]

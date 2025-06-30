@@ -8,7 +8,7 @@ use crate::{
     math,
     media::{MediumEnum, MediumInterface, PhaseFunctionEnum},
     memory::ScratchBuffer,
-    reflection::{BxDFEnum, BSDF},
+    reflection::{BxDFEnum, BxDFFlags, BSDF},
     sampling::{
         spectrum::{SampledSpectrum, SampledWavelengths},
         Sampler,
@@ -212,6 +212,17 @@ impl<'a> SurfaceInteraction<'a> {
         );
 
         Some(bsdf)
+    }
+
+    pub fn spawn_ray(
+        &self,
+        ray_diff: &RayDifferential,
+        bsdf: &BSDF<'_, BxDFEnum>,
+        outgoing: Vec3f,
+        flags: BxDFFlags,
+        eta: Float,
+    ) -> RayDifferential {
+        todo!()
     }
 
     pub fn spawn_ray_leaving_with_dir(&self, dir: Vec3f) -> RayDifferential {

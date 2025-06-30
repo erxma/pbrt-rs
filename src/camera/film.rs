@@ -12,8 +12,8 @@ use num_traits::AsPrimitive;
 use crate::{
     color::{RGBColorSpace, RGB},
     core::{
-        Array2D, Bounds2i, Float, Point2Isize, Point2Usize, Point2f, Point2i, SquareMatrix, Tuple,
-        Vec2f, Vec2i,
+        Array2D, Bounds2i, Float, Normal3f, Point2Isize, Point2Usize, Point2f, Point2i, Point3f,
+        SquareMatrix, SurfaceInteraction, Tuple, Vec2f, Vec2i, Vec3f,
     },
     imaging::{FilterEnum, Image, ImageMetadata},
     parallel::AtomicF64,
@@ -320,4 +320,32 @@ impl Default for RGBPixel {
 }
 
 #[derive(Clone, Debug)]
-pub struct VisibleSurface {}
+pub struct VisibleSurface {
+    pub point: Point3f,
+    pub normal: Normal3f,
+    pub shading_normal: Normal3f,
+    pub uv: Point2f,
+    pub time: Float,
+    pub dpdx: Vec3f,
+    pub dpdy: Vec3f,
+    pub albedo: SampledSpectrum,
+}
+
+impl VisibleSurface {
+    pub fn new(si: &SurfaceInteraction, albedo: SampledSpectrum) -> Self {
+        let mappings_diffs = si
+            .mappings_diffs
+            .as_ref()
+            .expect("surface interaction should have mappings_diffs set");
+        Self {
+            point: si.pi.midpoints(),
+            normal: si.n.face_forward(si.wo),
+            shading_normal: si.shading.n.face_forward(si.wo),
+            uv: si.uv,
+            time: si.time,
+            dpdx: mappings_diffs.dpdx,
+            dpdy: mappings_diffs.dpdy,
+            albedo,
+        }
+    }
+}

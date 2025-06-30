@@ -410,9 +410,13 @@ impl BxDF for DielectricBxDF {
                 / (prob_reflect + prob_transmit)
         }
     }
+
+    fn regularize(&mut self) {
+        self.microfacet_distrib = self.microfacet_distrib.regularized();
+    }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct TrowbridgeReitz {
     alpha_x: Float,
     alpha_y: Float,
@@ -422,6 +426,7 @@ impl TrowbridgeReitz {
     pub fn new(alpha_x: Float, alpha_y: Float) -> Self {
         Self { alpha_x, alpha_y }
     }
+
     pub fn effectively_smooth(&self) -> bool {
         self.alpha_x.max(self.alpha_y) < 0.001
     }
@@ -508,6 +513,25 @@ impl TrowbridgeReitz {
 
     pub fn roughness_to_alpha(roughness: Float) -> Float {
         roughness.sqrt()
+    }
+
+    pub fn regularized(self) -> Self {
+        // Double the alphas and then clamp them,
+        // so that perfect specular surfaces with roughness of 0
+        // become non-perfect, without excessively roughening
+        let alpha_x = if self.alpha_x < 0.3 {
+            (self.alpha_x * 2.0).clamp(0.1, 0.3)
+        } else {
+            self.alpha_x
+        };
+
+        let alpha_y = if self.alpha_y < 0.3 {
+            (self.alpha_y * 2.0).clamp(0.1, 0.3)
+        } else {
+            self.alpha_y
+        };
+
+        Self { alpha_x, alpha_y }
     }
 }
 

@@ -51,6 +51,8 @@ pub trait BxDF {
         mode: TransportMode,
         sample_flags: BxDFReflTransFlags,
     ) -> Float;
+
+    fn regularize(&mut self);
 }
 
 bitflags! {
@@ -87,12 +89,12 @@ impl From<BxDFFlags> for BxDFReflTransFlags {
 
 #[derive(Debug)]
 pub struct BSDF<'a, BxDF> {
-    bxdf: &'a BxDF,
+    bxdf: &'a mut BxDF,
     shading_frame: Frame,
 }
 
 impl<'a, BxDF: super::BxDF> BSDF<'a, BxDF> {
-    pub fn new(shading_normal: Normal3f, shading_dpdu: Vec3f, bxdf: &'a BxDF) -> Self {
+    pub fn new(shading_normal: Normal3f, shading_dpdu: Vec3f, bxdf: &'a mut BxDF) -> Self {
         Self {
             bxdf,
             shading_frame: Frame::from_xz(shading_dpdu.normalized(), shading_normal.into()),
@@ -180,6 +182,45 @@ impl<'a, BxDF: super::BxDF> BSDF<'a, BxDF> {
     /// Transform a vector from the BxDF's local coordinate space to rendering space.
     pub fn local_to_render(&self, v: Vec3f) -> Vec3f {
         self.shading_frame.from_local(v)
+    }
+
+    /// Computes the hemispherical-directional reflectance,
+    /// or the total reflection in a given direction due to constant illumination
+    /// over a hemisphere (or vice versa).
+    pub fn reflectance_hemispherical_directional(
+        &self,
+        outgoing_render: Vec3f,
+        uc: &[Float],
+        u2: &[Point2f],
+    ) -> SampledSpectrum {
+        assert_eq!(uc.len(), u2.len());
+
+        let mut r = SampledSpectrum::with_single_value(0.0);
+
+        if outgoing_render.z() == 0.0 {
+            return r;
+        }
+
+        for (uc_i, u2_i) in uc.iter().zip(u2) {
+            let bs = self.sample_func(
+                outgoing_render,
+                *uc_i,
+                *u2_i,
+                TransportMode::Radiance,
+                BxDFReflTransFlags::all(),
+            );
+            if let Some(bs) = bs {
+                if bs.pdf > 0.0 {
+                    r += bs.value * bs.incident.abs_cos_theta() / bs.pdf;
+                }
+            }
+        }
+
+        r / uc.len() as Float
+    }
+
+    pub fn regularize(&mut self) {
+        self.bxdf.regularize();
     }
 }
 

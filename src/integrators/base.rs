@@ -10,6 +10,7 @@ use crate::{
         SurfaceInteraction,
     },
     imaging::ImageMetadata,
+    integrators::PathIntegrator,
     lights::{LightEnum, LightType},
     memory::ScratchBuffer,
     parallel::parallel_for_2d_tiled_with,
@@ -27,6 +28,7 @@ use super::{RandomWalkIntegrator, SimplePathIntegrator};
 pub enum IntegratorEnum {
     RandomWalk(RandomWalkIntegrator),
     SimplePath(SimplePathIntegrator),
+    Path(PathIntegrator),
 }
 
 #[enum_dispatch(IntegratorEnum)]
@@ -214,4 +216,11 @@ pub(super) trait RayIntegrate: ImageTileIntegrate {
             );
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LightSampleStrategy {
+    Bvh,
+    Uniform,
+    Power,
 }

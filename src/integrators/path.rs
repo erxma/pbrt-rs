@@ -5,6 +5,7 @@ use delegate::delegate;
 use crate::{
     camera::{CameraEnum, VisibleSurface},
     core::{Float, Point2f, Point2i, Ray, RayDifferential, SurfaceInteraction},
+    integrators::base::LightSampleStrategy,
     lights::{LightEnum, LightSampleContext},
     memory::ScratchBuffer,
     primitives::{Primitive, PrimitiveEnum},
@@ -39,9 +40,13 @@ impl PathIntegrator {
         sampler: SamplerEnum,
         aggregate: PrimitiveEnum,
         lights: Vec<Arc<LightEnum>>,
+        light_sample_strategy: LightSampleStrategy,
     ) -> Self {
         let scene_data = SceneData::new(aggregate, lights);
-        let light_sampler = UniformLightSampler::new(&scene_data.lights);
+        let light_sampler = match light_sample_strategy {
+            LightSampleStrategy::Uniform => UniformLightSampler::new(&scene_data.lights),
+            _ => unimplemented!(),
+        };
         Self {
             scene_data,
             camera,

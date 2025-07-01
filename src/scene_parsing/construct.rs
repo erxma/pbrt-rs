@@ -17,7 +17,7 @@ use crate::{
     color::{RGBColorSpace, SRGB},
     core::{constants::PI, Bounds2i, Float, Point2i, Point3f, Transform, Vec2f, Vec3f},
     imaging::{BoxFilter, FilterEnum, GaussianFilter, TriangleFilter},
-    integrators::{IntegratorEnum, RandomWalkIntegrator, SimplePathIntegrator},
+    integrators::{IntegratorEnum, PathIntegrator, RandomWalkIntegrator, SimplePathIntegrator},
     lights::{DirectionalLight, LightEnum, UniformInfiniteLight},
     materials::{
         CheckerboardFloatTexture, CheckerboardSpectrumTexture, ConstantFloatTexture,
@@ -259,6 +259,16 @@ fn create_integrator(
             sampler,
             aggregate,
             lights,
+        )
+        .into(),
+        Integrator::Path(desc) => PathIntegrator::new(
+            desc.max_depth,
+            desc.regularize,
+            camera,
+            sampler,
+            aggregate,
+            lights,
+            desc.light_sampler,
         )
         .into(),
     }

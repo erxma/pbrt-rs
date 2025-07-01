@@ -19,7 +19,7 @@ fn main() {
     let render_result = render_cpu(&args);
     if let Err(err) = render_result {
         error!("Render failed:");
-        error!("{}", err);
+        error!("{err}");
         return;
     }
 

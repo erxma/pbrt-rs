@@ -28,8 +28,7 @@ pub fn safe_asin(x: Float) -> Float {
 pub fn safe_acos(x: Float) -> Float {
     assert!(
         (-1.0001..=1.0001).contains(&x),
-        "Argument to safe_acos must be in -1.0001..=1.0001, but got {}",
-        x
+        "Argument to safe_acos must be in -1.0001..=1.0001, but got {x}"
     );
     x.clamp(-1.0, 1.0).acos()
 }
@@ -38,8 +37,7 @@ pub fn safe_acos(x: Float) -> Float {
 pub fn safe_sqrt(x: Float) -> Float {
     assert!(
         x >= -1e-3,
-        "Argument for safe_sqrt must be (roughly) non-negative, but got {}",
-        x
+        "Argument for safe_sqrt must be (roughly) non-negative, but got {x}"
     );
     x.max(0.0).sqrt()
 }

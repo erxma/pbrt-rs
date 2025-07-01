@@ -378,9 +378,9 @@ impl<const N: usize> fmt::Display for SquareMatrix<N> {
         // Use precision, if specified, for the float values
         let fmt_val = |val| {
             if let Some(p) = f.precision() {
-                format!("{:.*}", p, val)
+                format!("{val:.p$}")
             } else {
-                format!("{}", val)
+                format!("{val}")
             }
         };
         let fmt_row = |row: [Float; N]| format!("[{}]", row.map(fmt_val).join(", "));

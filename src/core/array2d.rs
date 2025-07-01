@@ -65,11 +65,13 @@ impl<T> Array2D<T> {
     /// if called on the same point concurrently.
     /// Therefore, the user is responsible for ensuring that
     /// each point is mutated by at most one thread at a time.
-    pub unsafe fn mutate_unchecked(&self, p: Point2i, op: impl Fn(&mut T)) {
+    pub unsafe fn mutate_unchecked(&self, p: Point2i, op: impl FnOnce(&mut T)) {
         let x = (p.x() - self.extent.p_min.x()) as usize;
         let y = (p.y() - self.extent.p_min.y()) as usize;
         let idx = y * self.x_size() + x;
-        let val = unsafe { &mut (*self.values.get())[idx] };
+
+        let vec_mut = unsafe { &mut *self.values.get() };
+        let val = &mut vec_mut[idx];
         op(val);
     }
 
@@ -114,12 +116,13 @@ impl<T> Array2D<T> {
 
     fn index_linear(&self, index: usize) -> &T {
         debug_assert!(index < self.num_values(), "Index out of bounds for Array2D");
-        unsafe { &(*self.values.get())[index] }
+        let vals_ref = unsafe { &(*self.values.get()) };
+        &vals_ref[index]
     }
 
     fn index_linear_mut(&mut self, index: usize) -> &mut T {
         debug_assert!(index < self.num_values(), "Index out of bounds for Array2D");
-        unsafe { &mut (*self.values.get())[index] }
+        &mut self.values.get_mut()[index]
     }
 }
 
@@ -155,7 +158,8 @@ impl<T> Index<usize> for Array2D<T> {
     fn index(&self, row: usize) -> &Self::Output {
         debug_assert!(row < self.y_size(), "Row index out of bounds for Array2D");
         let row_start = row * self.x_size();
-        unsafe { &(*self.values.get())[row_start..row_start + self.x_size()] }
+        let vals_ref = unsafe { &(*self.values.get()) };
+        &vals_ref[row_start..row_start + self.x_size()]
     }
 }
 
@@ -163,7 +167,8 @@ impl<T> IndexMut<usize> for Array2D<T> {
     fn index_mut(&mut self, row: usize) -> &mut Self::Output {
         debug_assert!(row < self.y_size(), "Row index out of bounds for Array2D");
         let row_start = row * self.x_size();
-        unsafe { &mut (*self.values.get())[row_start..row_start + self.x_size()] }
+        let x_size = self.x_size();
+        &mut self.values.get_mut()[row_start..row_start + x_size]
     }
 }
 
@@ -172,9 +177,9 @@ impl<T: Display> fmt::Display for Array2D<T> {
         // Use precision, if specified, for the values
         let fmt_val = |val| {
             if let Some(p) = f.precision() {
-                format!("{:.*}", p, val)
+                format!("{val:.p$}")
             } else {
-                format!("{}", val)
+                format!("{val}")
             }
         };
         let fmt_row = |row: usize| format!("[{}]", self[row].iter().map(fmt_val).join(", "));
@@ -322,6 +327,7 @@ impl<'a, T> IndexMut<Point2i> for Tile<'a, T> {
         let y = (p.y() - self.extent.p_min.y()) as usize;
         let idx = y * self.x_size() + x;
 
-        unsafe { &mut (*self.arr.values.get())[idx] }
+        let vals_mut = unsafe { &mut *self.arr.values.get() };
+        &mut vals_mut[idx]
     }
 }

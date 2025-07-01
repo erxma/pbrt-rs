@@ -41,8 +41,7 @@ impl Sphere {
     ) -> Result<Self, BuilderError> {
         if z_min > z_max {
             return Err(BuilderError::ValidationError(format!(
-                "sphere z_min is greater than z_max ({} > {})",
-                z_min, z_max
+                "sphere z_min is greater than z_max ({z_min} > {z_max})",
             )));
         }
 

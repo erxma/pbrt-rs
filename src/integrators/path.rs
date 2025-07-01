@@ -92,7 +92,7 @@ impl PathIntegrator {
         // Evaluate BSDF for light sample and check light visibility
         let f = bsdf.eval(intr.wo, li_sample.wi, TransportMode::Radiance)
             * li_sample.wi.absdot(intr.shading.n.into());
-        if f.is_all_zero() || self.unoccluded(&intr, li_sample.p_light) {
+        if f.is_all_zero() || self.unoccluded(intr, li_sample.p_light) {
             return SampledSpectrum::with_single_value(0.0);
         }
 
@@ -304,7 +304,7 @@ impl RayIntegrate for PathIntegrator {
                 .flags()
                 .intersects(BxDFFlags::DIFFUSE | BxDFFlags::GLOSSY)
             {
-                let ld = self.sample_ld(&isect, &bsdf, &lambda, sampler);
+                let ld = self.sample_ld(&isect, &bsdf, lambda, sampler);
                 radiance += &beta * ld;
             }
 

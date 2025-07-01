@@ -6,7 +6,7 @@ use crate::core::{Bounds2i, Float, Point2i};
 pub fn parallel_for_2d_tiled_with<T>(
     extent: Bounds2i,
     init: T,
-    op: impl (Fn(&mut T, Bounds2i)) + Send + Sync,
+    op: impl Fn(&mut T, Bounds2i) + Send + Sync,
 ) where
     T: Send + Clone,
 {

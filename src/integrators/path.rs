@@ -57,9 +57,60 @@ impl PathIntegrator {
         intr: &SurfaceInteraction,
         bsdf: &BSDF<'_, BxDFEnum>,
         lambda: &SampledWavelengths,
-        sampler: &impl Sampler,
+        sampler: &mut impl Sampler,
     ) -> SampledSpectrum {
-        todo!()
+        // Initialize light sample context
+        let mut ctx = LightSampleContext::with_surface_interaction(intr);
+        // Try to nudge the light sampling position to correct side of surface
+        let flags = bsdf.flags();
+        if flags.contains(BxDFFlags::REFLECTION) && !flags.contains(BxDFFlags::TRANSMISSION) {
+            ctx.pi = intr.offset_ray_origin(intr.wo).into();
+        } else if flags.contains(BxDFFlags::TRANSMISSION) && !flags.contains(BxDFFlags::REFLECTION)
+        {
+            ctx.pi = intr.offset_ray_origin(-intr.wo).into();
+        }
+
+        // Choose a light source for the direct lighting calculation
+        let u = sampler.get_1d();
+        let sampled_light = self.light_sampler.sample_with_context(&ctx, u);
+        if sampled_light.is_none() {
+            return SampledSpectrum::with_single_value(0.0);
+        }
+        let sampled_light = sampled_light.unwrap();
+
+        let u_light = sampler.get_2d();
+        let li_sample = sampled_light.light.sample_li(ctx, u_light, lambda, true);
+        if let Some(ref sample) = li_sample {
+            if sample.l.is_all_zero() || sample.pdf == 0.0 {
+                return SampledSpectrum::with_single_value(0.0);
+            }
+        } else {
+            return SampledSpectrum::with_single_value(0.0);
+        }
+        let li_sample = li_sample.unwrap();
+
+        // Evaluate BSDF for light sample and check light visibility
+        let f = bsdf.eval(intr.wo, li_sample.wi, TransportMode::Radiance)
+            * li_sample.wi.absdot(intr.shading.n.into());
+        if f.is_all_zero() || self.unoccluded(&intr, li_sample.p_light) {
+            return SampledSpectrum::with_single_value(0.0);
+        }
+
+        // Return light's contribution to reflected radiance
+        let p_l = sampled_light.prob * li_sample.pdf;
+        if sampled_light.light.is_delta_light() {
+            li_sample.l * f / p_l
+        } else {
+            let p_b = bsdf.pdf(
+                intr.wo,
+                li_sample.wi,
+                TransportMode::Radiance,
+                BxDFReflTransFlags::all(),
+            );
+            let weight_l = power_heuristic(1, p_l, 1, p_b);
+
+            weight_l * li_sample.l * f / p_l
+        }
     }
 }
 
@@ -294,7 +345,7 @@ impl RayIntegrate for PathIntegrator {
 
                 prev_intr_ctx = Some(LightSampleContext::with_surface_interaction(&isect));
 
-                ray_diff = isect.spawn_ray(&ray_diff, &bsdf, bs.incident, bs.flags, bs.eta);
+                ray_diff = isect.spawn_ray(&ray_diff, bs.incident, bs.flags, bs.eta);
 
                 // Possibly terminate the path with Russian roulette.
                 // beta is corrected with eta_scale to exclude radiance scaling

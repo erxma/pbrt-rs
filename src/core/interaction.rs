@@ -216,25 +216,100 @@ impl<'a> SurfaceInteraction<'a> {
 
     pub fn spawn_ray(
         &self,
-        ray_diff: &RayDifferential,
-        bsdf: &BSDF<'_, BxDFEnum>,
-        outgoing: Vec3f,
+        ray_i: &RayDifferential,
+        wi: Vec3f,
         flags: BxDFFlags,
         eta: Float,
     ) -> RayDifferential {
-        todo!()
+        let mut ray_diff = self.spawn_ray_with_dir(wi);
+
+        if let Some(ray_i_diffs) = &ray_i.differentials {
+            // Compute ray differentials for specular reflection or transmission:
+            // Compute common factors for specular ray differentials
+            let mut n = self.shading.n;
+
+            let mappings_diffs = self
+                .mappings_diffs
+                .as_ref()
+                .expect("differentials must be set on surface interaction");
+            let mut dndx =
+                self.shading.dndu * mappings_diffs.dudx + self.shading.dndv * mappings_diffs.dvdx;
+            let mut dndy =
+                self.shading.dndu * mappings_diffs.dudy + self.shading.dndv * mappings_diffs.dvdy;
+
+            let dwodx = -ray_i_diffs.rx_dir - self.wo;
+            let dwody = -ray_i_diffs.ry_dir - self.wo;
+
+            if flags == BxDFFlags::SPECULAR_REFLECTION {
+                // Origins of specular differential rays
+                let rx_origin = self.pi.midpoints() + mappings_diffs.dpdx;
+                let ry_origin = self.pi.midpoints() + mappings_diffs.dpdy;
+                // Differential reflected directions
+                let dwo_dot_n_dx = dwodx.dot(n.into()) + self.wo.dot(dndx.into());
+                let dwo_dot_n_dy = dwody.dot(n.into()) + self.wo.dot(dndy.into());
+                let rx_dir =
+                    wi - dwodx + 2.0 * Vec3f::from(self.wo.dot(n.into()) * dndx + dwo_dot_n_dx * n);
+                let ry_dir =
+                    wi - dwody + 2.0 * Vec3f::from(self.wo.dot(n.into()) * dndy + dwo_dot_n_dy * n);
+
+                // Initialize ray differentials
+                ray_diff.set_differentials(rx_origin, rx_dir, ry_origin, ry_dir);
+            } else if flags == BxDFFlags::SPECULAR_TRANSMISSION {
+                // Origins of specular differential rays
+                let rx_origin = self.pi.midpoints() + mappings_diffs.dpdx;
+                let ry_origin = self.pi.midpoints() + mappings_diffs.dpdy;
+
+                // Differential transmitted directions:
+                // Find oriented surface normal for transmission
+                if self.wo.dot(n.into()) < 0.0 {
+                    n = -n;
+                    dndx = -dndx;
+                    dndy = -dndy;
+                }
+                // Compute partial derivatives of mu
+                let dwo_dot_n_dx = dwodx.dot(n.into()) + self.wo.dot(dndx.into());
+                let dwo_dot_n_dy = dwody.dot(n.into()) + self.wo.dot(dndy.into());
+                let mu = self.wo.dot(n.into()) / eta - wi.absdot(n.into());
+                let dmudx = dwo_dot_n_dx
+                    * (1.0 / eta + 1.0 / (eta * eta) * self.wo.dot(n.into()) / wi.dot(n.into()));
+                let dmudy = dwo_dot_n_dy
+                    * (1.0 / eta + 1.0 / (eta * eta) * self.wo.dot(n.into()) / wi.dot(n.into()));
+
+                let rx_dir = wi - eta * dwodx + Vec3f::from(mu * dndx + dmudx * n);
+                let ry_dir = wi - eta * dwody + Vec3f::from(mu * dndy + dmudy * n);
+
+                // Initialize ray differentials
+                ray_diff.set_differentials(rx_origin, rx_dir, ry_origin, ry_dir);
+            }
+            // Squash potentially troublesome differentials
+            if let Some(ref diffs) = ray_diff.differentials {
+                if diffs.rx_dir.length_squared() > 1e16
+                    || diffs.ry_dir.length_squared() > 1e16
+                    || Vec3f::from(diffs.rx_origin).length_squared() > 1e16
+                    || Vec3f::from(diffs.ry_origin).length_squared() > 1e16
+                {
+                    ray_diff.differentials = None;
+                }
+            }
+        }
+
+        ray_diff
     }
 
-    pub fn spawn_ray_leaving_with_dir(&self, dir: Vec3f) -> RayDifferential {
+    pub fn spawn_ray_with_dir(&self, dir: Vec3f) -> RayDifferential {
         let mut ray = Ray::spawn_with_dir(self.pi, self.n, self.time, dir);
         ray.medium = self.medium_at_side(dir);
         RayDifferential::new_without_diff(ray)
     }
 
-    pub fn spawn_ray_leaving_towards(&self, p: Point3f) -> Ray {
+    pub fn spawn_ray_towards(&self, p: Point3f) -> Ray {
         let mut ray = Ray::spawn_from_to(self.pi, self.n, self.time, p);
         ray.medium = self.medium_at_side(ray.dir);
         ray
+    }
+
+    pub fn offset_ray_origin(&self, w: Vec3f) -> Point3f {
+        Ray::offset_ray_origin(self.pi, self.n, w)
     }
 
     pub fn compute_differentials(
@@ -354,7 +429,7 @@ impl<'a> SurfaceInteraction<'a> {
     }
 
     pub fn skip_intersection(&self, ray_diff: &RayDifferential, t: Float) -> RayDifferential {
-        let mut new = self.spawn_ray_leaving_with_dir(ray_diff.ray.dir);
+        let mut new = self.spawn_ray_with_dir(ray_diff.ray.dir);
         if let Some(ref mut diffs) = new.differentials {
             diffs.rx_origin += t * diffs.rx_dir;
             diffs.ry_origin += t * diffs.ry_dir;

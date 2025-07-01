@@ -157,7 +157,7 @@ impl RandomWalkIntegrator {
         let f_cos = eval * wp.absdot(isect.shading.n.into());
 
         // Recursively trace ray to estimate incident radiance at surface
-        let ray_diff = isect.spawn_ray_leaving_with_dir(wp);
+        let ray_diff = isect.spawn_ray_with_dir(wp);
 
         le + f_cos
             * self.incident_radiance_random_walk(

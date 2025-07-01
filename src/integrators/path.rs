@@ -97,7 +97,7 @@ impl PathIntegrator {
         // Evaluate BSDF for light sample and check light visibility
         let f = bsdf.eval(intr.wo, li_sample.wi, TransportMode::Radiance)
             * li_sample.wi.absdot(intr.shading.n.into());
-        if f.is_all_zero() || self.unoccluded(intr, li_sample.p_light) {
+        if f.is_all_zero() || !self.unoccluded(intr, li_sample.p_light) {
             return SampledSpectrum::with_single_value(0.0);
         }
 
@@ -189,10 +189,10 @@ impl RayIntegrate for PathIntegrator {
         let mut eta_scale = 1.0;
         // Whether the last outgoing path direction sampled was due to
         // perfect specular reflection...
-        let mut specular_bounce = true;
+        let mut specular_bounce = false;
         // ...and whether any so far have NOT been,
         // used for path regularization if enabled.
-        let mut any_non_specular_bounces = true;
+        let mut any_non_specular_bounces = false;
         // Geometric info about the intersection point the sampled ray is leaving.
         // Used in MIS-computation for direct lighting.
         let mut prev_intr_ctx = None;
@@ -296,11 +296,12 @@ impl RayIntegrate for PathIntegrator {
                 bsdf.regularize();
             }
 
-            // Increment depth, end path if max reached
-            depth += 1;
+            // End path if max reached
             if depth == self.max_depth {
                 break;
             }
+            // Increment depth
+            depth += 1;
 
             // Sample direct illumination from the light sources,
             // unless BSDF is purely specular (in which case BSDF for sampled point
@@ -317,62 +318,64 @@ impl RayIntegrate for PathIntegrator {
             let outgoing = -ray_diff.ray.dir;
             let u = sampler.get_1d();
             let u2 = sampler.get_2d();
-            // Proceed if a result was returned. Otherwise, break.
-            if let Some(bs) = bsdf.sample_func(
+            let bs = bsdf.sample_func(
                 outgoing,
                 u,
                 u2,
                 TransportMode::Radiance,
                 BxDFReflTransFlags::all(),
-            ) {
-                // Update path state variables after surface scattering
-                // see their definitions above
-
-                beta *= bs.value * bs.incident.absdot(isect.shading.n.into()) / bs.pdf;
-
-                bsdf_pdf = if bs.pdf_is_proportional {
-                    bsdf.pdf(
-                        outgoing,
-                        bs.incident,
-                        TransportMode::Radiance,
-                        BxDFReflTransFlags::all(),
-                    )
-                } else {
-                    bs.pdf
-                };
-
-                specular_bounce = bs.flags.contains(BxDFFlags::SPECULAR);
-                any_non_specular_bounces |= !specular_bounce;
-
-                if bs.flags.contains(BxDFFlags::TRANSMISSION) {
-                    eta_scale *= bs.eta * bs.eta;
-                }
-
-                prev_intr_ctx = Some(LightSampleContext::with_surface_interaction(&isect));
-
-                ray_diff = isect.spawn_ray(&ray_diff, bs.incident, bs.flags, bs.eta);
-
-                // Possibly terminate the path with Russian roulette.
-                // beta is corrected with eta_scale to exclude radiance scaling
-                // due to refraction
-                let rr_beta = &beta * eta_scale;
-
-                // Set prob of termination to max component value of adjusted beta.
-                // Gives better results when surface reflectances are highly saturated
-                // and some samples have much lower betas than others,
-                // since it prevents any beta components from going above 1 due to Russian roulette.
-                if rr_beta.max_component_value().unwrap() < 1.0 && depth > 1 {
-                    let terminate_prob = (1.0 - rr_beta.max_component_value().unwrap()).max(0.0);
-                    // If 1D sample hits termination range, do so
-                    if sampler.get_1d() < terminate_prob {
-                        break;
-                    }
-                    // Scale beta according to prob
-                    beta /= 1.0 - terminate_prob;
-                    debug_assert!(!beta.y(lambda).is_finite());
-                }
-            } else {
+            );
+            // Break if sample None
+            if bs.is_none() {
                 break;
+            }
+            let bs = bs.unwrap();
+
+            // Update path state variables after surface scattering
+            // see their definitions above
+
+            beta *= bs.value * bs.incident.absdot(isect.shading.n.into()) / bs.pdf;
+
+            bsdf_pdf = if bs.pdf_is_proportional {
+                bsdf.pdf(
+                    outgoing,
+                    bs.incident,
+                    TransportMode::Radiance,
+                    BxDFReflTransFlags::all(),
+                )
+            } else {
+                bs.pdf
+            };
+
+            specular_bounce = bs.flags.contains(BxDFFlags::SPECULAR);
+            any_non_specular_bounces |= !specular_bounce;
+
+            if bs.flags.contains(BxDFFlags::TRANSMISSION) {
+                eta_scale *= bs.eta * bs.eta;
+            }
+
+            prev_intr_ctx = Some(LightSampleContext::with_surface_interaction(&isect));
+
+            ray_diff = isect.spawn_ray(&ray_diff, bs.incident, bs.flags, bs.eta);
+
+            // Possibly terminate the path with Russian roulette.
+            // beta is corrected with eta_scale to exclude radiance scaling
+            // due to refraction
+            let rr_beta = &beta * eta_scale;
+
+            // Set prob of termination to max component value of adjusted beta.
+            // Gives better results when surface reflectances are highly saturated
+            // and some samples have much lower betas than others,
+            // since it prevents any beta components from going above 1 due to Russian roulette.
+            if rr_beta.max_component_value().unwrap() < 1.0 && depth > 1 {
+                let terminate_prob = (1.0 - rr_beta.max_component_value().unwrap()).max(0.0);
+                // If 1D sample hits termination range, do so
+                if sampler.get_1d() < terminate_prob {
+                    break;
+                }
+                // Scale beta according to prob
+                beta /= 1.0 - terminate_prob;
+                debug_assert!(!beta.y(lambda).is_finite());
             }
         }
 

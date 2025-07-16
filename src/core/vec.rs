@@ -381,6 +381,7 @@ pub(super) trait Vec3<T: TupleElement>: Tuple<3, T> {
     Debug,
     Default,
     PartialEq,
+    Hash,
     derive_more::Index,
     derive_more::IndexMut,
     derive_more::Neg,
@@ -843,7 +844,7 @@ pub(crate) mod custom_impl {
 
     // Vec2
     /// A 2D vector.
-    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Zeroable)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Zeroable)]
     #[repr(C)]
     pub struct Vec2<T> {
         pub x: T,

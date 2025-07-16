@@ -31,7 +31,7 @@ use crate::{
             self, BlackbodySpectrum, ConstantSpectrum, RgbAlbedoSpectrum, RgbIlluminantSpectrum,
             RgbUnboundedSpectrum, SpectrumEnum,
         },
-        IndependentSampler, SamplerEnum,
+        IndependentSampler, SamplerEnum, StratifiedSampler,
     },
     scene_parsing::{
         directives::{Accelerator, FloatTextureDesc, MaterialDesc, ShapeDesc, SpectrumTextureDesc},
@@ -236,6 +236,10 @@ fn create_sampler(desc: Sampler) -> SamplerEnum {
     match desc {
         Sampler::Independent(desc) => {
             IndependentSampler::new(desc.pixel_samples, Some(desc.seed)).into()
+        }
+        Sampler::Stratified(desc) => {
+            StratifiedSampler::new(desc.x_samples, desc.y_samples, desc.jitter, Some(desc.seed))
+                .into()
         }
     }
 }

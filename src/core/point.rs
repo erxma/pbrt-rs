@@ -373,6 +373,7 @@ impl fmt::Display for Point3f {
     Copy,
     Default,
     PartialEq,
+    Hash,
     derive_more::Neg,
     derive_more::Add,
     derive_more::From,

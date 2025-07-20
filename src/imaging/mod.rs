@@ -2,4 +2,4 @@ mod filter;
 mod image;
 
 pub use filter::{BoxFilter, Filter, FilterEnum, FilterSample, GaussianFilter, TriangleFilter};
-pub use image::{Image, ImageMetadata};
+pub use image::{Image, ImageMetadata, WrapMode, WrapMode2D};

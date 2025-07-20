@@ -1,3 +1,7 @@
+use std::hash::Hasher;
+
+use crate::core::Float;
+
 pub fn find_interval(size: usize, pred: impl Fn(usize) -> bool) -> Option<usize> {
     // If < 2, no valid result
     if size < 2 {
@@ -48,6 +52,21 @@ fn left_shift_3(mut x: u32) -> u32 {
 
     x
 }
+
+pub trait HasherFloat: Hasher {
+    /// Like [Hasher::finish], but produces a `Float` in [0.0, 1.0) instead.
+    #[inline]
+    fn finish_float(&self) -> Float {
+        // Quick, simple scale by `u64::MAX + 1`.
+        // This approach of scaling integers to floats has its issues,
+        // but they aren't really irrelevant here since the `u64`s are
+        // roughly uniform over the range.
+        const INV_2_64: Float = 1.0 / (u64::MAX as Float + 1.0);
+        (self.finish() as Float) * INV_2_64
+    }
+}
+
+impl<T: Hasher> HasherFloat for T {}
 
 #[inline]
 pub fn permutation_element(mut i: usize, n: usize, seed: usize) -> usize {

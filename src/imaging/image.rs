@@ -1,11 +1,12 @@
 use crate::{
     color::RGBColorSpace,
-    core::{Float, Point2Usize},
+    core::{Float, Point2Usize, Point2f},
 };
 use exr::prelude::write_rgb_file;
 use num_traits::AsPrimitive;
 use std::path::Path;
 
+#[derive(Debug)]
 pub struct Image {
     resolution: Point2Usize,
     channel_names: Vec<String>,
@@ -26,6 +27,14 @@ impl Image {
             channel_names,
             values: vec![0.0; num_channels * resolution.x() * resolution.y()],
         }
+    }
+
+    pub fn get_channel(&self, p: Point2Usize, channel: usize, wrap_mode: WrapMode2D) -> Float {
+        todo!()
+    }
+
+    pub fn bilerp_channel(&self, p: Point2f, channel: usize, wrap_mode: WrapMode2D) -> Float {
+        todo!()
     }
 
     pub fn set_channel(&mut self, p: Point2Usize, channel: usize, value: Float) {
@@ -56,6 +65,10 @@ impl Image {
         })
     }
 
+    pub fn resolution(&self) -> Point2Usize {
+        self.resolution
+    }
+
     pub fn num_channels(&self) -> usize {
         self.channel_names.len()
     }
@@ -69,3 +82,13 @@ impl Image {
 pub struct ImageMetadata<'a> {
     pub color_space: Option<&'a RGBColorSpace>,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WrapMode {
+    Black,
+    Clamp,
+    Repeat,
+    OctahedralSphere,
+}
+
+pub type WrapMode2D = (WrapMode, WrapMode);

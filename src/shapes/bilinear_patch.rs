@@ -368,7 +368,7 @@ impl Shape for BilinearPatch {
         let p_err = gamma(6) * Vec3f::from(p_abs_sum);
 
         // Return sample
-        let intr = SampleInteraction::new(Point3fi::new_fi(p, p_err), None, n, st);
+        let intr = SampleInteraction::new(Point3fi::new_fi(p, p_err), None, n, st, None);
         pdf /= dpdu.cross(dpdv).length();
         Some(ShapeSample { intr, pdf })
     }
@@ -457,7 +457,7 @@ impl Shape for BilinearPatch {
                 uv_sample
             };
 
-            let intr = SampleInteraction::new(p.into(), Some(ctx.time), n, st);
+            let intr = SampleInteraction::new(p.into(), Some(ctx.time), n, st, None);
             Some(ShapeSample { intr, pdf })
         }
     }
@@ -526,6 +526,7 @@ impl Shape for BilinearPatch {
                 Some(isect.intr.time),
                 isect.intr.n,
                 isect.intr.uv,
+                None,
             );
             // Return solid angle PDF for area-sampled patch
             let pdf = self.pdf(&intr)

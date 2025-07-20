@@ -8,9 +8,10 @@ use crate::{
 };
 use delegate::delegate;
 use enum_dispatch::enum_dispatch;
+use strum::EnumIs;
 
 #[enum_dispatch]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, EnumIs)]
 pub enum ShapeEnum {
     Sphere(Box<Sphere>),
     BilinearPatch,
@@ -85,8 +86,8 @@ pub struct ShapeIntersection<'a> {
 }
 
 #[derive(Debug)]
-pub struct ShapeSample {
-    pub intr: SampleInteraction,
+pub struct ShapeSample<'a> {
+    pub intr: SampleInteraction<'a>,
     pub pdf: Float,
 }
 

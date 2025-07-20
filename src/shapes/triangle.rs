@@ -312,7 +312,7 @@ impl Shape for Triangle {
 
         // Return sample
         Some(ShapeSample {
-            intr: SampleInteraction::new(Point3fi::new_fi(p, p_err), None, n, uv_sample),
+            intr: SampleInteraction::new(Point3fi::new_fi(p, p_err), None, n, uv_sample, None),
             pdf: 1.0 / self.area(),
         })
     }
@@ -388,6 +388,7 @@ impl Shape for Triangle {
                     Some(ctx.time),
                     n,
                     uv_sample,
+                    None,
                 ),
                 pdf,
             })

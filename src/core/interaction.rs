@@ -18,18 +18,31 @@ use crate::{
 use super::{Ray, RayDifferential, Transform};
 
 #[derive(Clone, Debug)]
-pub struct SampleInteraction {
+pub struct SampleInteraction<'a> {
     pub pi: Point3fi,
     pub time: Float,
 
     pub n: Normal3f,
     pub uv: Point2f,
+    pub medium_interface: Option<&'a MediumInterface>,
 }
 
-impl SampleInteraction {
-    pub fn new(pi: Point3fi, time: Option<Float>, n: Normal3f, uv: Point2f) -> Self {
+impl<'a> SampleInteraction<'a> {
+    pub fn new(
+        pi: Point3fi,
+        time: Option<Float>,
+        n: Normal3f,
+        uv: Point2f,
+        medium_interface: Option<&'a MediumInterface>,
+    ) -> Self {
         let time = time.unwrap_or(0.0);
-        Self { pi, time, n, uv }
+        Self {
+            pi,
+            time,
+            n,
+            uv,
+            medium_interface,
+        }
     }
 
     pub fn spawn_ray(&self, dir: Vec3f) -> RayDifferential {

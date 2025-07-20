@@ -126,7 +126,7 @@ impl Shape for Sphere {
         );
 
         let pi = &self.render_from_object * Point3fi::new_fi(p_obj, p_obj_err);
-        let intr = SampleInteraction::new(pi, None, n, uv);
+        let intr = SampleInteraction::new(pi, None, n, uv, None);
         let pdf = self.pdf(&intr);
         Some(ShapeSample { intr, pdf })
     }
@@ -204,7 +204,8 @@ impl Shape for Sphere {
             );
 
             // Return sample info
-            let intr = SampleInteraction::new(Point3fi::new_fi(p, p_err), Some(ctx.time), n, uv);
+            let intr =
+                SampleInteraction::new(Point3fi::new_fi(p, p_err), Some(ctx.time), n, uv, None);
             let pdf = 1.0 / (2.0 * PI * one_minus_cos_theta_max);
 
             Some(ShapeSample { intr, pdf })

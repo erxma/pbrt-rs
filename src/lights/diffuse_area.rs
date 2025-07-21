@@ -22,7 +22,7 @@ use crate::{
         Spectrum, SpectrumEnum,
     },
     shapes::{Shape, ShapeEnum, ShapeSampleContext},
-    util::routines::HasherFloat as _,
+    util::{error::BuilderError, routines::HasherFloat as _},
 };
 
 #[derive(Debug)]
@@ -65,7 +65,7 @@ impl DiffuseAreaLight {
         mut alpha: Option<FloatTextureEnum>,
         image_color_space: &'static RGBColorSpace,
         two_sided: bool,
-    ) -> Self {
+    ) -> Result<Self, BuilderError> {
         let area = shape.area();
 
         // Special case handling for area lights with constant zero-valued alpha
@@ -87,7 +87,14 @@ impl DiffuseAreaLight {
 
         let emission = match emission {
             AreaLightEmission::Image(image) => {
-                // TODO: Validate image descs
+                // Validate image channels
+                let desc = image.get_channel_desc(&["R", "G", "B"]).ok_or(
+                    BuilderError::ValidationError(
+                        "image used for DiffuseAreaLight doesn't have R, G, B channels".to_owned(),
+                    ),
+                )?;
+                assert!(desc.is_identity());
+
                 Emission::Image(image)
             }
             AreaLightEmission::Uniform(spectrum) => {
@@ -95,7 +102,7 @@ impl DiffuseAreaLight {
             }
         };
 
-        Self {
+        Ok(Self {
             medium_interface,
             light_type,
             shape,
@@ -105,7 +112,7 @@ impl DiffuseAreaLight {
             emission,
             scale,
             image_color_space,
-        }
+        })
     }
 
     fn alpha_masked(&self, p: Point3f, uv: Point2f) -> bool {
@@ -147,9 +154,9 @@ impl Light for DiffuseAreaLight {
                     let mut rgb = RGB::default();
                     for channel in 0..3 {
                         rgb[channel] = image.get_channel(
-                            Point2Usize::new(x, y),
+                            Point2Usize::new(x, y).as_point2isize(),
                             channel,
-                            (WrapMode::Clamp, WrapMode::Clamp),
+                            [WrapMode::Clamp, WrapMode::Clamp],
                         );
                     }
                     radiance +=
@@ -233,7 +240,7 @@ impl Light for DiffuseAreaLight {
                     let mut rgb = RGB::default();
                     for channel in 0..3 {
                         rgb[channel] =
-                            image.bilerp_channel(uv, channel, (WrapMode::Clamp, WrapMode::Clamp));
+                            image.bilerp_channel(uv, channel, [WrapMode::Clamp, WrapMode::Clamp]);
                     }
                     let spec = RgbIlluminantSpectrum::new(self.image_color_space, rgb);
                     self.scale * spec.sample(wavelengths)

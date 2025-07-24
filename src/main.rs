@@ -1,10 +1,13 @@
-use std::{fs::File, path::PathBuf, time::Instant};
+use std::{fs::File, path::PathBuf, str::FromStr, time::Instant};
 
 use clap::Parser;
 use env_logger::Builder;
 use log::{error, info, warn};
 use memory_stats::memory_stats;
-use pbrt_rs::{integrators::Integrate, scene_parsing::create_scene_integrator};
+use pbrt_rs::{
+    imaging::ImageExtension, integrators::Integrate, scene_parsing::create_scene_integrator,
+};
+use strum::VariantNames;
 
 fn main() {
     let args = CliArgs::parse();
@@ -53,9 +56,28 @@ fn render_cpu(args: &CliArgs) -> anyhow::Result<()> {
 struct CliArgs {
     /// .pbrt scene file to render.
     scene_file: PathBuf,
-    /// The file to output the resulting render to.
-    #[arg(short, long = "out")]
+    // The file to output the resulting render to.
+    #[arg(short, long = "out", help = out_file_help(), value_parser = validate_out_file)]
     out_file: Option<PathBuf>,
+}
+
+fn out_file_help() -> String {
+    format!(
+        "The file to output the resulting render to. Supported formats: {}",
+        ImageExtension::VARIANTS.join(" ")
+    )
+}
+
+fn validate_out_file(s: &str) -> Result<PathBuf, String> {
+    let path = PathBuf::from(s);
+
+    if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+        if ImageExtension::from_str(ext).is_ok() {
+            return Ok(path);
+        }
+    }
+
+    Err("Unsupported file format.".to_string())
 }
 
 fn log_memory_usage() {

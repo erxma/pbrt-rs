@@ -240,7 +240,7 @@ impl FilmTrait for RGBFilm {
         // FIXME: Make Bounds2Usize?
         let diagonal = self.pixel_bounds.diagonal();
         let dims = Point2Usize::new(diagonal.x() as usize, diagonal.y() as usize);
-        let mut image = Image::new(dims, vec!["r", "g", "b"]);
+        let mut image = Image::new(dims, vec!["R", "G", "B"]);
         // OPTIMIZATION: Parallelize
         for p in self.pixel_bounds {
             let rgb = self.get_pixel_rgb(p, splat_scale);

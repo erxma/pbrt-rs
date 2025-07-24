@@ -2,9 +2,12 @@ use crate::{
     color::RGBColorSpace,
     core::{Float, Point2Isize, Point2Usize, Point2f},
 };
-use exr::prelude::write_rgb_file;
-use num_traits::AsPrimitive;
-use std::path::Path;
+use image::EncodableLayout as _;
+use itertools::iproduct;
+use log::warn;
+use num_traits::AsPrimitive as _;
+use std::{path::Path, str::FromStr};
+use strum::{EnumString, VariantNames};
 use tinyvec::ArrayVec;
 
 #[derive(Debug)]
@@ -13,6 +16,12 @@ pub struct Image {
     channel_names: Vec<String>,
 
     values: Vec<f32>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumString, VariantNames)]
+#[strum(ascii_case_insensitive, serialize_all = "UPPERCASE")]
+pub enum ImageExtension {
+    Exr,
 }
 
 impl Image {
@@ -59,6 +68,25 @@ impl Image {
             .expect("remapping should have placed point within bounds")
     }
 
+    pub fn get_channels(&self, p: Point2Isize, wrap_mode: WrapMode2D) -> ImageChannelValues {
+        let mut values = ArrayVec::new();
+
+        // Remap channel pixel coords before reading channel
+        let remapped = remap_pixel_coords(p, self.resolution, wrap_mode);
+
+        if let Some(remapped) = remapped {
+            let pixel_offset = self.pixel_offset(remapped.as_point2usize());
+
+            values.extend_from_slice(
+                self.values
+                    .get(pixel_offset..pixel_offset + 1)
+                    .expect("remapping should have placed point within bounds"),
+            );
+        }
+
+        ImageChannelValues(values)
+    }
+
     pub fn bilerp_channel(&self, p: Point2f, channel: usize, wrap_mode: WrapMode2D) -> Float {
         // Compute discrete pixel coords and offsets for p
         let x = p.x() * self.resolution.x() as Float - 0.5;
@@ -94,20 +122,88 @@ impl Image {
         }
     }
 
-    pub fn write(&self, path: &Path, _metadata: &ImageMetadata) -> exr::error::UnitResult {
-        assert_eq!(path.extension().unwrap(), "exr");
-        self.write_exr(path)
+    pub fn write(&self, path: &Path, _metadata: &ImageMetadata) -> image::error::ImageResult<()> {
+        // TODO: Use metadata
+
+        let _ = path
+            .extension()
+            .and_then(|osstr| osstr.to_str())
+            .and_then(|s| ImageExtension::from_str(s).ok())
+            .expect("Image write path should have supported file extension");
+
+        // Color format that the image values should be written as, determined below
+        let color_type;
+        // Ref to image to ultimately write out, which may not be self if it needs
+        // to be reordered
+        let mut img_to_write = self;
+        // Possibly needed to hold on to a new, reordered image.
+        let reordered_img;
+
+        match self.num_channels() {
+            3 => {
+                let desc = self.get_channel_desc(&["R", "G", "B"]);
+
+                if let Some(desc) = desc {
+                    // Reorder in R, G, B order
+                    reordered_img = self.select_channels(&desc).unwrap();
+                    img_to_write = &reordered_img;
+                } else {
+                    warn!(
+                        "Image has 3 channels, but they aren't 'R', 'G', 'B'. \
+                        Output file may not be as expected ({})",
+                        path.display()
+                    );
+                }
+
+                color_type = image::ColorType::Rgb32F;
+            }
+            4 => {
+                let desc = self.get_channel_desc(&["R", "G", "B", "A"]);
+
+                if let Some(desc) = desc {
+                    // Reorder in R, G, B, A order
+                    reordered_img = self.select_channels(&desc).unwrap();
+                    img_to_write = &reordered_img;
+                } else {
+                    warn!(
+                        "Image has 4 channels, but they aren't 'R', 'G', 'B', 'A'. \
+                        Output file may not be as expected ({})",
+                        path.display()
+                    );
+                }
+
+                color_type = image::ColorType::Rgba32F;
+            }
+            _ => todo!(),
+        }
+
+        image::save_buffer(
+            path,
+            img_to_write.values.as_bytes(),
+            img_to_write.resolution.x().try_into().unwrap(),
+            img_to_write.resolution.y().try_into().unwrap(),
+            color_type,
+        )
     }
 
-    pub fn write_exr(&self, path: &Path) -> exr::error::UnitResult {
-        write_rgb_file(path, self.resolution.x(), self.resolution.y(), |x, y| {
-            let pixel_idx = self.pixel_offset(Point2Usize::new(x, y));
-            (
-                self.values[pixel_idx],
-                self.values[pixel_idx + 1],
-                self.values[pixel_idx + 2],
-            )
-        })
+    pub fn select_channels(&self, desc: &ImageChannelDesc) -> Option<Self> {
+        let new_channel_names: Option<Vec<_>> = desc
+            .offsets
+            .iter()
+            .map(|i| self.channel_names.get(*i).cloned())
+            .collect();
+
+        let mut result = Self::new(self.resolution, new_channel_names?);
+        for (x, y) in iproduct!(0..self.resolution.x(), 0..self.resolution.y()) {
+            let p = Point2Usize::new(x, y);
+            let self_offset = self.pixel_offset(p);
+            let result_offset = result.pixel_offset(p);
+            for i in 0..desc.offsets.len() {
+                result.values[result_offset + i] = self.values[self_offset + desc.offsets[i]];
+            }
+        }
+
+        Some(result)
     }
 
     pub fn resolution(&self) -> Point2Usize {
@@ -186,6 +282,7 @@ pub enum WrapMode {
 
 pub type WrapMode2D = [WrapMode; 2];
 
+#[derive(Debug)]
 pub struct ImageChannelDesc {
     pub offsets: ArrayVec<[usize; 4]>,
 }
@@ -198,3 +295,5 @@ impl ImageChannelDesc {
             .all(|(i, &offset)| i == offset)
     }
 }
+
+pub struct ImageChannelValues(pub ArrayVec<[Float; 4]>);

@@ -19,9 +19,9 @@ derive_more = { version = "2.0.1", features = ["add", "add_assign", "mul", "mul_
 enum-as-inner = "0.6.0"
 enum_dispatch = "0.3.13"
 env_logger = "0.11.5"
-exr = "1.72.0"
 glam = { version = "0.30.4", optional = true, features = ["bytemuck"] }
 hashbrown = "0.15.4"
+image = "0.25.6"
 indicatif = { version = "0.17.8", features = ["rayon"] }
 inherent = "1.0.11"
 internment = { version = "0.8.4", optional = true, features = ["arc"] }

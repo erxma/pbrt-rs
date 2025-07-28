@@ -2,13 +2,16 @@ use std::{cell::OnceCell, collections::HashMap, io::Read};
 
 use uuid::Uuid;
 
-use crate::{core::Transform, scene_parsing::directives::MaterialDesc};
+use crate::{
+    core::Transform,
+    scene_parsing::directives::{AreaLightDesc, MaterialDesc},
+};
 
 use super::{
     common::{directive, Directive, FromEntity, GraphicsState, PbrtParseError},
     directives::{
         Accelerator, Camera, ColorSpace, Film, Filter, FromTextureDirective as _, Integrator,
-        Light, Sampler, ShapeDesc, TextureDesc,
+        LightDesc, Sampler, ShapeDesc, TextureDesc,
     },
 };
 
@@ -73,7 +76,8 @@ impl OptionsBuilder {
 #[derive(Debug, Default)]
 pub struct World {
     pub shapes: Vec<ShapeDesc>,
-    pub lights: Vec<Light>,
+    pub lights: Vec<LightDesc>,
+    pub area_light_shapes: Vec<(AreaLightDesc, Vec<ShapeDesc>)>,
     pub textures: HashMap<String, TextureDesc>,
     pub materials: HashMap<String, MaterialDesc>,
 }
@@ -226,10 +230,24 @@ fn parse_world_section(
         match directive {
             Directive::Entity(entity) => match entity.identifier {
                 "Shape" => {
-                    world.shapes.push(ShapeDesc::from_entity(entity, &state)?);
+                    let shape = ShapeDesc::from_entity(entity, &state)?;
+                    if let Some(light_i) = state.current_area_light_index {
+                        world.area_light_shapes[light_i].1.push(shape);
+                    } else {
+                        world.shapes.push(shape);
+                    }
                 }
                 "LightSource" => {
-                    world.lights.push(Light::from_entity(entity, &state)?);
+                    world.lights.push(LightDesc::from_entity(entity, &state)?);
+                }
+                "AreaLightSource" => {
+                    // Create area light desc
+                    let area_light_desc = AreaLightDesc::from_entity(entity, &state)?;
+                    // Create entry for it
+                    world.area_light_shapes.push((area_light_desc, Vec::new()));
+                    // Set its index as current, so later shapes in scope
+                    // can be added to the entry
+                    state.current_area_light_index = Some(world.area_light_shapes.len() - 1);
                 }
                 "Material" => {
                     // Convert to material description

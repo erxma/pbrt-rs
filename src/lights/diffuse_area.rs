@@ -41,16 +41,16 @@ pub struct DiffuseAreaLight {
 }
 
 // Used for construction
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum AreaLightEmission<'a> {
-    Image(Image),
+    Image(Arc<Image>),
     Uniform(&'a SpectrumEnum),
 }
 
 // The stored type
 #[derive(Debug)]
 enum Emission {
-    Image(Image),
+    Image(Arc<Image>),
     Uniform(ArcIntern<DenselySampledSpectrum>),
 }
 

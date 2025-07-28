@@ -3,6 +3,7 @@ use crate::{
         Bounds3f, Float, MediumInteraction, Normal3f, Point2f, Point3f, Point3fi, Ray,
         SurfaceInteraction, Vec3f,
     },
+    lights::DiffuseAreaLight,
     media::MediumInterface,
     memory::{ArcIntern, ArcInternCache},
     sampling::spectrum::{DenselySampledSpectrum, SampledSpectrum, SampledWavelengths, Spectrum},
@@ -19,6 +20,7 @@ pub enum LightEnum {
     Point(PointLight),
     Directional(DirectionalLight),
     UniformInfinite(UniformInfiniteLight),
+    DiffuseArea(DiffuseAreaLight),
 }
 
 impl LightEnum {

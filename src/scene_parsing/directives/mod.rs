@@ -17,7 +17,7 @@ pub(super) use color_spaces::ColorSpace;
 pub(super) use film::{Film, SensorName};
 pub(super) use filters::Filter;
 pub(super) use integrators::Integrator;
-pub(super) use lights::Light;
+pub(super) use lights::{AreaLightDesc, EmissionDesc, LightDesc};
 pub(super) use materials::MaterialDesc;
 pub(super) use samplers::Sampler;
 pub(super) use shapes::ShapeDesc;

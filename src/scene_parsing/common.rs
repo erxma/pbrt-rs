@@ -552,6 +552,7 @@ pub struct GraphicsState {
     pub current_transform: Transform,
     pub current_material_name: Option<String>,
     pub reverse_orientation: bool,
+    pub current_area_light_index: Option<usize>,
 }
 
 impl Default for GraphicsState {
@@ -560,6 +561,7 @@ impl Default for GraphicsState {
             current_transform: Transform::IDENTITY,
             current_material_name: None,
             reverse_orientation: false,
+            current_area_light_index: None,
         }
     }
 }

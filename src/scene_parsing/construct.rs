@@ -16,16 +16,21 @@ use crate::{
     },
     color::{RGBColorSpace, SRGB},
     core::{constants::PI, Bounds2i, Float, Point2i, Point3f, Transform, Vec2f, Vec3f},
-    imaging::{BoxFilter, FilterEnum, GaussianFilter, TriangleFilter},
+    imaging::{BoxFilter, FilterEnum, GaussianFilter, Image, TriangleFilter},
     integrators::{IntegratorEnum, PathIntegrator, RandomWalkIntegrator, SimplePathIntegrator},
-    lights::{DirectionalLight, LightEnum, UniformInfiniteLight},
+    lights::{
+        AreaLightEmission, DiffuseAreaLight, DirectionalLight, LightEnum, UniformInfiniteLight,
+    },
     materials::{
         CheckerboardFloatTexture, CheckerboardSpectrumTexture, ConstantFloatTexture,
         ConstantSpectrumTexture, DielectricMaterial, DiffuseMaterial, FloatTextureEnum,
         MaterialEnum, SpectrumTextureEnum, TextureEvalContext, TextureEvaluator,
         UniversalTextureEvaluator,
     },
-    primitives::{BVHAggregate, Primitive as _, PrimitiveEnum, SimplePrimitive},
+    media::MediumInterface,
+    primitives::{
+        BVHAggregate, GeometricPrimitive, Primitive as _, PrimitiveEnum, SimplePrimitive,
+    },
     sampling::{
         spectrum::{
             self, BlackbodySpectrum, ConstantSpectrum, RgbAlbedoSpectrum, RgbIlluminantSpectrum,
@@ -34,12 +39,15 @@ use crate::{
         IndependentSampler, SamplerEnum, StratifiedSampler,
     },
     scene_parsing::{
-        directives::{Accelerator, FloatTextureDesc, MaterialDesc, ShapeDesc, SpectrumTextureDesc},
+        directives::{
+            Accelerator, AreaLightDesc, EmissionDesc, FloatTextureDesc, MaterialDesc, ShapeDesc,
+            SpectrumTextureDesc,
+        },
         scene::parse_pbrt_file,
     },
     shapes::{
-        BilinearPatch, BilinearPatchMesh, FromPlyError, ShapeEnum, Sphere, TriQuadMesh, Triangle,
-        TriangleMesh,
+        BilinearPatch, BilinearPatchMesh, FromPlyError, Shape, ShapeEnum, Sphere, TriQuadMesh,
+        Triangle, TriangleMesh,
     },
     util::error::BuilderError,
 };
@@ -47,8 +55,8 @@ use crate::{
 use super::{
     common::{PbrtParseError, Spectrum as SpectrumDesc},
     directives::{
-        Camera as CameraDesc, ColorSpace, Film as FilmDesc, Filter, Integrator, Light as LightDesc,
-        Sampler, SensorName, TextureDesc,
+        Camera as CameraDesc, ColorSpace, Film as FilmDesc, Filter, Integrator, LightDesc, Sampler,
+        SensorName, TextureDesc,
     },
 };
 
@@ -64,33 +72,46 @@ pub fn create_scene_integrator(
     info!("Scene construction begin");
     let filter = create_filter(description.options.filter);
     let color_space = get_color_space(description.options.color_space);
-    let exposure_time = get_exposure_time(&description.options.camera);
     let film = create_film(
         description.options.film,
         filter,
         color_space,
-        exposure_time,
+        description.options.camera.exposure_time(),
         out_file,
     )?;
     let camera = create_camera(description.options.camera, film);
     let sampler = create_sampler(description.options.sampler);
 
-    let lights = create_lights(description.world.lights, &camera, color_space);
+    let mut lights = create_lights(description.world.lights, &camera, color_space);
 
     let mut textures = Textures {
         uncreated_descs: description.world.textures,
         ..Default::default()
     };
+
     let mut meshes = Meshes::default();
     let materials = create_materials(description.world.materials, color_space, &mut textures)?;
-    let primitives = create_primitives_for_shapes(
+    let mut primitives = create_primitives_for_shapes(
         description.world.shapes,
         &mut textures,
         &materials,
         &mut meshes,
         &camera,
     )?;
+
+    let (mut area_lights, mut area_light_prims) = create_area_lights_and_primitives(
+        description.world.area_light_shapes,
+        &mut textures,
+        &materials,
+        &mut meshes,
+        &camera,
+        color_space,
+    )?;
+    lights.append(&mut area_lights);
+    primitives.append(&mut area_light_prims);
+
     BilinearPatchMesh::init_mesh_data(meshes.bilinear_patches);
+    TriangleMesh::init_mesh_data(meshes.triangles);
 
     let aggregate = create_aggregate(description.options.accelerator, primitives);
     info!("Scene bounds: {}", aggregate.bounds());
@@ -113,6 +134,8 @@ pub enum ReadSceneError {
     ParseError(#[from] PbrtParseError),
     #[error("error during construct: {0}")]
     BuilderError(#[from] BuilderError),
+    #[error("error when loading images: {0}")]
+    ImageError(#[from] image::ImageError),
     #[error("texture `{name}` isn't valid for its usage, which expects {expected}")]
     TextureMismatch { name: String, expected: String },
     #[error("texture `{0}` is not defined")]
@@ -198,13 +221,6 @@ fn create_sensor(
         }
     };
     Ok(sensor)
-}
-
-fn get_exposure_time(desc: &CameraDesc) -> Float {
-    match desc {
-        CameraDesc::Orthographic(desc) => desc.shutter_close - desc.shutter_open,
-        CameraDesc::Perspective(desc) => desc.shutter_close - desc.shutter_open,
-    }
 }
 
 fn create_camera(desc: CameraDesc, film: Film) -> CameraEnum {
@@ -591,7 +607,7 @@ fn create_shape(
     textures: &mut Textures,
     all_meshes: &mut Meshes,
     camera: &impl Camera,
-) -> Result<Vec<ShapeEnum>, ReadSceneError> {
+) -> Result<Vec<Arc<ShapeEnum>>, ReadSceneError> {
     let mut shapes = Vec::new();
 
     match desc {
@@ -608,7 +624,7 @@ fn create_shape(
                 .reverse_orientation(desc.reverse_orientation)
                 .render_from_object(render_from_object)
                 .build()?;
-            shapes.push(Box::new(sphere).into());
+            shapes.push(Arc::new(Box::new(sphere).into()));
         }
         ShapeDesc::BilinearMesh(desc) => {
             let render_from_object = camera
@@ -630,7 +646,7 @@ fn create_shape(
             // For each patch in mesh, create a shape and push to shapes vec
             for blp_idx in 0..mesh.num_patches() {
                 let patch = BilinearPatch::new(&mesh, mesh_idx, blp_idx);
-                shapes.push(patch.into())
+                shapes.push(Arc::new(patch.into()));
             }
 
             // Finally, move mesh into vec of all
@@ -657,7 +673,7 @@ fn create_shape(
             // For each triangle in mesh, create a shape and push to shapes vec
             for tri_idx in 0..mesh.num_triangles() {
                 let triangle = Triangle::new(mesh_idx, tri_idx);
-                shapes.push(triangle.into())
+                shapes.push(Arc::new(triangle.into()));
             }
 
             // Finally, move mesh into vec of all
@@ -714,7 +730,7 @@ fn create_shape(
                 // For each triangle in mesh, create a shape and push to shapes vec
                 for tri_idx in 0..tri_mesh.num_triangles() {
                     let triangle = Triangle::new(mesh_idx, tri_idx);
-                    shapes.push(triangle.into())
+                    shapes.push(Arc::new(triangle.into()));
                 }
                 // Finally, move mesh into vec of all
                 all_meshes.triangles.push(tri_mesh);
@@ -736,7 +752,7 @@ fn create_shape(
                 // For each patch in mesh, create a shape and push to shapes vec
                 for blp_idx in 0..quad_mesh.num_patches() {
                     let patch = BilinearPatch::new(&quad_mesh, mesh_idx, blp_idx);
-                    shapes.push(patch.into())
+                    shapes.push(Arc::new(patch.into()));
                 }
 
                 // Finally, move mesh into vec of all
@@ -758,14 +774,14 @@ fn create_primitives_for_shapes(
     let mut primitives = Vec::new();
 
     for shape_desc in shape_descs {
-        let shapes = create_shape(shape_desc.clone(), textures, all_meshes, camera)?;
-
         let material =
             materials
                 .get(shape_desc.material_name())
                 .ok_or(ReadSceneError::UndefinedMaterial(
                     shape_desc.material_name().to_owned(),
                 ))?;
+
+        let shapes = create_shape(shape_desc, textures, all_meshes, camera)?;
 
         // TODO: Currently not supporting any options that would necessitate a GeometricPrimitive
 
@@ -777,6 +793,104 @@ fn create_primitives_for_shapes(
     }
 
     Ok(primitives)
+}
+
+fn create_area_lights_and_primitives(
+    descs: Vec<(AreaLightDesc, Vec<ShapeDesc>)>,
+    textures: &mut Textures,
+    materials: &HashMap<String, Arc<MaterialEnum>>,
+    all_meshes: &mut Meshes,
+    camera: &impl Camera,
+    color_space: &'static RGBColorSpace,
+) -> Result<(Vec<Arc<LightEnum>>, Vec<Arc<PrimitiveEnum>>), ReadSceneError> {
+    let mut lights = Vec::new();
+    let mut primitives = Vec::new();
+
+    for (light_desc, shape_descs) in descs {
+        let emission;
+        let emission_spec;
+        let mut scale;
+        let power;
+        let two_sided;
+        match &light_desc {
+            AreaLightDesc::Diffuse(desc) => {
+                match &desc.emission {
+                    Some(EmissionDesc::ImageFile(path)) => {
+                        emission = AreaLightEmission::Image(Arc::new(Image::read(path, None)?));
+                        scale = desc.scale / color_space.illuminant.to_photometric();
+                    }
+                    Some(EmissionDesc::Spectrum(spec_desc)) => {
+                        emission_spec =
+                            create_spectrum(spec_desc.clone(), SpectrumType::Illuminant, &SRGB)
+                                .unwrap();
+                        scale = desc.scale / emission_spec.to_photometric();
+                        emission = AreaLightEmission::Uniform(&emission_spec);
+                    }
+                    None => {
+                        emission = AreaLightEmission::Uniform(&color_space.illuminant);
+                        scale = desc.scale / color_space.illuminant.to_photometric();
+                    }
+                }
+
+                power = desc.power;
+                two_sided = desc.two_sided;
+            }
+        };
+
+        for shape_desc in shape_descs {
+            let material = materials.get(shape_desc.material_name()).ok_or(
+                ReadSceneError::UndefinedMaterial(shape_desc.material_name().to_owned()),
+            )?;
+            let shapes = create_shape(shape_desc, textures, all_meshes, camera)?;
+
+            for shape_arc in shapes {
+                if let Some(phi_v) = power {
+                    // k_e is the emissive power of the light as defined
+                    // by the spectral distribution and texture,
+                    // used to normalize the emitted radiance such that
+                    // the user-defined power will be the actual power emitted
+                    let mut k_e = 1.0;
+                    if let AreaLightEmission::Image(_) = &emission {
+                        todo!("use luminance vector from image color space")
+                    }
+
+                    if two_sided {
+                        k_e *= 2.0;
+                    }
+                    k_e *= shape_arc.area() * PI;
+
+                    scale *= phi_v / k_e;
+                }
+
+                let mi = MediumInterface {
+                    inside: None,
+                    outside: None,
+                };
+
+                let light = match &light_desc {
+                    AreaLightDesc::Diffuse(light_desc) => {
+                        DiffuseAreaLight::builder()
+                            // TODO: Use alpha, medium interface, image_color_space options once supported
+                            .shape(shape_arc.clone())
+                            .emission(emission.clone())
+                            .scale(scale)
+                            .two_sided(light_desc.two_sided)
+                            .image_color_space(color_space)
+                            .medium_interface(mi.clone())
+                            .build()?
+                    }
+                };
+                let light_arc: Arc<LightEnum> = Arc::new(light.into());
+                lights.push(light_arc.clone());
+
+                let primitive =
+                    GeometricPrimitive::new(shape_arc, material.clone(), Some(light_arc), mi);
+                primitives.push(Arc::new(primitive.into()));
+            }
+        }
+    }
+
+    Ok((lights, primitives))
 }
 
 fn create_aggregate(desc: Accelerator, primitives: Vec<Arc<PrimitiveEnum>>) -> PrimitiveEnum {

@@ -12,7 +12,7 @@ use super::Primitive;
 
 #[derive(Debug)]
 pub struct GeometricPrimitive {
-    shape: ShapeEnum,
+    shape: Arc<ShapeEnum>,
     material: Arc<MaterialEnum>,
     area_light: Option<Arc<LightEnum>>,
     medium_interface: MediumInterface,
@@ -21,7 +21,7 @@ pub struct GeometricPrimitive {
 
 impl GeometricPrimitive {
     pub fn new(
-        shape: ShapeEnum,
+        shape: Arc<ShapeEnum>,
         material: Arc<MaterialEnum>,
         area_light: Option<Arc<LightEnum>>,
         medium_interface: MediumInterface,
@@ -71,12 +71,12 @@ impl Primitive for GeometricPrimitive {
 
 #[derive(Clone, Debug)]
 pub struct SimplePrimitive {
-    shape: ShapeEnum,
+    shape: Arc<ShapeEnum>,
     material: Arc<MaterialEnum>,
 }
 
 impl SimplePrimitive {
-    pub fn new(shape: ShapeEnum, material: Arc<MaterialEnum>) -> Self {
+    pub fn new(shape: Arc<ShapeEnum>, material: Arc<MaterialEnum>) -> Self {
         Self { shape, material }
     }
 }

@@ -42,6 +42,13 @@ impl Camera {
             }
         }
     }
+
+    pub fn exposure_time(&self) -> Float {
+        match self {
+            Self::Orthographic(desc) => desc.shutter_close - desc.shutter_open,
+            Self::Perspective(desc) => desc.shutter_close - desc.shutter_open,
+        }
+    }
 }
 
 impl Default for Camera {

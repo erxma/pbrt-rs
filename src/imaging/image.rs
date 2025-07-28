@@ -1,8 +1,10 @@
 use crate::{
     color::RGBColorSpace,
     core::{Float, Point2Isize, Point2Usize, Point2f},
+    imaging::ColorEncodingEnum,
 };
 use delegate::delegate;
+use image::{DynamicImage, ImageReader};
 use std::path::Path;
 use strum::{EnumString, VariantNames};
 use tinyvec::ArrayVec;
@@ -44,11 +46,15 @@ impl Image {
         }
     }
 
-    pub fn write(&self, path: &Path, metadata: &ImageMetadata) -> image::error::ImageResult<()> {
+    pub fn write(
+        &self,
+        path: impl AsRef<Path>,
+        metadata: &ImageMetadata,
+    ) -> image::error::ImageResult<()> {
         match &self.0 {
-            inner::ImageEnum::U8(image) => image.write(path, metadata),
+            inner::ImageEnum::U8(image) => image.write(path.as_ref(), metadata),
             inner::ImageEnum::F16(_) => todo!(),
-            inner::ImageEnum::F32(image) => image.write(path, metadata),
+            inner::ImageEnum::F32(image) => image.write(path.as_ref(), metadata),
         }
     }
 
@@ -60,6 +66,49 @@ impl Image {
         };
 
         inner.map(Self)
+    }
+
+    pub fn read(
+        path: impl AsRef<Path>,
+        color_encoding: Option<ColorEncodingEnum>,
+    ) -> image::error::ImageResult<Self> {
+        let img = ImageReader::open(path)?.decode()?;
+
+        let resolution = Point2Usize::new(img.width() as usize, img.height() as usize);
+
+        let inner: inner::ImageEnum = match img {
+            DynamicImage::ImageLuma8(img_buf) => {
+                let values = img_buf.into_flat_samples().samples;
+                inner::Image::with_values(resolution, ["Y"], color_encoding, values).into()
+            }
+            DynamicImage::ImageLumaA8(img_buf) => {
+                let values = img_buf.into_flat_samples().samples;
+                inner::Image::with_values(resolution, ["Y", "A"], color_encoding, values).into()
+            }
+            DynamicImage::ImageRgb8(img_buf) => {
+                let values = img_buf.into_flat_samples().samples;
+                inner::Image::with_values(resolution, ["R", "G", "B"], color_encoding, values)
+                    .into()
+            }
+            DynamicImage::ImageRgba8(img_buf) => {
+                let values = img_buf.into_flat_samples().samples;
+                inner::Image::with_values(resolution, ["R", "G", "B", "A"], color_encoding, values)
+                    .into()
+            }
+            DynamicImage::ImageRgb32F(img_buf) => {
+                let values = img_buf.into_flat_samples().samples;
+                inner::Image::with_values(resolution, ["R", "G", "B"], color_encoding, values)
+                    .into()
+            }
+            DynamicImage::ImageRgba32F(img_buf) => {
+                let values = img_buf.into_flat_samples().samples;
+                inner::Image::with_values(resolution, ["R", "G", "B", "A"], color_encoding, values)
+                    .into()
+            }
+            _ => todo!(),
+        };
+
+        Ok(Self(inner))
     }
 }
 
@@ -79,11 +128,11 @@ mod inner {
 
     #[derive(Debug)]
     pub(super) struct Image<T> {
-        resolution: Point2Usize,
-        channel_names: Vec<String>,
-        color_encoding: Option<ColorEncodingEnum>,
+        pub(super) resolution: Point2Usize,
+        pub(super) channel_names: Vec<String>,
+        pub(super) color_encoding: Option<ColorEncodingEnum>,
 
-        values: Vec<T>,
+        pub(super) values: Vec<T>,
     }
 
     #[derive(Debug, derive_more::From)]
@@ -106,6 +155,21 @@ mod inner {
                 channel_names,
                 color_encoding,
                 values: vec![T::zero(); num_channels * resolution.x() * resolution.y()],
+            }
+        }
+
+        pub fn with_values(
+            resolution: Point2Usize,
+            channel_names: impl IntoIterator<Item = impl Into<String>>,
+            color_encoding: Option<ColorEncodingEnum>,
+            values: Vec<T>,
+        ) -> Self {
+            let channel_names: Vec<_> = channel_names.into_iter().map(Into::into).collect();
+            Self {
+                resolution,
+                channel_names,
+                color_encoding,
+                values,
             }
         }
 

@@ -6,31 +6,31 @@ use crate::{
 };
 
 #[derive(Clone, Debug)]
-pub enum Integrator {
+pub enum IntegratorDesc {
     RandomWalk(RandomWalkIntegrator),
     SimplePath(SimplePathIntegrator),
     Path(PathIntegrator),
 }
 
-impl Default for Integrator {
+impl Default for IntegratorDesc {
     fn default() -> Self {
         // FIXME: Should be VolPath once it's available
         Self::RandomWalk(RandomWalkIntegrator::default())
     }
 }
 
-impl FromEntity for Integrator {
+impl FromEntity for IntegratorDesc {
     fn from_entity(entity: EntityDirective, state: &GraphicsState) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Integrator");
 
         match entity.subtype {
             "randomwalk" => {
-                RandomWalkIntegrator::from_entity(entity, state).map(Integrator::RandomWalk)
+                RandomWalkIntegrator::from_entity(entity, state).map(IntegratorDesc::RandomWalk)
             }
             "simplepath" => {
-                SimplePathIntegrator::from_entity(entity, state).map(Integrator::SimplePath)
+                SimplePathIntegrator::from_entity(entity, state).map(IntegratorDesc::SimplePath)
             }
-            "path" => PathIntegrator::from_entity(entity, state).map(Integrator::Path),
+            "path" => PathIntegrator::from_entity(entity, state).map(IntegratorDesc::Path),
             invalid_type => Err(PbrtParseError::UnrecognizedVariant {
                 entity: "Integrator".to_string(),
                 variant_name: invalid_type.to_owned(),

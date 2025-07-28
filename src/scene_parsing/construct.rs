@@ -10,54 +10,27 @@ use log::info;
 use thiserror::Error;
 
 use crate::{
-    camera::{
-        Camera, CameraEnum, Film, OrthographicCamera, PerspectiveCamera, PixelSensor, RGBFilm,
-        RGBFilmParams,
-    },
+    camera::*,
     color::{RGBColorSpace, SRGB},
-    core::{constants::PI, Bounds2i, Float, Point2i, Point3f, Transform, Vec2f, Vec3f},
+    core::{common::*, constants::PI},
     imaging::{BoxFilter, FilterEnum, GaussianFilter, Image, TriangleFilter},
-    integrators::{IntegratorEnum, PathIntegrator, RandomWalkIntegrator, SimplePathIntegrator},
-    lights::{
-        AreaLightEmission, DiffuseAreaLight, DirectionalLight, LightEnum, UniformInfiniteLight,
-    },
-    materials::{
-        CheckerboardFloatTexture, CheckerboardSpectrumTexture, ConstantFloatTexture,
-        ConstantSpectrumTexture, DielectricMaterial, DiffuseMaterial, FloatTextureEnum,
-        MaterialEnum, SpectrumTextureEnum, TextureEvalContext, TextureEvaluator,
-        UniversalTextureEvaluator,
-    },
+    integrators::*,
+    lights::*,
+    materials::*,
     media::MediumInterface,
-    primitives::{
-        BVHAggregate, GeometricPrimitive, Primitive as _, PrimitiveEnum, SimplePrimitive,
-    },
+    primitives::*,
     sampling::{
-        spectrum::{
-            self, BlackbodySpectrum, ConstantSpectrum, RgbAlbedoSpectrum, RgbIlluminantSpectrum,
-            RgbUnboundedSpectrum, SpectrumEnum,
-        },
+        spectrum::{self, *},
         IndependentSampler, SamplerEnum, StratifiedSampler,
     },
-    scene_parsing::{
-        directives::{
-            Accelerator, AreaLightDesc, EmissionDesc, FloatTextureDesc, MaterialDesc, ShapeDesc,
-            SpectrumTextureDesc,
-        },
-        scene::parse_pbrt_file,
-    },
-    shapes::{
-        BilinearPatch, BilinearPatchMesh, FromPlyError, Shape, ShapeEnum, Sphere, TriQuadMesh,
-        Triangle, TriangleMesh,
-    },
+    shapes::*,
     util::error::BuilderError,
 };
 
 use super::{
-    common::{PbrtParseError, Spectrum as SpectrumDesc},
-    directives::{
-        Camera as CameraDesc, ColorSpace, Film as FilmDesc, Filter, Integrator, LightDesc, Sampler,
-        SensorName, TextureDesc,
-    },
+    common::{PbrtParseError, SpectrumDesc},
+    directives::*,
+    scene::parse_pbrt_file,
 };
 
 pub fn create_scene_integrator(
@@ -99,7 +72,7 @@ pub fn create_scene_integrator(
         &camera,
     )?;
 
-    let (mut area_lights, mut area_light_prims) = create_area_lights_and_primitives(
+    let mut area_light_products = create_area_lights_and_primitives(
         description.world.area_light_shapes,
         &mut textures,
         &materials,
@@ -107,8 +80,8 @@ pub fn create_scene_integrator(
         &camera,
         color_space,
     )?;
-    lights.append(&mut area_lights);
-    primitives.append(&mut area_light_prims);
+    lights.append(&mut area_light_products.lights);
+    primitives.append(&mut area_light_products.primitives);
 
     BilinearPatchMesh::init_mesh_data(meshes.bilinear_patches);
     TriangleMesh::init_mesh_data(meshes.triangles);
@@ -146,21 +119,21 @@ pub enum ReadSceneError {
     PlyError(#[from] FromPlyError),
 }
 
-fn create_filter(desc: Filter) -> FilterEnum {
+fn create_filter(desc: FilterDesc) -> FilterEnum {
     match desc {
-        Filter::Box(desc) => BoxFilter::new(Vec2f::new(desc.x_radius, desc.y_radius)).into(),
-        Filter::Gaussian(desc) => {
+        FilterDesc::Box(desc) => BoxFilter::new(Vec2f::new(desc.x_radius, desc.y_radius)).into(),
+        FilterDesc::Gaussian(desc) => {
             GaussianFilter::new(Vec2f::new(desc.x_radius, desc.y_radius), desc.std).into()
         }
-        Filter::Triangle(desc) => {
+        FilterDesc::Triangle(desc) => {
             TriangleFilter::new(Vec2f::new(desc.x_radius, desc.y_radius)).into()
         }
     }
 }
 
-fn get_color_space(desc: ColorSpace) -> &'static RGBColorSpace {
+fn get_color_space(desc: ColorSpaceDesc) -> &'static RGBColorSpace {
     match desc {
-        ColorSpace::Srgb => &SRGB,
+        ColorSpaceDesc::Srgb => &SRGB,
     }
 }
 
@@ -248,12 +221,12 @@ fn create_camera(desc: CameraDesc, film: Film) -> CameraEnum {
     }
 }
 
-fn create_sampler(desc: Sampler) -> SamplerEnum {
+fn create_sampler(desc: SamplerDesc) -> SamplerEnum {
     match desc {
-        Sampler::Independent(desc) => {
+        SamplerDesc::Independent(desc) => {
             IndependentSampler::new(desc.pixel_samples, Some(desc.seed)).into()
         }
-        Sampler::Stratified(desc) => {
+        SamplerDesc::Stratified(desc) => {
             StratifiedSampler::new(desc.x_samples, desc.y_samples, desc.jitter, Some(desc.seed))
                 .into()
         }
@@ -261,17 +234,17 @@ fn create_sampler(desc: Sampler) -> SamplerEnum {
 }
 
 fn create_integrator(
-    desc: Integrator,
+    desc: IntegratorDesc,
     camera: CameraEnum,
     sampler: SamplerEnum,
     aggregate: PrimitiveEnum,
     lights: Vec<Arc<LightEnum>>,
 ) -> IntegratorEnum {
     match desc {
-        Integrator::RandomWalk(desc) => {
+        IntegratorDesc::RandomWalk(desc) => {
             RandomWalkIntegrator::new(desc.max_depth, camera, sampler, aggregate, lights).into()
         }
-        Integrator::SimplePath(desc) => SimplePathIntegrator::new(
+        IntegratorDesc::SimplePath(desc) => SimplePathIntegrator::new(
             desc.max_depth,
             desc.sample_lights,
             desc.sample_bsdf,
@@ -281,7 +254,7 @@ fn create_integrator(
             lights,
         )
         .into(),
-        Integrator::Path(desc) => PathIntegrator::new(
+        IntegratorDesc::Path(desc) => PathIntegrator::new(
             desc.max_depth,
             desc.regularize,
             camera,
@@ -795,6 +768,11 @@ fn create_primitives_for_shapes(
     Ok(primitives)
 }
 
+struct AreaLightProducts {
+    lights: Vec<Arc<LightEnum>>,
+    primitives: Vec<Arc<PrimitiveEnum>>,
+}
+
 fn create_area_lights_and_primitives(
     descs: Vec<(AreaLightDesc, Vec<ShapeDesc>)>,
     textures: &mut Textures,
@@ -802,7 +780,7 @@ fn create_area_lights_and_primitives(
     all_meshes: &mut Meshes,
     camera: &impl Camera,
     color_space: &'static RGBColorSpace,
-) -> Result<(Vec<Arc<LightEnum>>, Vec<Arc<PrimitiveEnum>>), ReadSceneError> {
+) -> Result<AreaLightProducts, ReadSceneError> {
     let mut lights = Vec::new();
     let mut primitives = Vec::new();
 
@@ -890,15 +868,15 @@ fn create_area_lights_and_primitives(
         }
     }
 
-    Ok((lights, primitives))
+    Ok(AreaLightProducts { lights, primitives })
 }
 
-fn create_aggregate(desc: Accelerator, primitives: Vec<Arc<PrimitiveEnum>>) -> PrimitiveEnum {
+fn create_aggregate(desc: AcceleratorDesc, primitives: Vec<Arc<PrimitiveEnum>>) -> PrimitiveEnum {
     match desc {
-        Accelerator::Bvh(desc) => {
+        AcceleratorDesc::Bvh(desc) => {
             BVHAggregate::new(primitives, desc.max_node_prims, desc.split_method).into()
         }
-        Accelerator::KdTree(_) => unimplemented!(),
+        AcceleratorDesc::KdTree(_) => unimplemented!(),
     }
 }
 

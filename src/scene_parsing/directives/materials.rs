@@ -3,7 +3,7 @@ use crate::{
     scene_parsing::{
         common::{
             impl_from_entity, params_map_to_fields, EntityDirective, FromEntity, GraphicsState,
-            PbrtParseError, Spectrum,
+            PbrtParseError, SpectrumDesc,
         },
         directives::{
             textures::{ConstantFloatTexture, ConstantSpectrumTexture},
@@ -59,7 +59,7 @@ pub struct DielectricMaterial {
     pub u_roughness: Option<FloatTextureDesc>,
     pub v_roughness: Option<FloatTextureDesc>,
     pub remap_roughness: bool,
-    pub eta: Spectrum,
+    pub eta: SpectrumDesc,
 }
 
 impl Default for DielectricMaterial {
@@ -69,7 +69,7 @@ impl Default for DielectricMaterial {
             u_roughness: Some(ConstantFloatTexture { value: 0.0 }.into()),
             v_roughness: Some(ConstantFloatTexture { value: 0.0 }.into()),
             remap_roughness: true,
-            eta: Spectrum::Constant(1.5),
+            eta: SpectrumDesc::Constant(1.5),
         }
     }
 }

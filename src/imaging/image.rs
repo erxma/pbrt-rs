@@ -122,7 +122,7 @@ mod inner {
     use image::EncodableLayout;
     use itertools::iproduct;
     use log::warn;
-    use num_traits::Num;
+    use num_traits::{AsPrimitive, Num};
     use std::{path::Path, str::FromStr as _};
     use tinyvec::ArrayVec;
 
@@ -216,7 +216,7 @@ mod inner {
                     self.values
                         .get(pixel_offset..pixel_offset + self.num_channels())
                         .expect("remapping should have placed point within bounds")
-                        .into_iter()
+                        .iter()
                         .map(|v| v.to_linear(self.color_encoding.as_ref())),
                 );
             }
@@ -449,7 +449,7 @@ mod inner {
         }
 
         fn from_linear(value: Float, _encoding: Option<&impl ColorEncoding>) -> Self {
-            value as f32
+            value.as_()
         }
     }
 }

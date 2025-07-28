@@ -6,26 +6,26 @@ use crate::{
 };
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Filter {
+pub enum FilterDesc {
     Box(BoxFilter),
     Gaussian(GaussianFilter),
     Triangle(TriangleFilter),
 }
 
-impl Default for Filter {
+impl Default for FilterDesc {
     fn default() -> Self {
         Self::Gaussian(GaussianFilter::default())
     }
 }
 
-impl FromEntity for Filter {
+impl FromEntity for FilterDesc {
     fn from_entity(entity: EntityDirective, state: &GraphicsState) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Filter");
 
         match entity.subtype {
-            "box" => BoxFilter::from_entity(entity, state).map(Filter::Box),
-            "gaussian" => GaussianFilter::from_entity(entity, state).map(Filter::Gaussian),
-            "triangle" => TriangleFilter::from_entity(entity, state).map(Filter::Triangle),
+            "box" => BoxFilter::from_entity(entity, state).map(FilterDesc::Box),
+            "gaussian" => GaussianFilter::from_entity(entity, state).map(FilterDesc::Gaussian),
+            "triangle" => TriangleFilter::from_entity(entity, state).map(FilterDesc::Triangle),
             invalid_type => Err(PbrtParseError::UnrecognizedVariant {
                 entity: "Filter".to_string(),
                 variant_name: invalid_type.to_owned(),

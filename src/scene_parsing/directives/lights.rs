@@ -4,7 +4,7 @@ use crate::{
     core::{Float, Point3f, Transform},
     scene_parsing::common::{
         impl_from_entity, params_map_to_fields, EntityDirective, FromEntity, GraphicsState,
-        PbrtParseError, Spectrum,
+        PbrtParseError, SpectrumDesc,
     },
 };
 
@@ -34,7 +34,7 @@ pub struct DirectionalLight {
     pub world_from_light: Transform,
     pub illuminance: Option<Float>,
     pub scale: Float,
-    pub radiance: Option<Spectrum>,
+    pub radiance: Option<SpectrumDesc>,
     pub from: Point3f,
     pub to: Point3f,
 }
@@ -70,7 +70,7 @@ pub struct InfiniteLight {
     pub scale: Float,
     // filename: PathBuf,
     // portal: [Point3f; 4];
-    pub radiance: Option<Spectrum>,
+    pub radiance: Option<SpectrumDesc>,
 }
 
 impl Default for InfiniteLight {
@@ -133,7 +133,7 @@ impl Default for DiffuseAreaLight {
 #[derive(Clone, Debug, PartialEq)]
 pub enum EmissionDesc {
     ImageFile(PathBuf),
-    Spectrum(Spectrum),
+    Spectrum(SpectrumDesc),
 }
 
 impl FromEntity for DiffuseAreaLight {
@@ -188,7 +188,7 @@ mod test {
             )
             .unwrap(),
             LightDesc::Distant(DirectionalLight {
-                radiance: Some(Spectrum::Rgb(RGB::new(0.2, 0.6, 0.0))),
+                radiance: Some(SpectrumDesc::Rgb(RGB::new(0.2, 0.6, 0.0))),
                 from: Point3f::new(10.0, 12.0, 5.9),
                 ..Default::default()
             })

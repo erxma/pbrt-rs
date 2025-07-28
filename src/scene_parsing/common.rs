@@ -314,13 +314,13 @@ impl TryFrom<Value> for Alpha {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Spectrum {
+pub enum SpectrumDesc {
     Constant(Float),
     Rgb(RGB),
     BlackbodyTemp(Float),
 }
 
-impl TryFrom<Value> for Spectrum {
+impl TryFrom<Value> for SpectrumDesc {
     type Error = PbrtParseError;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
@@ -336,11 +336,11 @@ impl TryFrom<Value> for Spectrum {
     }
 }
 
-impl TryFrom<Value> for Option<Spectrum> {
+impl TryFrom<Value> for Option<SpectrumDesc> {
     type Error = PbrtParseError;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
-        Spectrum::try_from(value).map(Some)
+        SpectrumDesc::try_from(value).map(Some)
     }
 }
 

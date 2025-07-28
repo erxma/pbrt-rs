@@ -7,24 +7,24 @@ use crate::{
 };
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Accelerator {
+pub enum AcceleratorDesc {
     Bvh(BvhAggregate),
     KdTree(KdTreeAggregate),
 }
 
-impl Default for Accelerator {
+impl Default for AcceleratorDesc {
     fn default() -> Self {
         Self::Bvh(BvhAggregate::default())
     }
 }
 
-impl FromEntity for Accelerator {
+impl FromEntity for AcceleratorDesc {
     fn from_entity(entity: EntityDirective, state: &GraphicsState) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Accelerator");
 
         match entity.subtype {
-            "bvh" => BvhAggregate::from_entity(entity, state).map(Accelerator::Bvh),
-            "kdtree" => KdTreeAggregate::from_entity(entity, state).map(Accelerator::KdTree),
+            "bvh" => BvhAggregate::from_entity(entity, state).map(AcceleratorDesc::Bvh),
+            "kdtree" => KdTreeAggregate::from_entity(entity, state).map(AcceleratorDesc::KdTree),
             invalid_type => Err(PbrtParseError::UnrecognizedVariant {
                 entity: "Accelerator".to_string(),
                 variant_name: invalid_type.to_owned(),

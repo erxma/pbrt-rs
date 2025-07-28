@@ -10,7 +10,7 @@ use crate::{
     core::Float,
     materials::{PointTransformMapping, TextureMapping2DEnum, TextureMapping3DEnum, UvMapping},
     scene_parsing::common::{
-        param_map, params_map_to_fields, GraphicsState, ParameterMap, PbrtParseError, Spectrum,
+        param_map, params_map_to_fields, GraphicsState, ParameterMap, PbrtParseError, SpectrumDesc,
         Value,
     },
 };
@@ -238,14 +238,14 @@ const CONSTANT_FLOAT_TEXTURE_1: FloatTextureDesc =
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ConstantSpectrumTexture {
-    pub value: Spectrum,
+    pub value: SpectrumDesc,
 }
 
 impl ConstantSpectrumTexture {
     /// Create a texture of a constant RGB color.
     pub const fn with_rgb(rgb: RGB) -> Self {
         Self {
-            value: Spectrum::Rgb(rgb),
+            value: SpectrumDesc::Rgb(rgb),
         }
     }
 }

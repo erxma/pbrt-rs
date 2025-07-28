@@ -1,17 +1,17 @@
 use crate::scene_parsing::common::{EntityDirective, FromEntity, GraphicsState, PbrtParseError};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ColorSpace {
+pub enum ColorSpaceDesc {
     Srgb,
 }
 
-impl Default for ColorSpace {
+impl Default for ColorSpaceDesc {
     fn default() -> Self {
         Self::Srgb
     }
 }
 
-impl FromEntity for ColorSpace {
+impl FromEntity for ColorSpaceDesc {
     fn from_entity(
         entity: EntityDirective,
         _state: &GraphicsState,

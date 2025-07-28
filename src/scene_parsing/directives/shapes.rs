@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::{
-    core::{Float, Normal3f, Point2f, Point3f, Transform, Vec3f},
+    core::common::*,
     scene_parsing::common::{
         params_map_to_fields, Alpha, EntityDirective, FromEntity, GraphicsState, PbrtParseError,
         Value,

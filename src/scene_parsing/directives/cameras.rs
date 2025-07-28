@@ -5,18 +5,18 @@ use crate::{
     },
 };
 
-use super::Film;
+use super::FilmDesc;
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Camera {
+pub enum CameraDesc {
     Orthographic(OrthographicCamera),
     Perspective(PerspectiveCamera),
 }
 
-impl Camera {
-    pub fn update_with_film(&mut self, film_info: &Film) {
+impl CameraDesc {
+    pub fn update_with_film(&mut self, film_info: &FilmDesc) {
         match self {
-            Camera::Orthographic(cam) => {
+            CameraDesc::Orthographic(cam) => {
                 let aspect = *cam
                     .frame_aspect_ratio
                     .get_or_insert(film_info.aspect_ratio());
@@ -28,7 +28,7 @@ impl Camera {
                         .get_or_insert([-1.0, -aspect, 1.0, aspect]);
                 }
             }
-            Camera::Perspective(cam) => {
+            CameraDesc::Perspective(cam) => {
                 let aspect = *cam
                     .frame_aspect_ratio
                     .get_or_insert(film_info.aspect_ratio());
@@ -51,7 +51,7 @@ impl Camera {
     }
 }
 
-impl Default for Camera {
+impl Default for CameraDesc {
     fn default() -> Self {
         Self::Perspective(PerspectiveCamera {
             fov_degs: 90.0,
@@ -60,15 +60,17 @@ impl Default for Camera {
     }
 }
 
-impl FromEntity for Camera {
+impl FromEntity for CameraDesc {
     fn from_entity(entity: EntityDirective, state: &GraphicsState) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Camera");
 
         match entity.subtype {
             "orthographic" => {
-                OrthographicCamera::from_entity(entity, state).map(Camera::Orthographic)
+                OrthographicCamera::from_entity(entity, state).map(CameraDesc::Orthographic)
             }
-            "perspective" => PerspectiveCamera::from_entity(entity, state).map(Camera::Perspective),
+            "perspective" => {
+                PerspectiveCamera::from_entity(entity, state).map(CameraDesc::Perspective)
+            }
             "realistic" => todo!(),
             "spherical" => todo!(),
             invalid_type => Err(PbrtParseError::UnrecognizedVariant {
@@ -167,7 +169,7 @@ mod test {
     #[test]
     fn test_orthographic() {
         assert_eq!(
-            Camera::from_entity(
+            CameraDesc::from_entity(
                 entity_directive(
                     &mut r#"Camera "orthographic" "float shutteropen" 1.2 "float shutterclose" 2.4"#
                 )
@@ -175,7 +177,7 @@ mod test {
                 &Default::default()
             )
             .unwrap(),
-            Camera::Orthographic(OrthographicCamera {
+            CameraDesc::Orthographic(OrthographicCamera {
                 shutter_open: 1.2,
                 shutter_close: 2.4,
                 ..Default::default()

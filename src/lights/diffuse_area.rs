@@ -8,7 +8,7 @@ use ordered_float::NotNan;
 
 use crate::{
     color::{RGBColorSpace, RGB},
-    core::{constants::PI, Bounds3f, Float, Normal3f, Point2Usize, Point2f, Point3f, Ray, Vec3f},
+    core::{common::*, constants::PI},
     imaging::{Image, WrapMode},
     lights::{base::SpectrumCache, Light, LightLiSample, LightSampleContext, LightType},
     materials::{

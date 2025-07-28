@@ -11,30 +11,30 @@ use crate::{
 };
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Film {
+pub enum FilmDesc {
     Rgb(RgbFilm),
 }
 
-impl Film {
+impl FilmDesc {
     pub fn aspect_ratio(&self) -> Float {
         match self {
-            Film::Rgb(film) => film.x_resolution as Float / film.y_resolution as Float,
+            FilmDesc::Rgb(film) => film.x_resolution as Float / film.y_resolution as Float,
         }
     }
 }
 
-impl Default for Film {
+impl Default for FilmDesc {
     fn default() -> Self {
         Self::Rgb(RgbFilm::default())
     }
 }
 
-impl FromEntity for Film {
+impl FromEntity for FilmDesc {
     fn from_entity(entity: EntityDirective, state: &GraphicsState) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Film");
 
         match entity.subtype {
-            "rgb" => RgbFilm::from_entity(entity, state).map(Film::Rgb),
+            "rgb" => RgbFilm::from_entity(entity, state).map(FilmDesc::Rgb),
             invalid_type => Err(PbrtParseError::UnrecognizedVariant {
                 entity: "Film".to_string(),
                 variant_name: invalid_type.to_owned(),

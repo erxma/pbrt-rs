@@ -3,27 +3,29 @@ use crate::scene_parsing::common::{
 };
 
 #[derive(Clone, Debug)]
-pub enum Sampler {
+pub enum SamplerDesc {
     Independent(IndependentSampler),
     Stratified(StratifiedSampler),
 }
 
-impl Default for Sampler {
+impl Default for SamplerDesc {
     fn default() -> Self {
         // TODO: Should be ZSobol once it's available
         Self::Independent(IndependentSampler::default())
     }
 }
 
-impl FromEntity for Sampler {
+impl FromEntity for SamplerDesc {
     fn from_entity(entity: EntityDirective, state: &GraphicsState) -> Result<Self, PbrtParseError> {
         assert_eq!(entity.identifier, "Sampler");
 
         match entity.subtype {
             "independent" => {
-                IndependentSampler::from_entity(entity, state).map(Sampler::Independent)
+                IndependentSampler::from_entity(entity, state).map(SamplerDesc::Independent)
             }
-            "stratified" => StratifiedSampler::from_entity(entity, state).map(Sampler::Stratified),
+            "stratified" => {
+                StratifiedSampler::from_entity(entity, state).map(SamplerDesc::Stratified)
+            }
             "halton" | "paddedsobol" | "sobol" | "zsobol" => todo!(),
             invalid_type => Err(PbrtParseError::UnrecognizedVariant {
                 entity: "Sampler".to_string(),

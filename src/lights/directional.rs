@@ -1,7 +1,7 @@
 use std::sync::OnceLock;
 
 use crate::{
-    core::{constants::PI, Bounds3f, Float, Normal3f, Point2f, Point3f, Ray, Transform, Vec3f},
+    core::{common::*, constants::PI},
     memory::ArcIntern,
     sampling::spectrum::{DenselySampledSpectrum, SampledSpectrum, SampledWavelengths, Spectrum},
 };

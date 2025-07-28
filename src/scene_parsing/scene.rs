@@ -10,8 +10,8 @@ use crate::{
 use super::{
     common::{directive, Directive, FromEntity, GraphicsState, PbrtParseError},
     directives::{
-        Accelerator, Camera, ColorSpace, Film, Filter, FromTextureDirective as _, Integrator,
-        LightDesc, Sampler, ShapeDesc, TextureDesc,
+        AcceleratorDesc, CameraDesc, ColorSpaceDesc, FilmDesc, FilterDesc,
+        FromTextureDirective as _, IntegratorDesc, LightDesc, SamplerDesc, ShapeDesc, TextureDesc,
     },
 };
 
@@ -23,24 +23,24 @@ pub struct SceneDescription {
 
 #[derive(Debug)]
 pub struct Options {
-    pub camera: Camera,
-    pub sampler: Sampler,
-    pub color_space: ColorSpace,
-    pub film: Film,
-    pub filter: Filter,
-    pub integrator: Integrator,
-    pub accelerator: Accelerator,
+    pub camera: CameraDesc,
+    pub sampler: SamplerDesc,
+    pub color_space: ColorSpaceDesc,
+    pub film: FilmDesc,
+    pub filter: FilterDesc,
+    pub integrator: IntegratorDesc,
+    pub accelerator: AcceleratorDesc,
 }
 
 #[derive(Debug, Default)]
 struct OptionsBuilder {
-    camera: OnceCell<Camera>,
-    sampler: OnceCell<Sampler>,
-    color_space: OnceCell<ColorSpace>,
-    film: OnceCell<Film>,
-    filter: OnceCell<Filter>,
-    integrator: OnceCell<Integrator>,
-    accelerator: OnceCell<Accelerator>,
+    camera: OnceCell<CameraDesc>,
+    sampler: OnceCell<SamplerDesc>,
+    color_space: OnceCell<ColorSpaceDesc>,
+    film: OnceCell<FilmDesc>,
+    filter: OnceCell<FilterDesc>,
+    integrator: OnceCell<IntegratorDesc>,
+    accelerator: OnceCell<AcceleratorDesc>,
 }
 
 impl OptionsBuilder {
@@ -132,43 +132,43 @@ fn parse_options_section(
                 "Camera" => {
                     options_builder
                         .camera
-                        .set(Camera::from_entity(entity, &state)?)
+                        .set(CameraDesc::from_entity(entity, &state)?)
                         .map_err(|_| PbrtParseError::RepeatedDirective("Camera".to_string()))?;
                 }
                 "Sampler" => {
                     options_builder
                         .sampler
-                        .set(Sampler::from_entity(entity, &state)?)
+                        .set(SamplerDesc::from_entity(entity, &state)?)
                         .map_err(|_| PbrtParseError::RepeatedDirective("Sampler".to_string()))?;
                 }
                 "ColorSpace" => {
                     options_builder
                         .color_space
-                        .set(ColorSpace::from_entity(entity, &state)?)
+                        .set(ColorSpaceDesc::from_entity(entity, &state)?)
                         .map_err(|_| PbrtParseError::RepeatedDirective("ColorSpace".to_string()))?;
                 }
                 "Film" => {
                     options_builder
                         .film
-                        .set(Film::from_entity(entity, &state)?)
+                        .set(FilmDesc::from_entity(entity, &state)?)
                         .map_err(|_| PbrtParseError::RepeatedDirective("Film".to_string()))?;
                 }
                 "Filter" => {
                     options_builder
                         .filter
-                        .set(Filter::from_entity(entity, &state)?)
+                        .set(FilterDesc::from_entity(entity, &state)?)
                         .map_err(|_| PbrtParseError::RepeatedDirective("Filter".to_string()))?;
                 }
                 "Integrator" => {
                     options_builder
                         .integrator
-                        .set(Integrator::from_entity(entity, &state)?)
+                        .set(IntegratorDesc::from_entity(entity, &state)?)
                         .map_err(|_| PbrtParseError::RepeatedDirective("Integrator".to_string()))?;
                 }
                 "Accelerator" => {
                     options_builder
                         .accelerator
-                        .set(Accelerator::from_entity(entity, &state)?)
+                        .set(AcceleratorDesc::from_entity(entity, &state)?)
                         .map_err(|_| {
                             PbrtParseError::RepeatedDirective("Accelerator".to_string())
                         })?;

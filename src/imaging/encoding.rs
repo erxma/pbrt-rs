@@ -14,13 +14,13 @@ pub trait ColorEncoding {
 }
 
 #[enum_dispatch]
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum ColorEncodingEnum {
     Linear(LinearColorEncoding),
     Srgb(SrgbColorEncoding),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct LinearColorEncoding;
 
 impl ColorEncoding for LinearColorEncoding {
@@ -40,7 +40,7 @@ impl ColorEncoding for LinearColorEncoding {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct SrgbColorEncoding;
 
 impl ColorEncoding for SrgbColorEncoding {

@@ -1,5 +1,6 @@
 mod array2d;
 mod bounds;
+mod complex;
 pub mod constants;
 mod float;
 mod frame;
@@ -34,6 +35,7 @@ pub mod common {
 pub use common::*;
 
 pub use array2d::Array2D;
+pub use complex::Complex;
 pub use float::{exponent, next_float_down, next_float_up, CompensatedFloat};
 pub use frame::{Frame, FrameTransform};
 pub use interaction::{
